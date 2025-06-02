@@ -228,7 +228,7 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
                       if (newState && synthRef.current) synthRef.current.cancel();
                       setPaused(newState);
                     }}>
-                      {paused ? "Reprendre" : "Pause"}
+                        {paused ? "Reprendre" : "Pause"}
                     </Button>
               <Button onClick={() => {
                 clearInterval(intervalRef.current);
