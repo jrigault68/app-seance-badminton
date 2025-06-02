@@ -1,6 +1,5 @@
 export default {
-  name: "Séance récupération - Jour 1",
-  exercices: [
+  [
     {
       name: "Rouleau : quadriceps",
       duration: 120,
