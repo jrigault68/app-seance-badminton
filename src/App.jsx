@@ -115,7 +115,7 @@ export default function App() {
   }, [step]);
 
   useEffect(() => {
-    if (!transition || !exercices.length) return;
+    if (!transition || !exercices.length || paused) return;
     setTransitionLeft(transitionTime);
     intervalRef.current = setInterval(() => {
       setTransitionLeft((prev) => {
@@ -132,7 +132,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [transition]);
+  }, [transition, paused]);
 
   useEffect(() => {
     if (!isActive || timeLeft <= 0 || paused) return;
