@@ -20,21 +20,34 @@ export default function App() {
   const timerRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const [availableSeances, setAvailableSeances] = useState([]);
+  const [availableSeances, setAvailableSeances] = useState({});
+  const [selectedFolder, setSelectedFolder] = useState(null);
 
-  // Charger dynamiquement les fichiers dans /seances
   useEffect(() => {
     const context = import.meta.glob("./seances/**/*.js");
-    const paths = Object.keys(context);
-    setAvailableSeances(paths);
+    const entries = Object.entries(context);
+    const grouped = {};
+    for (const [path, loader] of entries) {
+      const cleanPath = path.replace("./seances/", "").replace(".js", "");
+      const [folder, name] = cleanPath.split("/");
+      if (!grouped[folder]) grouped[folder] = [];
+      grouped[folder].push({ name, path });
+    }
+    setAvailableSeances(grouped);
   }, []);
 
   const loadSeance = async (path) => {
     setLoading(true);
-    const module = await import(/* @vite-ignore */ `${path}`);
-    setExercices(module.default);
-    setSelectedPath(path);
-    setLoading(false);
+    try {
+      const module = await import(/* @vite-ignore */ `${path}`);
+      setExercices(module.default);
+      setSelectedPath(path);
+      setLoading(false);
+    } catch (err) {
+      console.error("Erreur de chargement :", err);
+      alert("Erreur : fichier non trouvé ou mal formaté");
+      setLoading(false);
+    }
   };
 
   const startRoutine = () => {
@@ -118,11 +131,22 @@ export default function App() {
         <Card>
           <CardContent className="space-y-4">
             <h1 className="text-xl font-bold">Choisis une séance :</h1>
-            {availableSeances.map((path, idx) => (
-              <Button key={idx} onClick={() => loadSeance(path)} className="w-full">
-                {path.replace("./seances/", "").replace(".js", "")}
-              </Button>
-            ))}
+            {!selectedFolder ? (
+              Object.keys(availableSeances).map((folder, idx) => (
+                <Button key={idx} onClick={() => setSelectedFolder(folder)} className="w-full">
+                  {folder}
+                </Button>
+              ))
+            ) : (
+              <>
+                <Button onClick={() => setSelectedFolder(null)} className="mb-4">← Retour</Button>
+                {availableSeances[selectedFolder].map((file, idx) => (
+                  <Button key={idx} onClick={() => loadSeance(file.path)} className="w-full">
+                    {file.name}
+                  </Button>
+                ))}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
