@@ -210,6 +210,7 @@ export default function App() {
                 speak("Début de l'exercice." + (exo.erreurs ? ` ${exo.erreurs}` : ""));
               }}>Passer</Button>
             </div>
+          </CardContent>
         </Card>
       </div>
     );
