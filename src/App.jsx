@@ -25,12 +25,13 @@ export default function App() {
 
   useEffect(() => {
     const context = import.meta.glob("./seances/**/*.js");
+    const entries = Object.entries(context);
     const grouped = {};
-    for (const [path, loader] of Object.entries(context)) {
+    for (const [path, loader] of entries) {
       const cleanPath = path.replace("./seances/", "").replace(".js", "");
       const [folder, name] = cleanPath.split("/");
       if (!grouped[folder]) grouped[folder] = [];
-      grouped[folder].push({ name, path, loader }); // Ajoute le loader ici
+      grouped[folder].push({ name, path, loader });
     }
     setAvailableSeances(grouped);
   }, []);
@@ -38,7 +39,8 @@ export default function App() {
   const loadSeance = async (path) => {
     setLoading(true);
     try {
-      const module = await availableSeances[selectedFolder].find(f => f.path === path).loader();
+      const file = availableSeances[selectedFolder].find(f => f.path === path);
+      const module = await file.loader();
       setExercices(module.default);
       setSelectedPath(path);
       setLoading(false);
@@ -47,6 +49,15 @@ export default function App() {
       alert("Erreur : fichier non trouvé ou mal formaté");
       setLoading(false);
     }
+  };
+
+  const resetToAccueil = () => {
+    setSelectedPath(null);
+    setStarted(false);
+    setStep(-1);
+    setFinished(false);
+    setExercices([]);
+    setStartTime(null);
   };
 
   const startRoutine = () => {
@@ -158,6 +169,7 @@ export default function App() {
       <div className="p-6 max-w-xl mx-auto">
         <Card>
           <CardContent className="space-y-4">
+            <Button onClick={resetToAccueil} className="mb-4">← Retour aux séances</Button>
             <h1 className="text-2xl font-bold text-blue-900">Séance sélectionnée</h1>
             <p><strong>Durée estimée :</strong> ~{minutes} min</p>
             <ul className="list-disc pl-5">
@@ -166,25 +178,6 @@ export default function App() {
               ))}
             </ul>
             <Button className="mt-4 w-full" onClick={startRoutine}>Démarrer la séance</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (transition && exercices[step]) {
-    return (
-      <div className="p-6 max-w-xl mx-auto">
-        <Card className="bg-orange-50 shadow-xl">
-          <CardContent className="space-y-4 text-center">
-            <h2 className="text-xl font-bold text-orange-700">Préparation du prochain exercice...</h2>
-            <Progress value={globalProgress} max={100} className="h-1 mb-2 bg-orange-200" />
-            <p className="text-lg font-semibold">{exo.name}</p>
-            <p><strong>Description :</strong> {exo.description}</p>
-            <p><strong>Position :</strong> {exo.position}</p>
-            <p>Temps de l'exercice : {exo.duration}s</p>
-            <p><strong>Début dans :</strong> {transitionLeft} sec</p>
-            <Progress value={(transitionTime - transitionLeft) * 100 / transitionTime} max={100} className="h-2 bg-orange-300" />
           </CardContent>
         </Card>
       </div>
@@ -202,7 +195,7 @@ export default function App() {
             <h1 className="text-2xl font-bold text-green-800">Séance terminée !</h1>
             <p>Bravo pour votre engagement. 🎉</p>
             <p>Temps total : {minutes} min {seconds} sec</p>
-            <Button onClick={() => window.location.reload()}>Recommencer</Button>
+            <Button onClick={resetToAccueil}>Retour à l'accueil</Button>
           </CardContent>
         </Card>
       </div>
