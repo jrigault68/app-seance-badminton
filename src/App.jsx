@@ -15,7 +15,6 @@ export default function App() {
   const [finished, setFinished] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [transitionLeft, setTransitionLeft] = useState(30);
-  const [paused, setPaused] = useState(false);
   const transitionTime = 30;
   const synthRef = useRef(null);
   const timerRef = useRef(null);
@@ -26,13 +25,12 @@ export default function App() {
 
   useEffect(() => {
     const context = import.meta.glob("./seances/**/*.js");
-    const entries = Object.entries(context);
     const grouped = {};
-    for (const [path, loader] of entries) {
+    for (const [path, loader] of Object.entries(context)) {
       const cleanPath = path.replace("./seances/", "").replace(".js", "");
       const [folder, name] = cleanPath.split("/");
       if (!grouped[folder]) grouped[folder] = [];
-      grouped[folder].push({ name, path, loader });
+      grouped[folder].push({ name, path, loader }); // Ajoute le loader ici
     }
     setAvailableSeances(grouped);
   }, []);
@@ -40,8 +38,7 @@ export default function App() {
   const loadSeance = async (path) => {
     setLoading(true);
     try {
-      const file = Object.values(availableSeances).flat().find(f => f.path === path);
-      const module = await file.loader();
+      const module = await availableSeances[selectedFolder].find(f => f.path === path).loader();
       setExercices(module.default);
       setSelectedPath(path);
       setLoading(false);
@@ -52,21 +49,13 @@ export default function App() {
     }
   };
 
-  const resetToAccueil = () => {
-    setSelectedPath(null);
-    setStarted(false);
-    setStep(-1);
-    setFinished(false);
-    setExercices([]);
-    setStartTime(null);
-    setPaused(false);
-    clearAllTimers();
-  };
-
   const startRoutine = () => {
     setStarted(true);
     setStartTime(Date.now());
-    setStep(0);
+    const first = 0;
+    setStep(first);
+    setTransition(true);
+    speakIntro(exercices[first]);
   };
 
   const clearAllTimers = () => {
@@ -86,13 +75,6 @@ export default function App() {
     const intro = `Prochain exercice : ${exo.name}. ${exo.description} Position de départ : ${exo.position}.`;
     speak(intro);
   };
-
-  useEffect(() => {
-    if (step >= 0 && !transition && !isActive && !finished) {
-      setTransition(true);
-      speakIntro(exercices[step]);
-    }
-  }, [step]);
 
   useEffect(() => {
     if (!transition || !exercices.length) return;
@@ -115,7 +97,7 @@ export default function App() {
   }, [transition]);
 
   useEffect(() => {
-    if (!isActive || timeLeft <= 0 || paused) return;
+    if (!isActive || timeLeft <= 0) return;
     timerRef.current = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     if (timeLeft === Math.floor(exercices[step].duration / 2)) speak("Moitié du temps");
     if (timeLeft <= 5 && timeLeft > 0) speak(`${timeLeft}`);
@@ -127,17 +109,68 @@ export default function App() {
           speak("Bravo, c'est terminé !");
           return;
         }
-        setStep(step + 1);
+        const next = step + 1;
+        setStep(next);
+        setTransition(true);
+        speakIntro(exercices[next]);
       }, 1000);
     }
     return () => clearTimeout(timerRef.current);
-  }, [isActive, timeLeft, paused]);
+  }, [isActive, timeLeft]);
 
   const totalDuration = exercices.reduce((sum, e) => sum + e.duration + transitionTime, 0);
   const elapsedSteps = step >= 0 ? exercices.slice(0, step).reduce((sum, e) => sum + e.duration + transitionTime, 0) : 0;
   const globalProgress = Math.min((elapsedSteps / totalDuration) * 100, 100);
 
   const exo = exercices[step] || {};
+
+  if (!selectedPath && !started) {
+    return (
+      <div className="p-6 max-w-xl mx-auto">
+        <Card>
+          <CardContent className="space-y-4">
+            <h1 className="text-xl font-bold">Choisis une séance :</h1>
+            {!selectedFolder ? (
+              Object.keys(availableSeances).map((folder, idx) => (
+                <Button key={idx} onClick={() => setSelectedFolder(folder)} className="w-full">
+                  {folder}
+                </Button>
+              ))
+            ) : (
+              <>
+                <Button onClick={() => setSelectedFolder(null)} className="mb-4">← Retour</Button>
+                {availableSeances[selectedFolder].map((file, idx) => (
+                  <Button key={idx} onClick={() => loadSeance(file.path)} className="w-full">
+                    {file.name}
+                  </Button>
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (selectedPath && !started && !loading && exercices.length > 0) {
+    const minutes = Math.ceil(totalDuration / 60);
+    return (
+      <div className="p-6 max-w-xl mx-auto">
+        <Card>
+          <CardContent className="space-y-4">
+            <h1 className="text-2xl font-bold text-blue-900">Séance sélectionnée</h1>
+            <p><strong>Durée estimée :</strong> ~{minutes} min</p>
+            <ul className="list-disc pl-5">
+              {exercices.map((exo, idx) => (
+                <li key={idx}><strong>{exo.name}</strong> ({exo.duration}s)</li>
+              ))}
+            </ul>
+            <Button className="mt-4 w-full" onClick={startRoutine}>Démarrer la séance</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (transition && exercices[step]) {
     return (
@@ -169,41 +202,26 @@ export default function App() {
             <h1 className="text-2xl font-bold text-green-800">Séance terminée !</h1>
             <p>Bravo pour votre engagement. 🎉</p>
             <p>Temps total : {minutes} min {seconds} sec</p>
-            <Button onClick={resetToAccueil}>Retour à l'accueil</Button>
+            <Button onClick={() => window.location.reload()}>Recommencer</Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (isActive && exercices[step]) {
-    return (
-      <div className="p-6 max-w-xl mx-auto">
-        <Card className="bg-blue-50 shadow-xl">
-          <CardContent className="space-y-4">
-            <h2 className="text-2xl font-bold text-blue-800">{exo.name}</h2>
-            <Progress value={globalProgress} max={100} className="h-1 mb-2" />
-            <p><strong>Description :</strong> {exo.description}</p>
-            <p><strong>Position de départ :</strong> {exo.position}</p>
-            <p><strong>Erreurs fréquentes :</strong> {exo.erreurs}</p>
-            <p><strong>Temps restant :</strong> {timeLeft} sec</p>
-            <Progress value={(exo.duration - timeLeft) * 100 / exo.duration} max={100} className="h-2 bg-blue-200" />
-            <div className="flex justify-between mt-4">
-              <Button onClick={() => setPaused(!paused)}>{paused ? "Reprendre" : "Pause"}</Button>
-              <Button onClick={() => {
-                setIsActive(false);
-                if (step + 1 >= exercices.length) {
-                  setFinished(true);
-                  return;
-                }
-                setStep(step + 1);
-              }}>Passer</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return null;
+  return (
+    <div className="p-6 max-w-xl mx-auto">
+      <Card className="bg-blue-50 shadow-xl">
+        <CardContent className="space-y-4">
+          <h2 className="text-2xl font-bold text-blue-800">{exo.name}</h2>
+          <Progress value={globalProgress} max={100} className="h-1 mb-2" />
+          <p><strong>Description :</strong> {exo.description}</p>
+          <p><strong>Position de départ :</strong> {exo.position}</p>
+          <p><strong>Erreurs fréquentes :</strong> {exo.erreurs}</p>
+          <p><strong>Temps restant :</strong> {timeLeft} sec</p>
+          <Progress value={(exo.duration - timeLeft) * 100 / exo.duration} max={100} className="h-2 bg-blue-200" />
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
