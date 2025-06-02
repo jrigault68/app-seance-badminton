@@ -1,4 +1,4 @@
-export default {
+export default 
   [
     {
       name: "Rouleau : quadriceps",
@@ -79,4 +79,4 @@ export default {
       description: "Appliquez l’huile sur les zones sollicitées : mollets, cuisses, épaule."
     }
   ]
-};
+;
