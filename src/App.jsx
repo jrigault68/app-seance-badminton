@@ -25,13 +25,12 @@ export default function App() {
 
   useEffect(() => {
     const context = import.meta.glob("./seances/**/*.js");
-    const entries = Object.entries(context);
     const grouped = {};
-    for (const [path, loader] of entries) {
+    for (const [path, loader] of Object.entries(context)) {
       const cleanPath = path.replace("./seances/", "").replace(".js", "");
       const [folder, name] = cleanPath.split("/");
       if (!grouped[folder]) grouped[folder] = [];
-      grouped[folder].push({ name, path });
+      grouped[folder].push({ name, path, loader }); // Ajoute le loader ici
     }
     setAvailableSeances(grouped);
   }, []);
@@ -39,7 +38,7 @@ export default function App() {
   const loadSeance = async (path) => {
     setLoading(true);
     try {
-      const module = await import(/* @vite-ignore */ `${path}`);
+      const module = await availableSeances[selectedFolder].find(f => f.path === path).loader();
       setExercices(module.default);
       setSelectedPath(path);
       setLoading(false);
