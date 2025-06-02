@@ -116,7 +116,6 @@ export default function App() {
 
   useEffect(() => {
     if (!transition || !exercices.length || paused) return;
-    setTransitionLeft(transitionTime);
     intervalRef.current = setInterval(() => {
       setTransitionLeft((prev) => {
         if (prev <= 1) {
@@ -207,11 +206,13 @@ export default function App() {
                 setTransition(false);
                 setIsActive(true);
                 setTimeLeft(exo.duration);
-                speak("Début de l'exercice." + (exo.erreurs ? ` ${exo.erreurs}` : ""));
+                if (!paused) speak("Début de l'exercice." + (exo.erreurs ? ` ${exo.erreurs}` : ""));
               }}>Passer</Button>
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
       </div>
     );
   }
