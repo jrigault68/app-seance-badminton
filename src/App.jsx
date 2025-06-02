@@ -15,6 +15,7 @@ export default function App() {
   const [finished, setFinished] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [transitionLeft, setTransitionLeft] = useState(30);
+  const [paused, setPaused] = useState(false);
   const transitionTime = 30;
   const synthRef = useRef(null);
   const timerRef = useRef(null);
@@ -39,7 +40,7 @@ export default function App() {
   const loadSeance = async (path) => {
     setLoading(true);
     try {
-      const file = availableSeances[selectedFolder].find(f => f.path === path);
+      const file = Object.values(availableSeances).flat().find(f => f.path === path);
       const module = await file.loader();
       setExercices(module.default);
       setSelectedPath(path);
@@ -58,15 +59,14 @@ export default function App() {
     setFinished(false);
     setExercices([]);
     setStartTime(null);
+    setPaused(false);
+    clearAllTimers();
   };
 
   const startRoutine = () => {
     setStarted(true);
     setStartTime(Date.now());
-    const first = 0;
-    setStep(first);
-    setTransition(true);
-    speakIntro(exercices[first]);
+    setStep(0);
   };
 
   const clearAllTimers = () => {
@@ -86,6 +86,13 @@ export default function App() {
     const intro = `Prochain exercice : ${exo.name}. ${exo.description} Position de départ : ${exo.position}.`;
     speak(intro);
   };
+
+  useEffect(() => {
+    if (step >= 0 && !transition && !isActive && !finished) {
+      setTransition(true);
+      speakIntro(exercices[step]);
+    }
+  }, [step]);
 
   useEffect(() => {
     if (!transition || !exercices.length) return;
@@ -108,7 +115,7 @@ export default function App() {
   }, [transition]);
 
   useEffect(() => {
-    if (!isActive || timeLeft <= 0) return;
+    if (!isActive || timeLeft <= 0 || paused) return;
     timerRef.current = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     if (timeLeft === Math.floor(exercices[step].duration / 2)) speak("Moitié du temps");
     if (timeLeft <= 5 && timeLeft > 0) speak(`${timeLeft}`);
@@ -120,14 +127,11 @@ export default function App() {
           speak("Bravo, c'est terminé !");
           return;
         }
-        const next = step + 1;
-        setStep(next);
-        setTransition(true);
-        speakIntro(exercices[next]);
+        setStep(step + 1);
       }, 1000);
     }
     return () => clearTimeout(timerRef.current);
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, paused]);
 
   const totalDuration = exercices.reduce((sum, e) => sum + e.duration + transitionTime, 0);
   const elapsedSteps = step >= 0 ? exercices.slice(0, step).reduce((sum, e) => sum + e.duration + transitionTime, 0) : 0;
@@ -135,49 +139,19 @@ export default function App() {
 
   const exo = exercices[step] || {};
 
-  if (!selectedPath && !started) {
+  if (transition && exercices[step]) {
     return (
       <div className="p-6 max-w-xl mx-auto">
-        <Card>
-          <CardContent className="space-y-4">
-            <h1 className="text-xl font-bold">Choisis une séance :</h1>
-            {!selectedFolder ? (
-              Object.keys(availableSeances).map((folder, idx) => (
-                <Button key={idx} onClick={() => setSelectedFolder(folder)} className="w-full">
-                  {folder}
-                </Button>
-              ))
-            ) : (
-              <>
-                <Button onClick={() => setSelectedFolder(null)} className="mb-4">← Retour</Button>
-                {availableSeances[selectedFolder].map((file, idx) => (
-                  <Button key={idx} onClick={() => loadSeance(file.path)} className="w-full">
-                    {file.name}
-                  </Button>
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (selectedPath && !started && !loading && exercices.length > 0) {
-    const minutes = Math.ceil(totalDuration / 60);
-    return (
-      <div className="p-6 max-w-xl mx-auto">
-        <Card>
-          <CardContent className="space-y-4">
-            <Button onClick={resetToAccueil} className="mb-4">← Retour aux séances</Button>
-            <h1 className="text-2xl font-bold text-blue-900">Séance sélectionnée</h1>
-            <p><strong>Durée estimée :</strong> ~{minutes} min</p>
-            <ul className="list-disc pl-5">
-              {exercices.map((exo, idx) => (
-                <li key={idx}><strong>{exo.name}</strong> ({exo.duration}s)</li>
-              ))}
-            </ul>
-            <Button className="mt-4 w-full" onClick={startRoutine}>Démarrer la séance</Button>
+        <Card className="bg-orange-50 shadow-xl">
+          <CardContent className="space-y-4 text-center">
+            <h2 className="text-xl font-bold text-orange-700">Préparation du prochain exercice...</h2>
+            <Progress value={globalProgress} max={100} className="h-1 mb-2 bg-orange-200" />
+            <p className="text-lg font-semibold">{exo.name}</p>
+            <p><strong>Description :</strong> {exo.description}</p>
+            <p><strong>Position :</strong> {exo.position}</p>
+            <p>Temps de l'exercice : {exo.duration}s</p>
+            <p><strong>Début dans :</strong> {transitionLeft} sec</p>
+            <Progress value={(transitionTime - transitionLeft) * 100 / transitionTime} max={100} className="h-2 bg-orange-300" />
           </CardContent>
         </Card>
       </div>
@@ -202,19 +176,34 @@ export default function App() {
     );
   }
 
-  return (
-    <div className="p-6 max-w-xl mx-auto">
-      <Card className="bg-blue-50 shadow-xl">
-        <CardContent className="space-y-4">
-          <h2 className="text-2xl font-bold text-blue-800">{exo.name}</h2>
-          <Progress value={globalProgress} max={100} className="h-1 mb-2" />
-          <p><strong>Description :</strong> {exo.description}</p>
-          <p><strong>Position de départ :</strong> {exo.position}</p>
-          <p><strong>Erreurs fréquentes :</strong> {exo.erreurs}</p>
-          <p><strong>Temps restant :</strong> {timeLeft} sec</p>
-          <Progress value={(exo.duration - timeLeft) * 100 / exo.duration} max={100} className="h-2 bg-blue-200" />
-        </CardContent>
-      </Card>
-    </div>
-  );
+  if (isActive && exercices[step]) {
+    return (
+      <div className="p-6 max-w-xl mx-auto">
+        <Card className="bg-blue-50 shadow-xl">
+          <CardContent className="space-y-4">
+            <h2 className="text-2xl font-bold text-blue-800">{exo.name}</h2>
+            <Progress value={globalProgress} max={100} className="h-1 mb-2" />
+            <p><strong>Description :</strong> {exo.description}</p>
+            <p><strong>Position de départ :</strong> {exo.position}</p>
+            <p><strong>Erreurs fréquentes :</strong> {exo.erreurs}</p>
+            <p><strong>Temps restant :</strong> {timeLeft} sec</p>
+            <Progress value={(exo.duration - timeLeft) * 100 / exo.duration} max={100} className="h-2 bg-blue-200" />
+            <div className="flex justify-between mt-4">
+              <Button onClick={() => setPaused(!paused)}>{paused ? "Reprendre" : "Pause"}</Button>
+              <Button onClick={() => {
+                setIsActive(false);
+                if (step + 1 >= exercices.length) {
+                  setFinished(true);
+                  return;
+                }
+                setStep(step + 1);
+              }}>Passer</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
 }
