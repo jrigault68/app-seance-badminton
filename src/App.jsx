@@ -159,6 +159,34 @@ export default function App() {
 
   const exo = exercices[step] || {};
 
+  if (!selectedPath && !started && Object.keys(availableSeances).length > 0) {
+    return (
+      <div className="p-6 max-w-xl mx-auto">
+        <Card>
+          <CardContent className="space-y-4">
+            <h1 className="text-xl font-bold">Choisis une séance :</h1>
+            {!selectedFolder ? (
+              Object.keys(availableSeances).map((folder, idx) => (
+                <Button key={idx} onClick={() => setSelectedFolder(folder)} className="w-full">
+                  {folder}
+                </Button>
+              ))
+            ) : (
+              <>
+                <Button onClick={() => setSelectedFolder(null)} className="mb-4">← Retour</Button>
+                {availableSeances[selectedFolder].map((file, idx) => (
+                  <Button key={idx} onClick={() => loadSeance(file.path)} className="w-full">
+                    {file.name}
+                  </Button>
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (transition && exercices[step]) {
     return (
       <div className="p-6 max-w-xl mx-auto">
