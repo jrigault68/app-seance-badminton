@@ -219,6 +219,15 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
             <p>Temps de l'exercice : {exo.duration}s</p>
             <p><strong>Début dans :</strong> {transitionLeft} sec</p>
             <Progress value={(transitionTime - transitionLeft) * 100 / transitionTime} max={100} className="h-2 bg-orange-300" />
+            <div className="flex justify-between mt-4">
+              <Button onClick={() => {
+                clearInterval(intervalRef.current);
+                setTransition(false);
+                setIsActive(true);
+                setTimeLeft(exo.duration);
+                speak("Début de l'exercice." + (exo.erreurs ? ` ${exo.erreurs}` : ""));
+              }}>Passer</Button>
+            </div>
           </CardContent>
         </Card>
       </div>
