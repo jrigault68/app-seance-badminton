@@ -223,7 +223,13 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
             <p><strong>Début dans :</strong> {transitionLeft} sec</p>
             <Progress value={(transitionTime - transitionLeft) * 100 / transitionTime} max={100} className="h-2 bg-orange-300" />
             <div className="flex justify-between mt-4">
-
+              <Button onClick={() => {
+                      const newState = !paused;
+                      if (newState && synthRef.current) synthRef.current.cancel();
+                      setPaused(newState);
+                    }}>
+                        {paused ? "Reprendre" : "Pause"}
+                    </Button>
               <Button onClick={() => {
                 clearInterval(intervalRef.current);
                 setPaused(false);
@@ -270,7 +276,13 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
             <p><strong>Temps restant :</strong> {timeLeft} sec</p>
             <Progress value={(exo.duration - timeLeft) * 100 / exo.duration} max={100} className="h-2 bg-blue-200" />
             <div className="flex justify-between mt-4">
-
+              <Button onClick={() => {
+                      const newState = !paused;
+                      if (newState && synthRef.current) synthRef.current.cancel();
+                      setPaused(newState);
+                    }}>
+                        {paused ? "Reprendre" : "Pause"}
+                    </Button>
               <Button onClick={() => {
                 setPaused(false);
                 setIsActive(false);
