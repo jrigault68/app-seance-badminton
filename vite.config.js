@@ -1,14 +1,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  root: ".", // Racine du projet
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+    },
+  },
   build: {
     rollupOptions: {
-      input: resolve(__dirname, "public/index.html"),
+      input: "public/index.html",
     },
-    outDir: "dist"
+    outDir: "dist",
   },
 });
