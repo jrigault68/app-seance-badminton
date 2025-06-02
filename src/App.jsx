@@ -124,14 +124,14 @@ export default function App() {
           setTimeLeft(exercices[step].duration);
           setIsActive(true);
           setTransition(false);
-          speak("Début de l'exercice." + (exercices[step].erreurs ? ` ${exercices[step].erreurs}` : ""));
+          if (!paused) speak("Début de l'exercice." + (exercices[step].erreurs ? ` ${exercices[step].erreurs}` : ""));
           return 0;
         }
-        if (prev <= 4 && prev > 0) speak(`${prev - 1}`);
+        if (!paused && prev <= 4 && prev > 0) speak(`${prev - 1}`);
         return prev - 1;
       });
     }, 1000);
-    return () => clearTimeout(intervalRef.current);
+    return () => clearInterval(intervalRef.current);
   }, [transition]);
 
   useEffect(() => {
@@ -186,26 +186,7 @@ export default function App() {
       </div>
     );
   }
-if (selectedPath && !started && !loading && exercices.length > 0) {
-  const minutes = Math.ceil(totalDuration / 60);
-  return (
-    <div className="p-6 max-w-xl mx-auto">
-      <Card>
-        <CardContent className="space-y-4">
-          <Button onClick={resetToAccueil} className="mb-4">← Retour aux séances</Button>
-          <h1 className="text-2xl font-bold text-blue-900">Séance sélectionnée</h1>
-          <p><strong>Durée estimée :</strong> ~{minutes} min</p>
-          <ul className="list-disc pl-5">
-            {exercices.map((exo, idx) => (
-              <li key={idx}><strong>{exo.name}</strong> ({exo.duration}s)</li>
-            ))}
-          </ul>
-          <Button className="mt-4 w-full" onClick={startRoutine}>Démarrer la séance</Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+
   if (transition && exercices[step]) {
     return (
       <div className="p-6 max-w-xl mx-auto">
@@ -229,7 +210,6 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
                 speak("Début de l'exercice." + (exo.erreurs ? ` ${exo.erreurs}` : ""));
               }}>Passer</Button>
             </div>
-          </CardContent>
         </Card>
       </div>
     );
