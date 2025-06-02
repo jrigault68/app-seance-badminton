@@ -213,6 +213,8 @@ export default function App() {
         </Card>
       </div>
     );
+      </div>
+    );
   }
 
   if (finished) {
