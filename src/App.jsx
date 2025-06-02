@@ -110,28 +110,37 @@ export default function App() {
   useEffect(() => {
     if (step >= 0 && !transition && !isActive && !finished) {
       setTransition(true);
+      setTransitionLeft(transitionTime);
       speakIntro(exercices[step]);
     }
   }, [step]);
 
   useEffect(() => {
-    if (!transition || !exercices.length || paused) return;
-    intervalRef.current = setInterval(() => {
-      setTransitionLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current);
-          setTimeLeft(exercices[step].duration);
-          setIsActive(true);
-          setTransition(false);
-          if (!paused) speak("Début de l'exercice." + (exercices[step].erreurs ? ` ${exercices[step].erreurs}` : ""));
-          return 0;
-        }
-        if (!paused && prev <= 4 && prev > 0) speak(`${prev - 1}`);
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [transition]);
+  if (!transition || !exercices.length) return;
+
+  intervalRef.current = setInterval(() => {
+    setTransitionLeft((prev) => {
+      if (paused) return prev;
+
+      if (prev <= 1) {
+        clearInterval(intervalRef.current);
+        setTimeLeft(exercices[step].duration);
+        setIsActive(true);
+        setTransition(false);
+        if (!paused) speak("Début de l'exercice." + (exercices[step].erreurs ? ` ${exercices[step].erreurs}` : ""));
+        return 0;
+      }
+
+      if (!paused && prev <= 4 && prev > 0) {
+        speak(`${prev - 1}`);
+      }
+
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(intervalRef.current);
+}, [transition, paused, step]);
 
   useEffect(() => {
     if (!isActive || timeLeft <= 0 || paused) return;
