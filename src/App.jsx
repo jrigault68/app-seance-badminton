@@ -131,8 +131,8 @@ export default function App() {
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [transition, paused]);
+    return () => clearTimeout(intervalRef.current);
+  }, [transition]);
 
   useEffect(() => {
     if (!isActive || timeLeft <= 0 || paused) return;
