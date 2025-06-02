@@ -123,7 +123,6 @@ export default function App() {
         if (prev <= 1) {
           clearInterval(intervalRef.current);
           setTimeLeft(exercices[step].duration);
-          setPaused(false);
           setIsActive(true);
           setTransition(false);
           if (!paused) speak("Début de l'exercice." + (exercices[step].erreurs ? ` ${exercices[step].erreurs}` : ""));
@@ -230,6 +229,7 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
                 >{paused ? "Reprendre" : "Pause"}</Button>
               <Button onClick={() => {
                 clearInterval(intervalRef.current);
+                setPaused(false);
                 setTransition(false);
                 setIsActive(true);
                 setTimeLeft(exo.duration);
@@ -277,6 +277,7 @@ if (selectedPath && !started && !loading && exercices.length > 0) {
                                     if (newState && synthRef.current) synthRef.current.cancel();
                                     return newState;}>{paused ? "Reprendre" : "Pause"}</Button>
               <Button onClick={() => {
+                setPaused(false);
                 setIsActive(false);
                 if (step + 1 >= exercices.length) {
                   setFinished(true);
