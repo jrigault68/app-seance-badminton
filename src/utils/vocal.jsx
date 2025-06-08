@@ -66,7 +66,7 @@ function getMessagesFromKey(key, current = {}, skippedMessagesRef) {
     const allMsg = skippedMessagesRef.current.join(" ");
     console.log("🔍 Résultat getMessagesFromKey :", key, "→", allMsg);
     return [allMsg]; // retourne sous forme de tableau
-  }
+  }else if (key === "message_retarde"){return "";}
   
   // Cas brut sans clé structuré
   if (!key.includes(".")) {
@@ -90,7 +90,6 @@ console.log("🔍 Résultat getMessagesFromKey :", key, "→", raw);
 
 // ✨ Fonction helper pour insérer les variables dynamiques
 function remplacerVariables(template, current) {
-	console.log(current?.exo?.erreurs);
   return template
     .replace(/{duration}/g, formatDureeVocal(current?.duree || current?.duration || 0))
     .replace(/{numero}/g, current?.numero || "")

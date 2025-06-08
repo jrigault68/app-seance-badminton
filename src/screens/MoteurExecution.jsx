@@ -77,6 +77,7 @@ console.log("should speak : " + shouldSpeak + current.messages?.length + spokenS
     if (mode === "exercice" && timeLeft === Math.floor(current.duree / 2) && current.exo?.focus_zone) {
       const focus = pickRandom(current.exo.focus_zone);
       if (focus) {
+		speakMessage("Mi-temps");
         speak(focus);
         setCurrentFocus(focus);
       }

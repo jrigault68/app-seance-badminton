@@ -98,7 +98,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
         ...base,
         type: "exercice",
         duree: step.temps_series,
-        messages: ["exercice.start", "message_retarde", "exercice.erreurs"]
+        messages: ["exercice.start", "message_retarde", "exercice.erreur"]
       });
     } else {
       etapes.push({
