@@ -1,7 +1,7 @@
 {
     "intro": {
         "start_seance": "La séance commence dans {duration}.",
-        "annonce_premier_exercice": "Premier exercice : {exo.nom}. {exo.details}."
+        "annonce_premier_exercice": "Premier exercice : {exo.nom} {exo.details}."
     },
     "exercice": {
 		"position_depart" : "{exo.position_depart}",
@@ -14,7 +14,7 @@
     },
     "repos": {
         "standard": "Repos.",
-        "annonce_suivant": "Prochain exercice : {exo.nom}. {exo.details}. {exo.position_depart} {exo.description}",
+        "annonce_suivant": "Prochain exercice : {exo.nom} {exo.details}.",
         "serie_suivante": "Série suivante dans {duration}.",
         "avant_derniere_serie": "Plus que 2 séries.",
         "derniere_serie": "Dernière série ! On ne lâche pas !",

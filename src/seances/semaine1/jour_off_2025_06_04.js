@@ -1,13 +1,13 @@
 export const structure = [
   // Échauffement simple
-  { id: "genoux_hauts_talons_fesses", temps_series: 120, temps_repos_exercice: 15 },
-  { id: "mobilisation_cheville_gauche", temps_series: 120, temps_repos_exercice: 15 },
-  { id: "cercles_epaules_legers", temps_series: 120, temps_repos_exercice: 20 },
+  { id: "genoux_hauts_talons_fesses", temps_series: 120, temps_repos_exercice: 30 },
+  { id: "mobilisation_cheville_gauche", temps_series: 120, temps_repos_exercice: 30 },
+  { id: "cercles_epaules_legers", temps_series: 120, temps_repos_exercice: 30 },
 
   // Mobilité épaule
-  { id: "pendulaire_bras_droit", temps_series: 120, temps_repos_exercice: 10 },
-  { id: "glissement_bras_droit_table", temps_series: 120, temps_repos_exercice: 10 },
-  { id: "rotation_externe_allongee", temps_series: 120, temps_repos_exercice: 10 },
+  { id: "pendulaire_bras_droit", temps_series: 120, temps_repos_exercice: 30 },
+  { id: "glissement_bras_droit_table", temps_series: 120, temps_repos_exercice: 30 },
+  { id: "rotation_externe_allongee", temps_series: 120, temps_repos_exercice: 30 },
   { id: "massage_grand_rond", temps_series: 180, temps_repos_exercice: 30 },
 
   // Renfo au sol
@@ -23,7 +23,7 @@ export const structure = [
     id: "gainage_dorsal_sol",
     series: 1,
     temps_series: 30,
-    temps_repos_exercice: 20
+    temps_repos_exercice: 30
   },
   {
     id: "planche_laterale_hanche",
@@ -39,9 +39,9 @@ export const structure = [
   },
 
   // Étirements
-  { id: "etirement_psoas_fente", temps_series: 60, temps_repos_exercice: 10 },
-  { id: "etirement_fessier_sol", temps_series: 60, temps_repos_exercice: 10 },
-  { id: "etirement_pectoraux_mur", temps_series: 60, temps_repos_exercice: 10 },
+  { id: "etirement_psoas_fente", temps_series: 60, temps_repos_exercice: 30 },
+  { id: "etirement_fessier_sol", temps_series: 60, temps_repos_exercice: 30 },
+  { id: "etirement_pectoraux_mur", temps_series: 60, temps_repos_exercice: 30 },
 
   // Fin de séance : respiration (repos = fin)
   { id: "respiration_allongee", temps_series: 60 }

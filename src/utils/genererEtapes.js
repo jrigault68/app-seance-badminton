@@ -116,7 +116,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
       etapes.push({
         type: "repos",
         duree: reposApres,
-        messages: ["repos.annonce_suivant"],
+        messages: ["repos.annonce_suivant", "exercice.position_depart", "exercice.description"],
         exo: nextExo ? { ...nextExo, ...nextStep } : undefined
       });
     }
