@@ -69,7 +69,7 @@ console.log("should speak : " + shouldSpeak + current.messages?.length + spokenS
 		if (spokenCountdownRef.current !== timeLeft) {
 		  spokenCountdownRef.current = timeLeft;
 		  speechSynthesis.cancel();
-		  speakMessage(`${timeLeft}`, 2);
+		  speakMessage(`${timeLeft}`, 1.5);
 		}
 	  }
 
