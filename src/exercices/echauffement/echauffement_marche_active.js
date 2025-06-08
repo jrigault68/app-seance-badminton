@@ -1,5 +1,5 @@
-{
-  id: "echauffement-marche-active",
+export const echauffement_marche_active = {
+  id: "echauffement_marche_active",
   nom: "Marche active",
   description: "Marche sur place avec énergie : lève les genoux, balance les bras et adopte un rythme soutenu. Respiration fluide, posture droite.",
   position_depart: "Debout, bras le long du corps, pieds écartés largeur du bassin.",

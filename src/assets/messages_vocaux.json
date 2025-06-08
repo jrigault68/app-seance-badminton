@@ -1,0 +1,33 @@
+{
+    "intro": {
+        "start_seance": "La séance commence dans {duration}.",
+        "annonce_premier_exercice": "Premier exercice : {exo.nom}. {exo.details}."
+    },
+    "exercice": {
+		"position_depart" : "{exo.position_depart}",
+		"description" : "{exo.description}",
+		"erreur" : "{exo.erreurs}",
+        "start": "C’est parti !",
+        "start_serie": "C'est partie ! Série {numero} sur {total}.",
+        "mi_temps": "Mi-temps.",
+        "focus_zone": "{focus}"
+    },
+    "repos": {
+        "standard": "Repos.",
+        "annonce_suivant": "Prochain exercice : {exo.nom}. {exo.details}. {exo.position_depart} {exo.description}",
+        "serie_suivante": "Série suivante dans {duration}.",
+        "avant_derniere_serie": "Plus que 2 séries.",
+        "derniere_serie": "Dernière série ! On ne lâche pas !",
+        "transition_breve": "Prépare-toi."
+    },
+    "seance": {
+        "dernier_exo": "Dernier exercice !",
+        "presque_fini": "Plus que 2 exercices !",
+        "fin": "Bravo, séance terminée !",
+        "resume": "Super travail aujourd’hui !"
+    },
+    "motivations": {
+        "milieu": ["Allez !", "Tiens bon.", "Courage !", "Tu y es presque."],
+        "repos": ["Récupère bien.", "Garde le rythme.", "On repart bientôt !"]
+    }
+}
