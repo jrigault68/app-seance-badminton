@@ -1,4 +1,4 @@
-export function genererEtapesDepuisStructure(structure, exercices, isBloc = false, blocIndex = 1, totalBlocs = 1) {
+export function genererEtapesDepuisStructure(structure, exercices, isBloc = false, blocIndex = 1, totalBlocs = 1, nextBlocStep = null) {
   const etapes = [];
   const exoDict = Object.fromEntries(exercices.map(e => [e.id, e]));
   var s = 0
@@ -18,8 +18,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
             nb_exos: contenu.length
           });
         }*/
-
-        etapes.push(...genererEtapesDepuisStructure(contenu, exercices, true, i + 1, blocReps));
+        etapes.push(...genererEtapesDepuisStructure(contenu, exercices, true, s + i + 1, blocReps, (i < blocReps-1 ? contenu[0] : structure[s + 1])));
 
         /*if (blocRepos && i < blocReps - 1) {
           etapes.push({
@@ -29,6 +28,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
           });
         }*/
       }
+	  s+=1;
       continue;
     }
 
@@ -37,7 +37,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
     const stepData = { ...exoData, ...step };
     const base = { id: exoId, exo: stepData };
 
-    if (etapes.length === 0) { //!isBloc && 
+    if (etapes.length === 0 && (!isBloc || blocIndex == 1)) { // && 
       etapes.push({
         type: "intro",
         duree: 30,
@@ -68,6 +68,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
               : "repos.serie_suivante";
 
           etapes.push({
+			...base,
             type: "repos",
             duree: step.temps_repos_series || 0,
             messages: [msg]
@@ -111,7 +112,10 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
 	
 	const reposApres = step.temps_repos_exercice || 0;
     if (reposApres) {
-      const nextStep = structure[s + 1];
+      var nextStep = (structure[s + 1]  || nextBlocStep);
+	  if (nextStep.type === "bloc") {
+		  nextStep = nextStep.contenu[0] || [];
+	  }
       const nextExo = nextStep ? exoDict[nextStep.id] || {} : null;
       etapes.push({
         type: "repos",
@@ -122,6 +126,5 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
     }
 	s+=1;
   }
-
   return etapes;
 } 
