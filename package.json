@@ -7,11 +7,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
     "framer-motion": "^12.15.0",
+    "jsonwebtoken": "^9.0.2",
     "lottie-react": "^2.4.1",
     "react": "^18.2.0",
     "react-circular-progressbar": "^2.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
