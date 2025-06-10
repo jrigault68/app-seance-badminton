@@ -3,6 +3,7 @@ import SelectionSeances from "@/screens/SelectionSeances";
 import MoteurExecution from "@/screens/MoteurExecution";
 import SeanceScreen from "@/screens/SeanceScreen";
 import { genererEtapesDepuisStructure } from "@/utils/genererEtapes";
+import { getProfil } from "./services/authService";
 
 export default function AppStyled() {
   const [selectedStructure, setSelectedStructure] = useState([]);
@@ -11,6 +12,13 @@ export default function AppStyled() {
   const [started, setStarted] = useState(false);
   const wakeLockRef = useRef(null);
   const intervalRef = useRef(null);
+
+
+	useEffect(() => {
+	  getProfil()
+		.then((user) => console.log("Connecté en tant que :", user))
+		.catch(() => console.log("Non connecté"));
+	}, []);
 
   useEffect(() => {
     if ('wakeLock' in navigator) {
