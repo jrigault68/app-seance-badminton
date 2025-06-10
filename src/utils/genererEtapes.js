@@ -56,7 +56,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
           serie: s + 1,
           total_series: step.series,
           duree: step.repetitions * (step.temps_par_repetition || 3),
-          messages: [(step.series > 1 ? "exercice.start_serie" : "exercice.start")]
+          messages: [(step.series > 1 ? "exercice.start_serie" : "exercice.start"), "message_retarde", "exercice.erreur"]
         });
 
         if (s < step.series - 1) {
@@ -82,7 +82,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
           serie: s + 1,
           total_series: step.series,
           duree: step.temps_series,
-          messages: ["exercice.start_serie"]
+          messages: ["exercice.start_serie", "message_retarde", "exercice.erreur"]
         });
 
         if (s < step.series - 1) {
@@ -105,7 +105,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
         ...base,
         type: "exercice",
         duree: 30,
-        messages: ["exercice.start"]
+        messages: ["exercice.start", "message_retarde", "exercice.erreur"]
       });
     }
 	
