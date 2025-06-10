@@ -30,6 +30,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 	clearInterval(intervalRef.current);
 	setPaused(false);
 	speechSynthesis.cancel();
+	setTimeLeft(0);
 	if (exerciceNumero >= totalExercices) { setFinished(true); return; }
     if (!current || finished) return;
 	
@@ -41,7 +42,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     // Identifie si on est dans une transition (repos, intro...) ou un exercice
     const isTransition = ["repos", "intro", "annonce_bloc"].includes(current.type);
     setMode(isTransition ? "transition" : "exercice");
-    setTimeLeft(current.duree);
+    if(isTransition || !current.exo.repetitions){setTimeLeft(current.duree);}
 console.log("should speak : " + shouldSpeak + current.messages?.length + spokenStepIndex.current);
 	if (shouldSpeak) {
 	  speak(current.messages, current, (current.duree -5) * 1000,500, skippedMessagesRef)

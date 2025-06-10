@@ -1,4 +1,4 @@
-import { formatDureeTexte } from "@/utils/helpers";
+import { formatDureeTexte, getDetails } from "@/utils/helpers";
 import ChronoCercle from "@/components/progressBar";
 
 export function TransitionScreen({
@@ -42,7 +42,7 @@ export function TransitionScreen({
           </div>
         )}
 
-        <p className="text-xl font-semibold">{nom} ({formatDureeTexte(duree)})</p>
+        <p className="text-xl font-semibold">{nom} ({getDetails(exo)})</p>
 
         {position && (
           <p className="text-sm text-orange-200">

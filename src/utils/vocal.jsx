@@ -101,20 +101,20 @@ function remplacerVariables(template, current) {
     .replace(/{exo\.details}/g, (() => {
 		  const exo = current?.exo || {};
 		  // Séries + répétitions (classique)
-		  if (exo.series && exo.repetitions) {
+		  if (exo.series && exo.series > 1 && exo.repetitions) {
 			return `${exo.series} séries de ${exo.repetitions} répétitions`;
 		  }
 		  // Séries + temps par série
 		  if (exo.series && exo.series > 1 && exo.temps_series) {
 			return `${exo.series} séries de ${formatDureeVocal(exo.temps_series)}`;
 		  }
+		   // Juste répétitions
+		  if (exo.repetitions) {
+			return `${exo.repetitions} répétitions`;
+		  }
 		  // Pas de séries, mais durée fixe
 		  if ((!exo.series || exo.series <=1) && exo.temps_series) {
 			return `pendant ${formatDureeVocal(exo.temps_series)}`;
-		  }
-		  // Juste répétitions
-		  if (exo.repetitions) {
-			return `${exo.repetitions} répétitions`;
 		  }
 		  // Juste durée
 		  if (exo.duree || exo.duration) {

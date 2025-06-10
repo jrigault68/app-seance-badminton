@@ -9,7 +9,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
       const contenu = step.contenu || [];
 
       for (let i = 0; i < blocReps; i++) {
-        if (blocReps > 1) {
+        /*if (blocReps > 1) {
           etapes.push({
             type: "annonce_bloc",
             messages: ["bloc.debut"],
@@ -17,17 +17,17 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
             total: blocReps,
             nb_exos: contenu.length
           });
-        }
+        }*/
 
         etapes.push(...genererEtapesDepuisStructure(contenu, exercices, true, i + 1, blocReps));
 
-        if (blocRepos && i < blocReps - 1) {
+        /*if (blocRepos && i < blocReps - 1) {
           etapes.push({
             type: "repos",
             duree: blocRepos,
             messages: ["repos.bloc_suivant"]
           });
-        }
+        }*/
       }
       continue;
     }
@@ -37,7 +37,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
     const stepData = { ...exoData, ...step };
     const base = { id: exoId, exo: stepData };
 
-    if (!isBloc && etapes.length === 0) {
+    if (etapes.length === 0) { //!isBloc && 
       etapes.push({
         type: "intro",
         duree: 30,
@@ -56,7 +56,7 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
           serie: s + 1,
           total_series: step.series,
           duree: step.repetitions * (step.temps_par_repetition || 3),
-          messages: ["exercice.start_serie"]
+          messages: [(step.series > 1 ? "exercice.start_serie" : "exercice.start")]
         });
 
         if (s < step.series - 1) {

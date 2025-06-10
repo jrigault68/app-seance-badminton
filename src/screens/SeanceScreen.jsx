@@ -2,7 +2,7 @@ import React from "react";
 import { screenStyle } from "@/styles/styles";
 import StyledButton from "@/components/StyledButton";
 import { getParId } from "@/exercices/index";
-import { formatDureeTexte, estimerDureeEtape } from "@/utils/helpers";
+import { formatDureeTexte, estimerDureeEtape, getDetails } from "@/utils/helpers";
 
 export default function SeanceScreen({ structure, meta, onStart, onReturn }) {
   if (!structure || !Array.isArray(structure) || !meta) {
@@ -18,25 +18,20 @@ export default function SeanceScreen({ structure, meta, onStart, onReturn }) {
     if (etape.type === "bloc") {
       return (
         <li key={index} className="border-b border-gray-700 pb-2">
-          <p className="font-semibold">🔁 Bloc {etape.repetitions || 1}×</p>
+          <p className="font-semibold">🔁 Bloc {etape.repetitions || 1} séries</p>
           <ul className="pl-4 mt-1 space-y-1">
             {(etape.contenu || []).map((sousEtape, i) => renderEtape(sousEtape, `${index}-${i}`))}
           </ul>
-          {etape.temps_repos_bloc ? (
-            <p className="text-xs text-gray-400 italic mt-1">
-              Repos entre blocs : {etape.temps_repos_bloc}s
-            </p>
-          ) : null}
         </li>
       );
     }
 
     const nom = getParId(etape.id)?.nom || etape.id;
-    const desc = etape.repetitions
-      ? `${etape.series || 1} × ${etape.repetitions}`
-      : etape.temps_series
-      ? `${etape.series || 1} × ${etape.temps_series}s`
-      : "?";
+    const desc = getDetails(etape);//.repetitions
+      //? `${etape.series || 1} × ${etape.repetitions}`
+      //: etape.temps_series
+      //? `${etape.series || 1} × ${etape.temps_series}s`
+      //: "?";
 
     return (
       <li key={index}>

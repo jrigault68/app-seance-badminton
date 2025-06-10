@@ -1,4 +1,4 @@
-import { formatDureeTexte } from "@/utils/helpers";
+import { formatDureeTexte, getDetails } from "@/utils/helpers";
 import ChronoCercle from "@/components/progressBar";
 
 export function ActiveExerciceScreen({
@@ -34,7 +34,7 @@ export function ActiveExerciceScreen({
 		</div>
       <div className="max-w-xl w-full bg-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-center">
         <h2 className="text-2xl font-bold text-blue-300">
-          {nom}
+          {nom} ({getDetails(exo)})
         </h2>
 
         {image && (
@@ -56,12 +56,15 @@ export function ActiveExerciceScreen({
         )}
 
 		<div className="flex justify-between items-center flex-wrap flex-col min-[400px]:flex-row gap-4 pt-4">
-          <button onClick={() => {setPaused(!paused);}} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl shadow text-white justify-center" >
+          {!exo.repetitions && (
+		  <button onClick={() => {setPaused(!paused);}} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl shadow text-white justify-center" >
             {paused ? "Reprendre" : "Pause"}
-          </button>
+          </button>) && (
 			<ChronoCercle timeLeft={timeLeft} duration={duration} text={formatDureeTexte(timeLeft)} color={"blue"} />
+		  )}
+		  {exo.repetitions && (<span/>)}
           <button onClick={() => {setStepIndex(prev => prev + 1);}} className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-xl shadow text-white justify-center" >
-            Passer
+			  {exo.repetitions ? "Passer à la suite" : "Passer"}
           </button>
         </div>
       </div>

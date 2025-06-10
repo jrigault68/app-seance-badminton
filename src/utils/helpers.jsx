@@ -58,3 +58,28 @@ export function estimerDureeEtape(etape) {
 
   return 0;
 }
+
+export function getDetails(exo){
+  // Séries + répétitions (classique)
+  if (exo.series && exo.series > 1 && exo.repetitions) {
+	return `${exo.series} x ${exo.repetitions} rép.`;
+  }
+  // Séries + temps par série
+  if (exo.series && exo.series > 1 && exo.temps_series) {
+	return `${exo.series} x ${formatDureeTexte(exo.temps_series)}`;
+  }
+  // Juste répétitions
+  if (exo.repetitions) {
+	return `${exo.repetitions} rép.`;
+  }
+  // Pas de séries, mais durée fixe
+  if ((!exo.series || exo.series <=1) && exo.temps_series) {
+	return `${formatDureeTexte(exo.temps_series)}`;
+  }
+  // Juste durée
+  if (exo.duree || exo.duration) {
+	return `${formatDureeTexte(exo.duree || exo.duration)}`;
+  }
+  // Fallback
+  return "Exercice libre";
+}
