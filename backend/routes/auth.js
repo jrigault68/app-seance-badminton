@@ -15,7 +15,7 @@ router.get(
   }),
   (req, res) => {
     try {
-      console.log("→ Utilisateur authentifié :", req.user);
+      console.log("→ Utilisateur authentifié :", JSON.stringify(req.user, null, 2));
 
       const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
@@ -62,7 +62,15 @@ router.post("/register", async (req, res) => {
     password_hash: hashedPassword,
   });
 
-  if (error) return res.status(500).json({ message: error.message });
+  if (error) {
+	  console.error("❌ Erreur Supabase Register :", {
+		message: error.message,
+		details: error.details,
+		hint: error.hint,
+		code: error.code,
+	  });
+	  return res.status(500).json({ message: error.message });
+	} 
 
   res.status(201).json({ message: "Inscription réussie" });
 });

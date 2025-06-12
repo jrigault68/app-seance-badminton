@@ -15,7 +15,7 @@ passport.use(
         const email = profile.emails[0].value;
         const nom = profile.displayName;
         const google_id = profile.id;
-
+		console.log("→ Profil Google :", JSON.stringify({ email, nom, google_id }, null, 2));
         // Vérifie si l'utilisateur existe déjà
         const { data: existingUser, error } = await supabase
           .from("utilisateurs")
