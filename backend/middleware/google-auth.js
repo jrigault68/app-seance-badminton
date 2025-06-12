@@ -24,12 +24,14 @@ passport.use(
           .single();
 
         if (error && error.code !== "PGRST116") {
-          console.log("Erreur Supabase : ", error);
+			console.log("🟥 Étape 3 : erreur SELECT utilisateur");
+          console.error("Erreur Supabase : ", error);
           return done(error);
         }
 
         // Crée l'utilisateur s'il n'existe pas
         if (!existingUser) {
+			console.log("🟠 Étape 4 : utilisateur inexistant → insertion");
           const { data: newUser, error: insertError } = await supabase
             .from("utilisateurs")
             .insert({
@@ -40,13 +42,18 @@ passport.use(
             .select("id")
             .single();
 
-          if (insertError) return done(insertError);
+          if (insertError) {
+			  console.log("🟥 Étape 5 : erreur INSERT utilisateur");
+			  return done(insertError);
+		  }
+		  console.log("🟢 Étape 6 : insertion réussie, id =", newUser.id);
           return done(null, { id: newUser.id });
         }
-
+console.log("🟢 Étape 7 : utilisateur existant, id =", existingUser.id);
         return done(null, { id: existingUser.id });
       } catch (err) {
-        console.log("Erreur stratégie Google :", err);
+        console.error("Erreur stratégie Google :", err);
+		console.log("❌ Stack complète :", JSON.stringify(err, null, 2));
         done(err);
       }
     }
