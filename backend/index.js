@@ -3,6 +3,8 @@ const passport = require("passport");
 const cookieParser = require("cookie-parser");
 require("./middleware/google-auth");
 
+
+const app = express();
 app.use(cookieParser());
 app.use(
   session({
@@ -19,7 +21,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 
-const app = express();
+
 app.use(cors());
 app.use(express.json());
 
