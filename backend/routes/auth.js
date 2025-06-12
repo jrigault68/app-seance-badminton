@@ -55,9 +55,9 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
       "https://app-seance-badminton.vercel.app/";*/
 const encodedToken = JSON.stringify(token);
 //res.redirect(`${redirectBase}/auth-success?token=${token}`);
-	res.send(`<html><script>localStorage.setItem("token", ${encodedToken}); location.href = "${redirectBase}/auth-success?token=${token}"</script></html>`);
+	//res.send(`<html><script>localStorage.setItem("token", ${encodedToken}); location.href = "${redirectBase}/auth-success?token=${token}"</script></html>`);
 
-	/*const isLocalhost  = redirectBase.includes("localhost");
+	const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -65,7 +65,7 @@ const encodedToken = JSON.stringify(token);
           sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .redirect(`${redirectBase}/profil`);*/
+        .redirect(`${redirectBase}/profil`);
     } catch (err) {
       console.log("Erreur dans la route /google/callback :", JSON.stringify(err, null, 2));
       res.status(500).send("Erreur interne");

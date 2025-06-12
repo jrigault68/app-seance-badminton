@@ -24,8 +24,8 @@ const jwt = require("jsonwebtoken");
 
 module.exports = function (req, res, next) {
 	const authHeader = req.headers.authorization;
-	const token = authHeader?.split(" ")[1];
-  //const token = req.cookies.token;
+	//const token = authHeader?.split(" ")[1];
+  const token = req.cookies.token;
 console.log("🌐 ORIGIN =", req.headers.origin);
 console.log("🍪 TOKEN REÇU ?", token);
   if (!token) return res.status(403).json({ message: "Accès refusé" });

@@ -7,24 +7,27 @@ require("./middleware/google-auth");
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://app-seance-badminton-3u1t.vercel.app",
-  "https://app-seance-badminton-3u1t-*-gloumy68s-projects.vercel.app"
-];
-
-// Middleware
 app.use(
   cors({
     origin: function (origin, callback) {
-			console.log('origin : ', origin);
-			if (!origin) return callback(null, true); // autorise Postman/local server
-			if (allowedOrigins.includes(origin)) return callback(null, true);
-			return callback(new Error("Not allowed by CORS"));
-		  },
-    credentials: false,
+      console.log("origin : ", origin);
+      const allowed = [
+        "http://localhost:5173",
+        "https://app-seance-badminton-3u1t.vercel.app"
+      ];
+      const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
+      if (!origin || allowed.includes(origin) || isVercelPreview) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   })
 );
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 app.use(cookieParser());
 app.use(express.json());
 
