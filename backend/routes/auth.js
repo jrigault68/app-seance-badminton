@@ -45,7 +45,7 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
         })
         .redirect(`${redirectBase}/profil`);
     } catch (err) {
-      console.error("Erreur dans la route /google/callback :", err);
+      console.log("Erreur dans la route /google/callback :", JSON.stringify(err, null, 2));
       res.status(500).send("Erreur interne");
     }
   }
@@ -158,6 +158,7 @@ router.post("/logout", (req, res) => {
 const verifyToken = require("../middleware/auth");
 
 router.get("/profil", verifyToken, async (req, res) => {
+	console.log('profil', req.user.id);
   const { data, error } = await supabase
     .from("utilisateurs")
     .select("id, email, nom")
