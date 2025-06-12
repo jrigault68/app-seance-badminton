@@ -16,6 +16,17 @@ export default function ConnexionInscription() {
     try {
       if (isSignup) await register(email, password, nom);
       await login(email, password);
+	  
+	  if (document.hasStorageAccess) {
+		  try {
+			const granted = await document.requestStorageAccess();
+			console.log("✅ Storage access granted:", granted);
+		  } catch (err) {
+			console.warn("❌ Storage access not granted:", err);
+		  }
+		}
+
+	  
       navigate("/profil");
     } catch (err) {
       setErreur(err.message);
