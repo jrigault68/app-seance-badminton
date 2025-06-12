@@ -121,6 +121,9 @@ router.post("/login", async (req, res) => {
   if (!match) return res.status(401).json({ message: "Mot de passe invalide" });
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+	const redirectBase = decodeURIComponent(
+	  req.query.redirect || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app"
+	);
 
   const isLocalhost  = redirectBase.includes("localhost");
       res
@@ -130,8 +133,7 @@ router.post("/login", async (req, res) => {
           sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .redirect(`${redirectBase}/profil`);
-   // .json({ user: { id: user.id, email: user.email, nom: user.nom } });
+        .json({ user: { id: user.id, email: user.email, nom: user.nom } });
 });
 /*router.post("/login", async (req, res) => {
   const { email, password } = req.body;
