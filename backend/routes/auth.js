@@ -5,6 +5,24 @@ const supabase = require("../supabase");
 const router = express.Router();
 
 
+router.get("/test-cookie", (req, res) => {
+  const token = jwt.sign({ id: "test" }, process.env.JWT_SECRET, {
+    expiresIn: "1d",
+  });
+
+  const isLocalhost = req.headers.origin?.includes("localhost");
+
+  res
+    .cookie("token", token, {
+      httpOnly: true,
+      secure: !isLocalhost,
+      sameSite: isLocalhost ? "Lax" : "None",
+      maxAge: 1000 * 60 * 60 * 24,
+    })
+    .json({ message: "Cookie posé" });
+});
+
+
 const passport = require("passport");
 router.get("/google", (req, res, next) => {
   const redirect = req.query.redirect || "";
