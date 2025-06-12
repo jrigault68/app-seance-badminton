@@ -21,6 +21,7 @@ router.get(
         expiresIn: "7d",
       });
 
+console.log("→ req :", JSON.stringify(req, null, 2));
 	const redirectBase =
       req.query.redirect ||
       process.env.FRONTEND_URL ||

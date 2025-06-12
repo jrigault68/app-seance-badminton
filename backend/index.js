@@ -7,8 +7,18 @@ require("./middleware/google-auth");
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://app-seance-badminton.vercel.app/"
+];
+
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
