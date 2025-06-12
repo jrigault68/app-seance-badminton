@@ -9,7 +9,8 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://app-seance-badminton.vercel.app"
+  "https://app-seance-badminton.vercel.app",
+  "https://app-seance-badminton-3u1t-3qly71miw-gloumy68s-projects.vercel.app/"
 ];
 
 // Middleware
