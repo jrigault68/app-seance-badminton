@@ -54,7 +54,9 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
       process.env.FRONTEND_URL ||
       "https://app-seance-badminton.vercel.app/";*/
 
-	const isLocalhost  = redirectBase.includes("localhost");
+	res.send(<html><script>localStorage.setItem("token", token); location.href = "/profil"</script></html>)
+
+	/*const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -62,7 +64,7 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
           sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .redirect(`${redirectBase}/profil`);
+        .redirect(`${redirectBase}/profil`);*/
     } catch (err) {
       console.log("Erreur dans la route /google/callback :", JSON.stringify(err, null, 2));
       res.status(500).send("Erreur interne");
@@ -142,8 +144,11 @@ router.post("/login", async (req, res) => {
 	const redirectBase = decodeURIComponent(
 	  req.query.redirect || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app"
 	);
-
-  const isLocalhost  = redirectBase.includes("localhost");
+res.json({
+  token, // ← le JWT directement
+  user: { id: user.id, email: user.email, nom: user.nom }
+});
+  /*const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -151,7 +156,7 @@ router.post("/login", async (req, res) => {
           sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .json({ user: { id: user.id, email: user.email, nom: user.nom } });
+        .json({ user: { id: user.id, email: user.email, nom: user.nom } });*/
 });
 /*router.post("/login", async (req, res) => {
   const { email, password } = req.body;
