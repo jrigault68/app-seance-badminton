@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { register, login } from "../services/authservice";
+import { register, login } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 
 export default function ConnexionInscription() {
