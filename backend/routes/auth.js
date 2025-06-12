@@ -48,7 +48,7 @@ router.get(
 
 console.log("→ req.query :", JSON.stringify(req.query, null, 2));
 
-const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app/");
+const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://app-seance-badminton-3u1t.vercel.app");
 	/*const redirectBase =
       req.query.redirect ||
       process.env.FRONTEND_URL ||
