@@ -36,13 +36,12 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
       process.env.FRONTEND_URL ||
       "https://app-seance-badminton.vercel.app/";*/
 
-	const isProduction = process.env.NODE_ENV === "production";
-	const isLocalFront = req.query.state?.includes("localhost");
+	const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: isProduction,
-          sameSite: isLocalFront ? "Lax" : "None",
+          secure: !isLocalhost ,
+          sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
         .redirect(`${redirectBase}/profil`);
