@@ -14,18 +14,25 @@ router.get(
     session: false // ⬅️ pareil ici
   }),
   (req, res) => {
-    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    try {
+      console.log("→ Utilisateur authentifié :", req.user);
 
-    res
-      .cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Lax",
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-      })
-      .redirect("/profil");
+      const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Lax",
+          maxAge: 1000 * 60 * 60 * 24 * 7,
+        })
+        .redirect("/profil");
+    } catch (err) {
+      console.error("Erreur dans la route /google/callback :", err);
+      res.status(500).send("Erreur interne");
+    }
   }
 );
 
