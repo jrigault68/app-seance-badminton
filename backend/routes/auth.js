@@ -42,6 +42,7 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
           httpOnly: true,
           secure: !isLocalhost ,
           sameSite: isLocalhost  ? "Lax" : "None",
+		  domain: ".onrender.com", // facultatif mais parfois requis
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
         .redirect(`${redirectBase}/profil`);
