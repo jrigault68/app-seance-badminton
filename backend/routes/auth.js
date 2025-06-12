@@ -6,12 +6,17 @@ const router = express.Router();
 
 
 const passport = require("passport");
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"], session: false }));
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
+  passport.authenticate("google", {
+    failureRedirect: "/login",
+    session: false // ⬅️ pareil ici
+  }),
   (req, res) => {
-    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res
       .cookie("token", token, {
@@ -20,9 +25,10 @@ router.get(
         sameSite: "Lax",
         maxAge: 1000 * 60 * 60 * 24 * 7,
       })
-      .redirect("/profil"); // redirige vers la page de ton choix après login
+      .redirect("/profil");
   }
 );
+
 
 // Register
 router.post("/register", async (req, res) => {
