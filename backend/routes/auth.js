@@ -122,14 +122,16 @@ router.post("/login", async (req, res) => {
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-  res
-    .cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // https uniquement en prod
-      sameSite: "Lax",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 jours
-    })
-    .json({ user: { id: user.id, email: user.email, nom: user.nom } });
+  const isLocalhost  = redirectBase.includes("localhost");
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: !isLocalhost ,
+          sameSite: isLocalhost  ? "Lax" : "None",
+          maxAge: 1000 * 60 * 60 * 24 * 7,
+        })
+        .redirect(`${redirectBase}/profil`);
+   // .json({ user: { id: user.id, email: user.email, nom: user.nom } });
 });
 /*router.post("/login", async (req, res) => {
   const { email, password } = req.body;

@@ -3,7 +3,6 @@ import SelectionSeances from "@/screens/SelectionSeances";
 import MoteurExecution from "@/screens/MoteurExecution";
 import SeanceScreen from "@/screens/SeanceScreen";
 import { genererEtapesDepuisStructure } from "@/utils/genererEtapes";
-import { getProfil } from "@/services/authService";
 import ConnexionInscription from "./pages/ConnexionInscription";
 import Profil from "./pages/Profil";
 import Header from "./components/Header";
@@ -17,7 +16,6 @@ export default function App() {
   const [started, setStarted] = useState(false);
   const wakeLockRef = useRef(null);
   const intervalRef = useRef(null);
-
 
 	const location = useLocation();
   const estDansRoutine =
