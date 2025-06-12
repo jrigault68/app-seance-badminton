@@ -44,6 +44,13 @@ passport.use(
 
           if (insertError) {
 			  console.log("🟥 Étape 5 : erreur INSERT utilisateur");
+			  console.error({
+				  message: insertError.message,
+				  details: insertError.details,
+				  hint: insertError.hint,
+				  code: insertError.code,
+				});
+
 			  return done(insertError);
 		  }
 		  console.log("🟢 Étape 6 : insertion réussie, id =", newUser.id);

@@ -21,6 +21,13 @@ router.get(
         expiresIn: "7d",
       });
 
+	// Détection automatique front local ou Vercel
+    const isLocal = req.headers.host?.includes("localhost") || req.hostname === "localhost";
+    const redirectBase =
+      isLocal
+        ? "http://localhost:5173"
+        : process.env.FRONTEND_URL || "https://tonapp.vercel.app";
+
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -28,7 +35,7 @@ router.get(
           sameSite: "Lax",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .redirect("/profil");
+        .redirect(`${redirectBase}/profil`);
     } catch (err) {
       console.error("Erreur dans la route /google/callback :", err);
       res.status(500).send("Erreur interne");
