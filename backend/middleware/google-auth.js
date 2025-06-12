@@ -24,7 +24,7 @@ passport.use(
           .single();
 
         if (error && error.code !== "PGRST116") {
-          console.error("Erreur Supabase : ", error);
+          console.log("Erreur Supabase : ", error);
           return done(error);
         }
 
@@ -46,7 +46,7 @@ passport.use(
 
         return done(null, { id: existingUser.id });
       } catch (err) {
-        console.error("Erreur stratégie Google :", err);
+        console.log("Erreur stratégie Google :", err);
         done(err);
       }
     }
