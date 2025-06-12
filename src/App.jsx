@@ -68,7 +68,16 @@ export default function App() {
     return (<SeanceScreen structure={selectedStructure} meta={metaSeance} onStart={startRoutine} onReturn={resetToAccueil}/>);
   }
 
-  return (
+
+return (
+      <Routes>
+        <Route path="/login" element={<ConnexionInscription />} />
+        <Route path="/auth-success" element={<AuthSuccess />} />
+        <Route path="/profil" element={<Profil />} />
+        <Route path="*" element={<ConnexionInscription />} />
+      </Routes>
+  );
+  /*return (
     <>
       {!estDansRoutine && <Header />}
 
@@ -83,5 +92,5 @@ export default function App() {
         <Route path="*" element={<SelectionSeances onLoadSeance={handleLoadSeance} />} />
       </Routes>
     </>
-  );
+  );*/
 }
