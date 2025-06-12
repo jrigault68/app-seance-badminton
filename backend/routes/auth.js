@@ -6,7 +6,14 @@ const router = express.Router();
 
 
 const passport = require("passport");
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"], session: false }));
+router.get("/google", (req, res, next) => {
+  const redirect = req.query.redirect || "";
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
+    state: encodeURIComponent(redirect),
+  })(req, res, next);
+});
 router.get(
   "/google/callback",
   passport.authenticate("google", {
@@ -22,10 +29,12 @@ router.get(
       });
 
 console.log("→ req :", JSON.stringify(req, null, 2));
-	const redirectBase =
+
+const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app/");
+	/*const redirectBase =
       req.query.redirect ||
       process.env.FRONTEND_URL ||
-      "https://app-seance-badminton.vercel.app/";
+      "https://app-seance-badminton.vercel.app/";*/
 
       res
         .cookie("token", token, {
