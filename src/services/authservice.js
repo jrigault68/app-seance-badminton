@@ -1,4 +1,4 @@
-const API = process.env.REACT_APP_API_URL;
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export async function register(email, password, nom) {
   const res = await fetch(`${API}/auth/register`, {

@@ -3,7 +3,7 @@ import SelectionSeances from "@/screens/SelectionSeances";
 import MoteurExecution from "@/screens/MoteurExecution";
 import SeanceScreen from "@/screens/SeanceScreen";
 import { genererEtapesDepuisStructure } from "@/utils/genererEtapes";
-import { getProfil } from "./services/authService";
+import { getProfil } from "@/services/authService";
 
 export default function AppStyled() {
   const [selectedStructure, setSelectedStructure] = useState([]);
