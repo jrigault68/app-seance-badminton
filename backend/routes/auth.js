@@ -28,7 +28,7 @@ router.get(
         expiresIn: "7d",
       });
 
-console.log("→ req :", JSON.stringify(req, null, 2));
+console.log("→ req.query :", JSON.stringify(req.query, null, 2));
 
 const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app/");
 	/*const redirectBase =
