@@ -16,6 +16,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
+			console.log('origin : ', origin);
 			if (!origin) return callback(null, true); // autorise Postman/local server
 			if (allowedOrigins.includes(origin)) return callback(null, true);
 			return callback(new Error("Not allowed by CORS"));
