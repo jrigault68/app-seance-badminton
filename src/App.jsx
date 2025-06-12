@@ -4,6 +4,7 @@ import MoteurExecution from "@/screens/MoteurExecution";
 import SeanceScreen from "@/screens/SeanceScreen";
 import { genererEtapesDepuisStructure } from "@/utils/genererEtapes";
 import ConnexionInscription from "./pages/ConnexionInscription";
+import AuthSuccess from "./pages/AuthSuccess";
 import Profil from "./pages/Profil";
 import Header from "./components/Header";
 import PrivateRoute from "./components/PrivateRoute";
@@ -77,6 +78,7 @@ export default function App() {
             <Profil />
           </PrivateRoute>
         } />
+		<Route path="/auth-success" element={<AuthSuccess />} />
         <Route path="/login" element={<ConnexionInscription />} />
         <Route path="*" element={<SelectionSeances onLoadSeance={handleLoadSeance} />} />
       </Routes>

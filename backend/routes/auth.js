@@ -54,7 +54,8 @@ const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_
       process.env.FRONTEND_URL ||
       "https://app-seance-badminton.vercel.app/";*/
 const encodedToken = JSON.stringify(token);
-	res.send(`<html><script>localStorage.setItem("token", ${encodedToken}); location.href = "${redirectBase}/profil"</script></html>`);
+res.redirect(`${redirectBase}/auth-success?token=${token}`);
+	//res.send(`<html><script>localStorage.setItem("token", ${encodedToken}); location.href = "${redirectBase}/profil"</script></html>`);
 
 	/*const isLocalhost  = redirectBase.includes("localhost");
       res
