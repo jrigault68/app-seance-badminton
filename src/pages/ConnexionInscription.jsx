@@ -23,7 +23,8 @@ export default function ConnexionInscription() {
   };
 
   const googleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL.replace(/\/api$/, "")}/api/auth/google`;
+	  const redirectURL = window.location.origin;
+    window.location.href = `${import.meta.env.VITE_API_URL.replace(/\/api$/, "")}/api/auth/google?redirect=${encodeURIComponent(redirectURL)}`;
   };
 
   return (

@@ -21,12 +21,10 @@ router.get(
         expiresIn: "7d",
       });
 
-	// Détection automatique front local ou Vercel
-    const isLocal = req.headers.host?.includes("localhost") || req.hostname === "localhost";
-    const redirectBase =
-      isLocal
-        ? "http://localhost:5173"
-        : process.env.FRONTEND_URL || "https://tonapp.vercel.app";
+	const redirectBase =
+      req.query.redirect ||
+      process.env.FRONTEND_URL ||
+      "https://app-seance-badminton.vercel.app/";
 
       res
         .cookie("token", token, {
