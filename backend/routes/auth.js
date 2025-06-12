@@ -4,8 +4,56 @@ const jwt = require("jsonwebtoken");
 const supabase = require("../db");
 const router = express.Router();
 
+
+const passport = require("passport");
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  (req, res) => {
+    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Lax",
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+      })
+      .redirect("/profil"); // redirige vers la page de ton choix après login
+  }
+);
+
 // Register
 router.post("/register", async (req, res) => {
+  const { nom, email, password } = req.body;
+
+  // Vérifie que l'utilisateur n'existe pas déjà
+  const { data: existingUser } = await supabase
+    .from("utilisateurs")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (existingUser) {
+    return res.status(409).json({ message: "Email déjà utilisé." });
+  }
+
+  // Hash du mot de passe
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Enregistrement en base
+  const { data, error } = await supabase.from("utilisateurs").insert({
+    nom,
+    email,
+    password_hash: hashedPassword,
+  });
+
+  if (error) return res.status(500).json({ message: error.message });
+
+  res.status(201).json({ message: "Inscription réussie" });
+});
+/*router.post("/register", async (req, res) => {
   const { email, password, nom } = req.body;
 
   const hash = bcrypt.hashSync(password, 10);
@@ -18,10 +66,37 @@ router.post("/register", async (req, res) => {
   if (error) return res.status(400).json({ message: error.message });
 
   res.status(201).json({ id: data[0].id, email });
-});
+});*/
 
 // Login
+const jwt = require("jsonwebtoken");
+
 router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  const { data: user, error } = await supabase
+    .from("utilisateurs")
+    .select("id, email, nom, password_hash")
+    .eq("email", email)
+    .single();
+
+  if (error || !user) return res.status(401).json({ message: "Email invalide" });
+
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) return res.status(401).json({ message: "Mot de passe invalide" });
+
+  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+  res
+    .cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // https uniquement en prod
+      sameSite: "Lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 jours
+    })
+    .json({ user: { id: user.id, email: user.email, nom: user.nom } });
+});
+/*router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   const { data, error } = await supabase
@@ -40,6 +115,10 @@ router.post("/login", async (req, res) => {
   });
 
   res.json({ token, user: { id: data.id, email: data.email, nom: data.nom } });
+});*/
+
+router.post("/logout", (req, res) => {
+  res.clearCookie("token").json({ message: "Déconnexion réussie" });
 });
 
 const verifyToken = require("../middleware/auth");
