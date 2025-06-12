@@ -23,7 +23,7 @@ const jwt = require("jsonwebtoken");
 
 module.exports = function (req, res, next) {
   const token = req.cookies.token;
-
+console.log("TOKEN REÇU ?", req.cookies.token)
   if (!token) return res.status(403).json({ message: "Accès refusé" });
 
   try {
