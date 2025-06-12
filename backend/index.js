@@ -9,7 +9,7 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://app-seance-badminton.vercel.app",
+  "https://app-seance-badminton-3u1t.vercel.app/",
   "https://app-seance-badminton-3u1t-*-gloumy68s-projects.vercel.app/"
 ];
 
