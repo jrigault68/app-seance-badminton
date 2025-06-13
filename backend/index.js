@@ -14,8 +14,19 @@ app.use((req, res, next) => {
   next();
 });
 
+const allowedOrigins = [
+  "https://coach.csbw.fr",
+  "http://localhost:5173",
+];
+
 app.use(cors({
-  origin: "https://coach.csbw.fr",  // Ton frontend
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true
 }));
 app.use(cookieParser());
