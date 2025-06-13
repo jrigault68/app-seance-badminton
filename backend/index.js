@@ -7,13 +7,6 @@ require("./middleware/google-auth");
 
 const app = express();
 
-app.use((req, res, next) => {
-  if (req.headers["x-forwarded-proto"] !== "https") {
-    return res.redirect("https://" + req.headers.host + req.url);
-  }
-  next();
-});
-
 const allowedOrigins = [
   "https://coach.csbw.fr",
   "http://localhost:5173",

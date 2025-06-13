@@ -35,7 +35,7 @@ export default function ConnexionInscription() {
 
   const googleLogin = () => {
 	  const redirectURL = window.location.origin;
-    window.location.href = `${import.meta.env.VITE_API_URL.replace(/\/api$/, "")}/api/auth/google?redirect=${encodeURIComponent(redirectURL)}`;
+    window.location.href = `${import.meta.env.VITE_API_URL.replace(/\/api$/, "")}/auth/google?redirect=${encodeURIComponent(redirectURL)}`;
   };
 
   return (
