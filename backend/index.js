@@ -17,6 +17,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   "https://coach.csbw.fr",
   "http://localhost:5173",
+  "https://app-seance-badminton-3u1t.vercel.app"
 ];
 
 app.use(cors({
