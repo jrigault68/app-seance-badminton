@@ -7,7 +7,17 @@ require("./middleware/google-auth");
 
 const app = express();
 
-app.use(cors());
+app.use((req, res, next) => {
+  if (req.headers["x-forwarded-proto"] !== "https") {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
+
+app.use(cors({
+  origin: "https://coach.csbw.fr",  // Ton frontend
+  credentials: true
+}));
 app.use(cookieParser());
 app.use(express.json());
 
@@ -15,6 +25,7 @@ app.use(passport.initialize());
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+
 
 
 const port = process.env.PORT || 5000;
