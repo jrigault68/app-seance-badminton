@@ -17,7 +17,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   "https://coach.csbw.fr",
   "http://localhost:5173",
-  "https://app-seance-badminton-3u1t.vercel.app"
+  "https://api.csbw.fr"
 ];
 
 app.use(cors({
@@ -36,7 +36,7 @@ app.use(express.json());
 app.use(passport.initialize());
 
 // Routes
-app.use("/api/auth", require("./routes/auth"));
+app.use("/auth", require("./routes/auth"));
 
 
 
