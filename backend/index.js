@@ -10,16 +10,22 @@ const app = express();
 const allowedOrigins = [
   "https://coach.csbw.fr",
   "http://localhost:5173",
+  "http://localhost:5000",
   "https://api.csbw.fr"
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
+      return callback(null, true);
     }
+
+    // Cas spécial pour les health checks Render (souvent sans origin)
+    if (process.env.NODE_ENV === "production" && origin === undefined) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS: " + origin));
   },
   credentials: true
 }));

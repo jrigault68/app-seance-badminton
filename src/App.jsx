@@ -69,15 +69,8 @@ export default function App() {
   }
 
 
-return (
-      <Routes>
-        <Route path="/login" element={<ConnexionInscription />} />
-        <Route path="/auth-success" element={<AuthSuccess />} />
-        <Route path="/profil" element={<Profil />} />
-        <Route path="*" element={<ConnexionInscription />} />
-      </Routes>
-  );
-  /*return (
+
+  return (
     <>
       {!estDansRoutine && <Header />}
 
@@ -92,5 +85,5 @@ return (
         <Route path="*" element={<SelectionSeances onLoadSeance={handleLoadSeance} />} />
       </Routes>
     </>
-  );*/
+  );
 }
