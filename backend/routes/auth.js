@@ -143,13 +143,13 @@ router.post("/login", async (req, res) => {
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 	const redirectBase = decodeURIComponent(
-	  req.query.redirect || process.env.FRONTEND_URL || "https://app-seance-badminton.vercel.app"
+	  req.query.redirect || process.env.FRONTEND_URL || "https://coach.csbw.fr"
 	);
-res.json({
+/*res.json({
   token, // ← le JWT directement
   user: { id: user.id, email: user.email, nom: user.nom }
-});
-  /*const isLocalhost  = redirectBase.includes("localhost");
+});*/
+  const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -157,7 +157,7 @@ res.json({
           sameSite: isLocalhost  ? "Lax" : "None",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         })
-        .json({ user: { id: user.id, email: user.email, nom: user.nom } });*/
+        .json({ user: { id: user.id, email: user.email, nom: user.nom } });
 });
 /*router.post("/login", async (req, res) => {
   const { email, password } = req.body;
