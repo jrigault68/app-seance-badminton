@@ -38,7 +38,7 @@ export default function Accueil() {
   ];
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-red-950 via-red-900 to-black flex flex-col justify-evenly">
+    <>
       {/* Hero Section */}
       <section className="flex flex-col items-center justify-center text-center px-4 py-6">
         <h1 className="text-4xl md:text-5xl font-bold mb-8 text-white">
@@ -96,6 +96,6 @@ export default function Accueil() {
           </button>
         </div>
       </section>
-    </div>
+    </>
   );
 } 

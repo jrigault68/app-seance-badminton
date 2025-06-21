@@ -1,4 +1,4 @@
-export function genererEtapesDepuisStructure(structure, exercices, isBloc = false, blocIndex = 1, totalBlocs = 1, nextBlocStep = null) {
+export function genererEtapesDepuisStructure(structure, exercices = [], isBloc = false, blocIndex = 1, totalBlocs = 1, nextBlocStep = null) {
   const etapes = [];
   const exoDict = Object.fromEntries(exercices.map(e => [e.id, e]));
   var s = 0
@@ -34,7 +34,28 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
 
     const exoId = step.id;
     const exoData = exoDict[exoId] || {};
-    const stepData = { ...exoData, ...step };
+    
+    // Adapter les données de la base aux propriétés attendues par le moteur
+    const stepData = { 
+      ...exoData, 
+      ...step,
+      // Mapper les propriétés de la base vers les propriétés attendues
+      nom: exoData.nom || step.nom || "Exercice",
+      description: exoData.description || step.description || "",
+      instructions: exoData.instructions || step.instructions || "",
+      focus_zone: exoData.focus_zone || step.focus_zone || [],
+      position_depart: exoData.position_depart || step.position_depart || "",
+      erreurs_courantes: exoData.erreurs_courantes || step.erreurs_courantes || [],
+      conseils: exoData.conseils || step.conseils || [],
+      // Garder les propriétés de configuration de l'exercice
+      series: step.series,
+      repetitions: step.repetitions,
+      temps_series: step.temps_series,
+      temps_par_repetition: step.temps_par_repetition,
+      temps_repos_series: step.temps_repos_series,
+      temps_repos_exercice: step.temps_repos_exercice
+    };
+    
     const base = { id: exoId, exo: stepData };
 
     if (etapes.length === 0 && (!isBloc || blocIndex == 1)) { // && 
@@ -113,16 +134,32 @@ export function genererEtapesDepuisStructure(structure, exercices, isBloc = fals
 	const reposApres = step.temps_repos_exercice || 0;
     if (reposApres) {
       var nextStep = (structure[s + 1]  || nextBlocStep);
-	  if (nextStep.type === "bloc") {
+	  if (nextStep && nextStep.type === "bloc") {
 		  nextStep = nextStep.contenu[0] || [];
 	  }
       const nextExo = nextStep ? exoDict[nextStep.id] || {} : null;
-      etapes.push({
-        type: "repos",
-        duree: reposApres,
-        messages: ["repos.annonce_suivant", "exercice.position_depart", "exercice.description"],
-        exo: nextExo ? { ...nextExo, ...nextStep } : undefined
-      });
+      if (nextExo) {
+        const nextExoData = {
+          ...nextExo,
+          ...nextStep,
+          nom: nextExo.nom || nextStep.nom || "Exercice suivant",
+          description: nextExo.description || nextStep.description || "",
+          instructions: nextExo.instructions || nextStep.instructions || "",
+          position_depart: nextExo.position_depart || nextStep.position_depart || ""
+        };
+        etapes.push({
+          type: "repos",
+          duree: reposApres,
+          messages: ["repos.annonce_suivant", "exercice.position_depart", "exercice.description"],
+          exo: nextExoData
+        });
+      } else {
+        etapes.push({
+          type: "repos",
+          duree: reposApres,
+          messages: ["repos.annonce_suivant"]
+        });
+      }
     }
 	s+=1;
   }

@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
-import { Menu, X, User, LogOut } from "lucide-react"; // Icônes
+import { User, LogOut } from "lucide-react"; // Icônes
 import { getDisplayName, BRAND_CONFIG } from "../config/brand";
 
 export default function Header() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const [open, setOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -35,22 +34,15 @@ export default function Header() {
   };
 
   const links = [
-    { name: "Entraînement", path: "/seances" },
+    { name: "Séances", path: "/recherche" },
     // d'autres liens viendront ici
   ];
 
   return (
-    <header className="bg-gradient-to-r from-red-950 via-red-900 to-black text-white px-6 py-4 flex justify-between items-center shadow-lg relative z-50">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-red-950 via-red-900 to-black text-white px-6 py-4 flex justify-between items-center shadow-lg">
       {/* Logo à gauche */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        <button
-          className="md:hidden mr-2"
-          onClick={() => setOpen(prev => !prev)}
-          aria-label="Menu"
-        >
-          {open ? <X size={28} /> : <Menu size={28} />}
-        </button>
-        <div
+        <div 
           className="cursor-pointer hover:opacity-80 transition-opacity"
           onClick={() => navigate("/")}
         >
@@ -98,24 +90,6 @@ export default function Header() {
           </button>
         )}
       </div>
-
-      {/* Mobile Drawer (liens uniquement) */}
-      {open && (
-        <div className="absolute top-full left-0 w-full bg-black/90 flex flex-col items-start px-6 py-4 gap-4 md:hidden shadow-2xl rounded-b-2xl backdrop-blur-sm z-50">
-          {links.map(link => (
-            <button
-              key={link.name}
-              onClick={() => {
-                setOpen(false);
-                navigate(link.path);
-              }}
-              className="text-white text-base font-medium w-full text-left hover:text-red-300"
-            >
-              {link.name}
-            </button>
-          ))}
-        </div>
-      )}
     </header>
   );
 }

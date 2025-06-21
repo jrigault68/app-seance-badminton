@@ -216,23 +216,10 @@ router.get('/types/list', async (req, res) => {
   }
 });
 
-// =====================================================
-// ROUTES PROTÉGÉES (avec authentification)
-// =====================================================
-
-// POST /api/exercices - Créer un nouvel exercice (admin seulement)
-router.post('/', verifyToken, async (req, res) => {
+// POST /exercices - Créer un nouvel exercice (collaboratif, en attente de validation)
+router.post('/', async (req, res) => {
   try {
-    // Vérifier les permissions (admin seulement pour l'instant)
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        error: 'Accès refusé',
-        details: 'Seuls les administrateurs peuvent créer des exercices'
-      });
-    }
-
     const {
-      id,
       nom,
       description,
       position_depart,
@@ -242,21 +229,44 @@ router.post('/', verifyToken, async (req, res) => {
       type_id,
       materiel,
       erreurs,
-      focus_zone,
-      image_url,
-      video_url,
-      duree_estimee,
-      calories_estimees,
       muscles_sollicites,
       variantes,
-      conseils
+      conseils,
+      duree_estimee,
+      calories_estimees,
+      created_by
     } = req.body;
 
     // Validation des champs obligatoires
-    if (!id || !nom || !description) {
+    if (!nom || !description) {
       return res.status(400).json({
         error: 'Données manquantes',
-        details: 'Les champs id, nom et description sont obligatoires'
+        details: 'Les champs nom et description sont obligatoires'
+      });
+    }
+
+    // Générer l'ID automatiquement basé sur le nom
+    const generateId = (nom) => {
+      return nom.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .trim();
+    };
+
+    const id = generateId(nom);
+
+    // Vérifier si l'exercice existe déjà
+    const { data: existingExercise } = await supabase
+      .from('exercices')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (existingExercise) {
+      return res.status(409).json({
+        error: 'Exercice déjà existant',
+        details: `Un exercice avec le nom "${nom}" existe déjà`
       });
     }
 
@@ -271,15 +281,17 @@ router.post('/', verifyToken, async (req, res) => {
       type_id: type_id || null,
       materiel: materiel || [],
       erreurs: erreurs || [],
-      focus_zone: focus_zone || [],
-      image_url,
-      video_url,
-      duree_estimee,
-      calories_estimees,
       muscles_sollicites: muscles_sollicites || [],
-      variantes: variantes || [],
-      conseils: conseils || []
+      variantes: variantes || {},
+      conseils: conseils || [],
+      duree_estimee: duree_estimee || null,
+      calories_estimees: calories_estimees || null,
+      created_by: created_by || 'anonymous',
+      is_validated: false, // En attente de validation par un admin
+      created_at: new Date().toISOString()
     };
+
+    console.log('🔍 Données de l\'exercice à créer:', JSON.stringify(exerciceData, null, 2));
 
     const { data, error } = await supabase
       .from('exercices')
@@ -289,14 +301,22 @@ router.post('/', verifyToken, async (req, res) => {
 
     if (error) {
       console.error('❌ Erreur lors de la création de l\'exercice:', error);
+      console.error('❌ Détails de l\'erreur:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       return res.status(500).json({
         error: 'Erreur lors de la création de l\'exercice',
         details: error.message
       });
     }
 
+    console.log('✅ Exercice créé avec succès:', data);
+
     res.status(201).json({
-      message: 'Exercice créé avec succès',
+      message: 'Exercice créé avec succès et en attente de validation',
       exercice: data
     });
 
@@ -309,7 +329,11 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/exercices/:id - Mettre à jour un exercice (admin seulement)
+// =====================================================
+// ROUTES PROTÉGÉES (avec authentification)
+// =====================================================
+
+// PUT /exercices/:id - Mettre à jour un exercice (admin seulement)
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     // Vérifier les permissions (admin seulement pour l'instant)
@@ -363,7 +387,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/exercices/:id - Supprimer un exercice (admin seulement)
+// DELETE /exercices/:id - Supprimer un exercice (admin seulement)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     // Vérifier les permissions (admin seulement pour l'instant)
@@ -391,6 +415,58 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     res.json({
       message: 'Exercice supprimé avec succès'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur serveur:', error);
+    res.status(500).json({
+      error: 'Erreur serveur interne',
+      details: error.message
+    });
+  }
+});
+
+// POST /exercices/:id/validate - Valider un exercice (admin seulement)
+router.post('/:id/validate', verifyToken, async (req, res) => {
+  try {
+    // Vérifier les permissions (admin seulement)
+    if (!req.user.isAdmin) {
+      return res.status(403).json({
+        error: 'Accès refusé',
+        details: 'Seuls les administrateurs peuvent valider des exercices'
+      });
+    }
+
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('exercices')
+      .update({ 
+        is_validated: true,
+        validated_by: req.user.id,
+        validated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          error: 'Exercice non trouvé',
+          details: `Aucun exercice trouvé avec l'ID: ${id}`
+        });
+      }
+      console.error('❌ Erreur lors de la validation de l\'exercice:', error);
+      return res.status(500).json({
+        error: 'Erreur lors de la validation de l\'exercice',
+        details: error.message
+      });
+    }
+
+    res.json({
+      message: 'Exercice validé avec succès',
+      exercice: data
     });
 
   } catch (error) {

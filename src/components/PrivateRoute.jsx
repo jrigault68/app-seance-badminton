@@ -1,16 +1,20 @@
 import { useEffect } from "react";
 import { useUser } from "../contexts/UserContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function PrivateRoute({ children }) {
   const { user, ready } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (ready && !user) {
-      navigate("/login");
+      navigate("/login", { 
+        state: { from: location.pathname },
+        replace: true 
+      });
     }
-  }, [ready, user]);
+  }, [ready, user, navigate, location.pathname]);
 
   if (!ready) {
     return (

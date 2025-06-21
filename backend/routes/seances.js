@@ -108,6 +108,80 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/seances/:id/exercices - Récupérer les exercices d'une séance
+router.get('/:id/exercices', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // D'abord récupérer la séance pour avoir sa structure
+    const { data: seance, error: seanceError } = await supabase
+      .from('v_seances_completes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (seanceError) {
+      if (seanceError.code === 'PGRST116') {
+        return res.status(404).json({
+          error: 'Séance non trouvée',
+          details: `Aucune séance trouvée avec l'ID: ${id}`
+        });
+      }
+      console.error('❌ Erreur lors de la récupération de la séance:', seanceError);
+      return res.status(500).json({
+        error: 'Erreur lors de la récupération de la séance',
+        details: seanceError.message
+      });
+    }
+
+    if (!seance.structure || !Array.isArray(seance.structure)) {
+      return res.json({ exercices: [] });
+    }
+
+    // Extraire tous les IDs d'exercices de la structure
+    const exerciceIds = new Set();
+    
+    const extractExerciceIds = (structure) => {
+      structure.forEach(step => {
+        if (step.type === 'bloc' && step.contenu) {
+          extractExerciceIds(step.contenu);
+        } else if (step.id) {
+          exerciceIds.add(step.id);
+        }
+      });
+    };
+
+    extractExerciceIds(seance.structure);
+
+    if (exerciceIds.size === 0) {
+      return res.json({ exercices: [] });
+    }
+
+    // Récupérer les exercices
+    const { data: exercices, error: exercicesError } = await supabase
+      .from('v_exercices_completes')
+      .select('*')
+      .in('id', Array.from(exerciceIds));
+
+    if (exercicesError) {
+      console.error('❌ Erreur lors de la récupération des exercices:', exercicesError);
+      return res.status(500).json({
+        error: 'Erreur lors de la récupération des exercices',
+        details: exercicesError.message
+      });
+    }
+
+    res.json({ exercices: exercices || [] });
+
+  } catch (error) {
+    console.error('❌ Erreur serveur:', error);
+    res.status(500).json({
+      error: 'Erreur serveur interne',
+      details: error.message
+    });
+  }
+});
+
 // =====================================================
 // ROUTES PROTÉGÉES (avec authentification)
 // =====================================================

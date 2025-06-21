@@ -1,25 +1,29 @@
 import { useState, useEffect  } from "react";
 import { register, login } from "../services/authService";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { User, Mail, Lock, ArrowRight, CheckCircle, AlertCircle, HelpCircle } from "lucide-react";
 import { getDisplayName } from "../config/brand";
 
 export default function ConnexionInscription() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const [searchParams] = useSearchParams();
 	// redirection si déjà connecté
 	const { user, ready, refreshUser } = useUser();
 	const [waited, setWaited] = useState(false);
 	
+	// Récupérer la page d'origine depuis l'état de navigation
+	const from = location.state?.from || "/";
+	
 	useEffect(() => {
 	   if (ready && user && waited === false) {
-		 navigate("/");
+		 navigate(from);
 	   }
 	   else if (waited && user) {
-		navigate("/profil");
+		navigate(from);
 	   }
-	 }, [ready, user, waited]);
+	 }, [ready, user, waited, from, navigate]);
 
 	// Vérifier si on doit afficher directement l'inscription
 	useEffect(() => {
@@ -58,7 +62,7 @@ export default function ConnexionInscription() {
 	  await refreshUser();
 	  setWaited(true);
 	  console.log("user: ", user);
-	  navigate("/profil");
+	  navigate(from);
 	} catch (err) {
 	  setErreur(err.message);
 	} finally {
@@ -72,11 +76,11 @@ export default function ConnexionInscription() {
   };
 
   return (
-	<div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gradient-to-br from-red-950 via-black to-red-900 text-white px-4 py-3 sm:py-6">
+	<div className="w-full flex items-center justify-center px-4 text-white">
 	  <div className="w-full max-w-md space-y-4 sm:space-y-5">
 		{/* Header avec titre et sous-titre */}
 		<div className="text-center mb-5 sm:mb-7">
-		  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3">
+		  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 text-white">
 			{isSignup ? `Rejoignez ${getDisplayName()}` : "Bienvenue"}
 		  </h1>
 		  <p className="text-gray-400 text-xs sm:text-sm">
@@ -199,7 +203,7 @@ export default function ConnexionInscription() {
 		{erreur && (
 		  <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 flex items-center gap-3">
 			<AlertCircle size={20} className="text-red-400 flex-shrink-0" />
-			<p className="text-red-400 text-sm">{erreur}</p>
+			<span className="text-sm text-red-300">{erreur}</span>
 		  </div>
 		)}
 	  </div>

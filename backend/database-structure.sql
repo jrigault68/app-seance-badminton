@@ -1,5 +1,4 @@
-
- -- =====================================================
+-- =====================================================
 -- STRUCTURE COMPLÈTE DE BASE DE DONNÉES SMARTSPORTS
 -- =====================================================
 
@@ -83,6 +82,10 @@ CREATE TABLE IF NOT EXISTS exercices (
     muscles_sollicites JSONB DEFAULT '[]',
     variantes JSONB DEFAULT '[]',
     conseils JSONB DEFAULT '[]',
+    created_by UUID REFERENCES utilisateurs(id), -- ID de l'utilisateur qui a créé l'exercice
+    is_validated BOOLEAN DEFAULT false, -- Indique si l'exercice a été validé par un administrateur
+    validated_by UUID REFERENCES utilisateurs(id), -- ID de l'utilisateur qui a validé l'exercice
+    validated_at TIMESTAMP WITH TIME ZONE, -- Date et heure de validation de l'exercice
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -258,6 +261,10 @@ CREATE INDEX IF NOT EXISTS idx_exercices_categorie ON exercices(categorie_id);
 CREATE INDEX IF NOT EXISTS idx_exercices_groupe_musculaire ON exercices(groupe_musculaire_id);
 CREATE INDEX IF NOT EXISTS idx_exercices_niveau ON exercices(niveau_id);
 CREATE INDEX IF NOT EXISTS idx_exercices_type ON exercices(type_id);
+CREATE INDEX IF NOT EXISTS idx_exercices_created_by ON exercices(created_by);
+CREATE INDEX IF NOT EXISTS idx_exercices_is_validated ON exercices(is_validated);
+CREATE INDEX IF NOT EXISTS idx_exercices_validated_by ON exercices(validated_by);
+CREATE INDEX IF NOT EXISTS idx_exercices_validated_at ON exercices(validated_at);
 
 -- Index pour les séances
 CREATE INDEX IF NOT EXISTS idx_seances_niveau ON seances(niveau_id);

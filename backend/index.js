@@ -42,13 +42,13 @@ app.use("/auth", require("./routes/auth"));
 // =====================================================
 
 // API pour les exercices
-app.use("/api/exercices", require("./routes/exercices"));
+app.use("/exercices", require("./routes/exercices"));
 
 // API pour les séances
-app.use("/api/seances", require("./routes/seances"));
+app.use("/seances", require("./routes/seances"));
 
 // API pour les sessions d'entraînement
-app.use("/api/sessions", require("./routes/sessions"));
+app.use("/sessions", require("./routes/sessions"));
 
 // Health check routes
 app.get("/health", (req, res) => {
