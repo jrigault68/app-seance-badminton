@@ -7,7 +7,7 @@ const SERVER_URL = process.env.SERVER_URL || 'https://ton-app.vercel.app';
 
 // Configuration Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function pingServer() {
@@ -27,7 +27,7 @@ async function pingSupabase() {
   try {
     // Faire une requête simple pour maintenir Supabase actif
     const { data, error } = await supabase
-      .from('users') // Remplace par une table qui existe
+      .from('utilisateurs') // Table correcte
       .select('count')
       .limit(1);
     

@@ -28,7 +28,7 @@ router.get('/supabase-ping', async (req, res) => {
   try {
     // Faire une requête simple pour maintenir Supabase actif
     const { data, error } = await supabase
-      .from('users') // Remplace par une table qui existe
+      .from('utilisateurs') // Table correcte
       .select('count')
       .limit(1);
     
