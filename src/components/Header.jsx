@@ -72,6 +72,16 @@ export default function Header() {
         {user ? (
           <>
             <span className="hidden md:inline text-sm text-gray-300">Bonjour, <span className="font-medium text-white">{user.nom}</span></span>
+            {/* Lien Admin pour les utilisateurs admin */}
+            {user.is_admin && (
+              <button
+                onClick={() => navigate('/admin-exercices')}
+                className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-xl text-sm font-semibold"
+                title="Administration des exercices"
+              >
+                Admin
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="bg-red-700 hover:bg-red-800 px-4 py-1.5 rounded-xl text-sm font-semibold"

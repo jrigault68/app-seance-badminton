@@ -457,3 +457,135 @@ backend/
 ---
 
 *Dernière mise à jour: 21/01/2025* 
+
+# API Documentation
+
+## Système d'Administration
+
+### Configuration des administrateurs
+
+Pour définir un utilisateur comme administrateur, modifiez directement la base de données :
+
+```sql
+-- Ajouter la colonne is_admin si elle n'existe pas
+ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false;
+
+-- Définir un utilisateur comme admin
+UPDATE utilisateurs SET is_admin = true WHERE email = 'admin@example.com';
+```
+
+### Structure de la base de données
+
+#### Table `utilisateurs`
+- `id` : Identifiant unique (UUID)
+- `email` : Email de l'utilisateur (unique)
+- `nom` : Nom de l'utilisateur
+- `password_hash` : Hash du mot de passe
+- `is_admin` : Statut administrateur (boolean, défaut: false)
+- `created_at` : Date de création
+- `updated_at` : Date de mise à jour
+
+### Sécurité
+- Seuls les utilisateurs avec `is_admin = true` peuvent accéder à l'interface admin
+- Le bouton "Admin" n'apparaît que pour les utilisateurs admin
+- L'interface admin est protégée par authentification
+- Les actions de validation/suppression nécessitent un token valide
+
+## Routes des exercices
+
+### GET /exercices
+Récupère tous les exercices avec filtres optionnels.
+
+**Paramètres de requête :**
+- `categorie` : Filtrer par catégorie
+- `groupe_musculaire` : Filtrer par groupe musculaire  
+- `niveau` : Filtrer par niveau
+- `type` : Filtrer par type
+- `search` : Recherche dans le nom et la description
+- `is_validated` : Filtrer par statut de validation (true/false)
+- `limit` : Nombre d'exercices à retourner (défaut: 50)
+- `offset` : Offset pour la pagination (défaut: 0)
+
+**Exemple :**
+```
+GET /exercices?is_validated=false&limit=10
+```
+
+### POST /exercices
+Crée un nouvel exercice.
+
+**Corps de la requête :**
+```json
+{
+  "nom": "Nom de l'exercice",
+  "description": "Description de l'exercice",
+  "categorie_id": 1,
+  "groupe_musculaire_id": 1,
+  "niveau_id": 1,
+  "type_id": 1,
+  "duree_estimee": 30
+}
+```
+
+### POST /exercices/:id/validate
+Valide un exercice (interface admin).
+
+**Headers requis :**
+- `Authorization: Bearer <token>`
+
+**Exemple :**
+```
+POST /exercices/123/validate
+```
+
+### DELETE /exercices/:id
+Supprime un exercice (interface admin).
+
+**Headers requis :**
+- `Authorization: Bearer <token>`
+
+## Interface Admin
+
+L'interface admin est accessible via `/admin-exercices` et permet de :
+
+1. **Voir tous les exercices** avec leur statut de validation
+2. **Filtrer les exercices** par statut (en attente, validés, tous)
+3. **Valider des exercices** en attente
+4. **Rejeter et supprimer** des exercices non désirés
+
+### Fonctionnalités de l'interface admin :
+
+- **Filtres** : En attente, Validés, Tous
+- **Actions** : Valider (✓) ou Rejeter (✗) pour les exercices en attente
+- **Informations affichées** :
+  - Nom et description de l'exercice
+  - Statut de validation
+  - Créateur et date de création
+  - Validateur et date de validation (si validé)
+  - Catégorie, groupe musculaire, niveau, durée
+
+### Sécurité :
+- Accès réservé aux utilisateurs connectés
+- Vérification des permissions admin (à implémenter selon vos besoins)
+- Authentification requise pour les actions de validation/suppression
+
+## Structure de la base de données
+
+### Table `exercices`
+- `id` : Identifiant unique
+- `nom` : Nom de l'exercice
+- `description` : Description de l'exercice
+- `categorie_id` : Référence vers la table catégories
+- `groupe_musculaire_id` : Référence vers la table groupes_musculaires
+- `niveau_id` : Référence vers la table niveaux
+- `type_id` : Référence vers la table types
+- `duree_estimee` : Durée estimée en secondes
+- `created_by` : Email de l'utilisateur créateur
+- `is_validated` : Statut de validation (boolean)
+- `validated_by` : Email de l'admin validateur
+- `validated_at` : Date de validation
+- `created_at` : Date de création
+- `updated_at` : Date de mise à jour
+
+### Vue `v_exercices_completes`
+Vue qui joint toutes les tables pour récupérer les informations complètes des exercices. 

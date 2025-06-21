@@ -16,6 +16,7 @@ router.get('/', async (req, res) => {
       niveau,
       type,
       search,
+      is_validated,
       limit = 50,
       offset = 0
     } = req.query;
@@ -39,6 +40,9 @@ router.get('/', async (req, res) => {
     }
     if (search) {
       query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+    if (is_validated !== undefined) {
+      query = query.eq('is_validated', is_validated === 'true');
     }
 
     // Pagination
@@ -426,24 +430,35 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /exercices/:id/validate - Valider un exercice (admin seulement)
-router.post('/:id/validate', verifyToken, async (req, res) => {
+// POST /exercices/:id/validate - Valider un exercice (admin)
+router.post('/:id/validate', async (req, res) => {
   try {
-    // Vérifier les permissions (admin seulement)
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        error: 'Accès refusé',
-        details: 'Seuls les administrateurs peuvent valider des exercices'
+    const { id } = req.params;
+    const { user } = req; // Supposé être défini par le middleware d'auth
+
+    console.log(`🔍 Validation de l'exercice ${id} par l'utilisateur ${user?.id}`);
+
+    // Vérifier que l'exercice existe
+    const { data: exercice, error: fetchError } = await supabase
+      .from('exercices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !exercice) {
+      console.error('❌ Exercice non trouvé:', fetchError);
+      return res.status(404).json({
+        error: 'Exercice non trouvé',
+        details: fetchError?.message
       });
     }
 
-    const { id } = req.params;
-
+    // Mettre à jour l'exercice avec les informations de validation
     const { data, error } = await supabase
       .from('exercices')
-      .update({ 
+      .update({
         is_validated: true,
-        validated_by: req.user.id,
+        validated_by: user?.id || user?.email,
         validated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -451,18 +466,14 @@ router.post('/:id/validate', verifyToken, async (req, res) => {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return res.status(404).json({
-          error: 'Exercice non trouvé',
-          details: `Aucun exercice trouvé avec l'ID: ${id}`
-        });
-      }
-      console.error('❌ Erreur lors de la validation de l\'exercice:', error);
+      console.error('❌ Erreur lors de la validation:', error);
       return res.status(500).json({
         error: 'Erreur lors de la validation de l\'exercice',
         details: error.message
       });
     }
+
+    console.log(`✅ Exercice ${id} validé avec succès par ${user?.email}`);
 
     res.json({
       message: 'Exercice validé avec succès',

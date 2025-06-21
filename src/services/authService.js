@@ -25,16 +25,14 @@ export async function login(email, password) {
 }
 
 export async function getProfil() {
-	console.log('profil');
   const res = await fetch(`${API}/auth/profil`, {
     method: "GET",
     credentials: "include", // pour envoyer le cookie HttpOnly
   });
 
   if (!res.ok) throw new Error("Non autorisé");
-  var data = await res.json()
-  console.log('profil ok : ', data);
-  return data;
+  
+  return await res.json();
 }
 
 export async function logout() {

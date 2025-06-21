@@ -139,7 +139,7 @@ router.get("/profil", verifyToken, async (req, res) => {
 	console.log('profil', req.user?.id);
   const { data, error } = await supabase
     .from("utilisateurs")
-    .select("id, email, nom")
+    .select("id, email, nom, is_admin")
     .eq("id", req.user.id)
     .single();
 

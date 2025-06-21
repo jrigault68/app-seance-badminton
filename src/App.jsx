@@ -13,6 +13,7 @@ import Accueil from "./pages/Accueil";
 import DynamicTitle from "./components/DynamicTitle";
 import SeanceService from "./services/seanceService";
 import AjouterExercice from "./pages/AjouterExercice";
+import AdminExercices from "./pages/AdminExercices";
 
 export default function App() {
   const [selectedStructure, setSelectedStructure] = useState([]);
@@ -140,6 +141,11 @@ export default function App() {
           <Route path="/ajouter-exercice" element={
             <PrivateRoute>
               <AjouterExercice />
+            </PrivateRoute>
+          } />
+          <Route path="/admin-exercices" element={
+            <PrivateRoute>
+              <AdminExercices />
             </PrivateRoute>
           } />
           <Route path="*" element={<Accueil />} />
