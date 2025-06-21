@@ -1,10 +1,16 @@
 {
   "name": "app-seance-badminton",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
+    "generate-manifest": "node scripts/generate-manifest.js",
+    "predev": "npm run generate-manifest",
     "dev": "vite",
+    "prebuild": "npm run generate-manifest",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node backend/index.js",
+    "server:keepalive": "node scripts/start-with-keepalive.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
@@ -17,6 +23,7 @@
     "framer-motion": "^12.15.0",
     "jsonwebtoken": "^9.0.2",
     "lottie-react": "^2.4.1",
+    "lucide-react": "^0.522.0",
     "react": "^18.2.0",
     "react-circular-progressbar": "^2.2.0",
     "react-dom": "^18.2.0",

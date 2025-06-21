@@ -9,6 +9,8 @@ import Profil from "./pages/Profil";
 import Header from "./components/Header";
 import PrivateRoute from "./components/PrivateRoute";
 import { Routes, Route, useLocation } from "react-router-dom";
+import Accueil from "./pages/Accueil";
+import DynamicTitle from "./components/DynamicTitle";
 
 export default function App() {
   const [selectedStructure, setSelectedStructure] = useState([]);
@@ -72,6 +74,7 @@ export default function App() {
 
   return (
     <>
+      <DynamicTitle />
       {!estDansRoutine && <Header />}
 
       <Routes>
@@ -82,6 +85,7 @@ export default function App() {
         } />
 		<Route path="/auth-success" element={<AuthSuccess />} />
         <Route path="/login" element={<ConnexionInscription />} />
+        <Route path="/" element={<Accueil />} />
         <Route path="*" element={<SelectionSeances onLoadSeance={handleLoadSeance} />} />
       </Routes>
     </>
