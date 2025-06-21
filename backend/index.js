@@ -37,6 +37,19 @@ app.use(passport.initialize());
 // Routes
 app.use("/auth", require("./routes/auth"));
 
+// =====================================================
+// NOUVELLES ROUTES POUR LA GESTION DES SÉANCES
+// =====================================================
+
+// API pour les exercices
+app.use("/api/exercices", require("./routes/exercices"));
+
+// API pour les séances
+app.use("/api/seances", require("./routes/seances"));
+
+// API pour les sessions d'entraînement
+app.use("/api/sessions", require("./routes/sessions"));
+
 // Health check routes
 app.get("/health", (req, res) => {
   res.status(200).json({

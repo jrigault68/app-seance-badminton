@@ -11,9 +11,10 @@ const manifest = {
   theme_color: "#ef4444",
   icons: [
     {
-      src: "/icon-192.png",
-      sizes: "192x192",
-      type: "image/png"
+      src: "/logo.svg",
+      sizes: "any",
+      type: "image/svg+xml",
+      purpose: "any maskable"
     }
   ]
 };
