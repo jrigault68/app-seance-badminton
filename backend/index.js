@@ -17,6 +17,8 @@ const allowedOrigins = [
   "http://localhost:4173",
   "https://smart-sports-app.vercel.app",
   "https://smart-sports-backend.onrender.com",
+  "https://app-seance-badminton-3u1t-62u8mf9x8-gloumy68s-projects.vercel.app",
+  "https://coach.csbw.fr"
 ];
 
 const corsOptions = {
