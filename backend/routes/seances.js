@@ -188,48 +188,32 @@ router.get('/:id/exercices', async (req, res) => {
 
 // POST /api/seances - Créer une nouvelle séance
 router.post('/', verifyToken, async (req, res) => {
+  console.log("Body reçu pour création séance :", req.body);
   try {
     const {
-      id,
       nom,
       description,
       niveau_id,
-      type_seance,
-      categories,
-      objectifs,
-      duree_estimee,
-      calories_estimees,
-      materiel_requis,
-      structure,
-      notes,
-      tags,
-      est_publique = false
+      type_id,
+      categorie_id,
+      created_by
     } = req.body;
 
     // Validation des champs obligatoires
-    if (!id || !nom || !structure) {
+    if (!nom) {
       return res.status(400).json({
         error: 'Données manquantes',
-        details: 'Les champs id, nom et structure sont obligatoires'
+        details: 'Le champs nom est obligatoire'
       });
     }
 
     const seanceData = {
-      id,
       nom,
       description,
       niveau_id: niveau_id || null,
-      type_seance,
-      categories: categories || [],
-      objectifs: objectifs || [],
-      duree_estimee,
-      calories_estimees,
-      materiel_requis: materiel_requis || [],
-      structure,
-      notes,
-      tags: tags || [],
-      est_publique,
-      auteur_id: req.user.id
+      type_id: type_id || null,
+      categorie_id: categorie_id || null,
+      created_by: req.user.id
     };
 
     const { data, error } = await supabase
@@ -378,11 +362,11 @@ router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-
+    console.log('Body reçu pour update séance :', updateData);
     // Vérifier les permissions
     const { data: seance, error: fetchError } = await supabase
       .from('seances')
-      .select('auteur_id')
+      .select('created_by')
       .eq('id', id)
       .single();
 
@@ -393,13 +377,15 @@ router.put('/:id', verifyToken, async (req, res) => {
           details: `Aucune séance trouvée avec l'ID: ${id}`
         });
       }
+      console.log('Erreur permission');
       return res.status(500).json({
+        
         error: 'Erreur lors de la vérification des permissions',
         details: fetchError.message
       });
     }
 
-    if (seance.auteur_id !== req.user.id && !req.user.isAdmin) {
+    if (seance.created_by !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         error: 'Accès refusé',
         details: 'Vous ne pouvez modifier que vos propres séances'
@@ -411,6 +397,10 @@ router.put('/:id', verifyToken, async (req, res) => {
     delete updateData.created_at;
     delete updateData.updated_at;
     delete updateData.auteur_id;
+    delete updateData.created_by;
+
+    // Log avant update
+    console.log('Update séance - id:', id, 'body:', updateData);
 
     const { data, error } = await supabase
       .from('seances')
@@ -419,13 +409,16 @@ router.put('/:id', verifyToken, async (req, res) => {
       .select()
       .single();
 
+    // Log après update
     if (error) {
-      console.error('❌ Erreur lors de la mise à jour de la séance:', error);
+      console.error('❌ Erreur lors de la mise à jour de la séance (après update):', error);
       return res.status(500).json({
         error: 'Erreur lors de la mise à jour de la séance',
-        details: error.message
+        details: error.message,
+        full: error
       });
     }
+    console.log('Update séance - résultat:', data);
 
     res.json({
       message: 'Séance mise à jour avec succès',
@@ -436,7 +429,8 @@ router.put('/:id', verifyToken, async (req, res) => {
     console.error('❌ Erreur serveur:', error);
     res.status(500).json({
       error: 'Erreur serveur interne',
-      details: error.message
+      details: error.message,
+      full: error
     });
   }
 });

@@ -1,0 +1,55 @@
+# =====================================================
+# VARIABLES D'ENVIRONNEMENT SUPABASE
+# Badminton Training App
+# =====================================================
+
+# Configuration Supabase
+# Récupérez ces valeurs depuis votre dashboard Supabase
+# https://app.supabase.com/project/[YOUR-PROJECT-ID]/settings/api
+
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Configuration Google OAuth (optionnel pour le déploiement)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Configuration serveur
+PORT=3001
+NODE_ENV=production
+
+# =====================================================
+# INSTRUCTIONS DE CONFIGURATION
+# =====================================================
+
+# 1. Copiez ce fichier vers .env
+#    cp env-example.txt .env
+
+# 2. Remplissez les valeurs Supabase :
+#    - Allez sur https://app.supabase.com
+#    - Sélectionnez votre projet
+#    - Allez dans Settings > API
+#    - Copiez Project URL → SUPABASE_URL
+#    - Copiez anon public → SUPABASE_ANON_KEY
+#    - Copiez service_role secret → SUPABASE_SERVICE_ROLE_KEY
+
+# 3. Testez la configuration :
+#    .\deploy-all-exercices.ps1 -DryRun
+
+# =====================================================
+# SÉCURITÉ
+# =====================================================
+
+# ⚠️  IMPORTANT :
+# - Ne committez JAMAIS le fichier .env dans Git
+# - Gardez vos clés secrètes en sécurité
+# - Utilisez des variables d'environnement système en production
+# - La clé service_role a des privilèges élevés, utilisez-la avec précaution
+
+# =====================================================
+# VÉRIFICATION
+# =====================================================
+
+# Pour vérifier que vos variables sont bien configurées :
+# Get-ChildItem Env: | Where-Object { $_.Name -like "*SUPABASE*" } 

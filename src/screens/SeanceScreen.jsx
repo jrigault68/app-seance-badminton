@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { screenStyle } from "@/styles/styles";
 import StyledButton from "@/components/StyledButton";
 import SeanceStats from "@/components/ui/SeanceStats";
 import SeanceDetails from "@/components/ui/SeanceDetails";
 import SeanceStructure from "@/components/ui/SeanceStructure";
 import SeanceService from "@/services/seanceService";
+import { useUser } from "../contexts/UserContext";
 
 export default function SeanceScreen({ onStart, onReturn }) {
   const { id } = useParams();
   const [seance, setSeance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const { user } = useUser();
 
   useEffect(() => {
     const loadSeance = async () => {
@@ -87,6 +90,9 @@ export default function SeanceScreen({ onStart, onReturn }) {
     );
   }
 
+  // Détermine si l'utilisateur est le propriétaire
+  const isOwner = user && seance && seance.created_by === user.id;
+
   return (
     <div className={screenStyle}>
       <div className="max-w-4xl w-full space-y-6">
@@ -136,6 +142,22 @@ export default function SeanceScreen({ onStart, onReturn }) {
           >
             ← Retour
           </StyledButton>
+          {isOwner && (
+            <>
+              <StyledButton
+                onClick={() => navigate(`/seances/${id}/modifier`)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Modifier
+              </StyledButton>
+              <StyledButton
+                onClick={() => navigate(`/seances/${id}/exercices`)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Gérer les exercices
+              </StyledButton>
+            </>
+          )}
         </div>
       </div>
     </div>

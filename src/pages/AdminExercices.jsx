@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, X, Eye, Clock, User, Calendar } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
+import Snackbar from '../components/Snackbar';
 
 export default function AdminExercices() {
   const navigate = useNavigate();
@@ -11,6 +12,61 @@ export default function AdminExercices() {
   const [selectedExercice, setSelectedExercice] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('pending'); // 'pending', 'validated', 'all'
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [snackbar, setSnackbar] = useState(null);
+
+  // Sélectionner/désélectionner un exercice
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  // Sélectionner/désélectionner tous les exercices en attente
+  const toggleSelectAll = () => {
+    const idsToSelect = exercices.filter(e => !e.is_validated).map(e => e.id);
+    if (selectedIds.length === idsToSelect.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(idsToSelect);
+    }
+  };
+  // Valider la sélection
+  const validerSelection = async () => {
+    if (selectedIds.length === 0) return;
+    setLoading(true);
+    try {
+      for (const id of selectedIds) {
+        await validerExercice(id, true); // true = pas d'alerte individuelle
+      }
+      setSelectedIds([]);
+      await chargerExercices();
+      setSnackbar(`${selectedIds.length} exercice(s) validé(s) !`);
+      setTimeout(() => setSnackbar(null), 3000);
+    } catch (error) {
+      setSnackbar('Erreur lors de la validation groupée.');
+      setTimeout(() => setSnackbar(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Refuser la sélection
+  const refuserSelection = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir rejeter les exercices sélectionnés ?')) return;
+    setLoading(true);
+    try {
+      for (const id of selectedIds) {
+        await rejeterExercice(id, true);
+      }
+      setSelectedIds([]);
+      await chargerExercices();
+      setSnackbar(`${selectedIds.length} exercice(s) rejeté(s) !`);
+      setTimeout(() => setSnackbar(null), 3000);
+    } catch (error) {
+      setSnackbar('Erreur lors du rejet groupé.');
+      setTimeout(() => setSnackbar(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -51,54 +107,69 @@ export default function AdminExercices() {
     }
   };
 
-  const validerExercice = async (id) => {
+  // Modifie validerExercice et rejeterExercice pour ne plus appeler chargerExercices
+  const validerExercice = async (id, noAlert) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/exercices/${id}/validate`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // À adapter selon ton système d'auth
-        }
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ validated_by: user.id })
       });
 
       if (response.ok) {
-        alert('Exercice validé avec succès !');
-        chargerExercices(); // Recharger la liste
+        if (!noAlert) alert('Exercice validé avec succès !');
+        // NE PAS recharger la liste ici
       } else {
         const error = await response.json();
-        alert(`Erreur: ${error.error}`);
+        if (!noAlert) alert(`Erreur: ${error.error}`);
       }
     } catch (error) {
       console.error('Erreur lors de la validation:', error);
-      alert('Erreur lors de la validation');
+      if (!noAlert) alert('Erreur lors de la validation');
     }
   };
-
-  const rejeterExercice = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir rejeter cet exercice ?')) {
+  const rejeterExercice = async (id, noAlert) => {
+    if (!noAlert && !confirm('Êtes-vous sûr de vouloir rejeter cet exercice ?')) {
       return;
     }
-
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/exercices/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // À adapter selon ton système d'auth
-        }
+        credentials: 'include'
       });
-
       if (response.ok) {
-        alert('Exercice rejeté et supprimé !');
-        chargerExercices(); // Recharger la liste
+        if (!noAlert) alert('Exercice rejeté et supprimé !');
+        // NE PAS recharger la liste ici
       } else {
         const error = await response.json();
-        alert(`Erreur: ${error.error}`);
+        if (!noAlert) alert(`Erreur: ${error.error}`);
       }
     } catch (error) {
       console.error('Erreur lors du rejet:', error);
-      alert('Erreur lors du rejet');
+      if (!noAlert) alert('Erreur lors du rejet');
+    }
+  };
+
+  // Fonction pour valider tous les exercices en attente
+  const validerTout = async () => {
+    const aValider = exercices.filter(e => !e.is_validated);
+    if (aValider.length === 0) return;
+    setLoading(true);
+    try {
+      for (const exo of aValider) {
+        await validerExercice(exo.id);
+      }
+      await chargerExercices();
+      alert('Tous les exercices en attente ont été validés !');
+    } catch (error) {
+      alert('Erreur lors de la validation en masse.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -186,6 +257,40 @@ export default function AdminExercices() {
             Tous ({exercices.length})
           </button>
         </div>
+        {/* Sélection groupée */}
+        {filter === 'pending' && exercices.filter(e => !e.is_validated).length > 0 && (
+          <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div>
+              <label className="inline-flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length === exercices.filter(e => !e.is_validated).length}
+                  onChange={toggleSelectAll}
+                  className="form-checkbox h-5 w-5 text-green-600"
+                />
+                <span className="ml-2 text-white font-semibold">Sélectionner tous</span>
+              </label>
+            </div>
+            {selectedIds.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={validerSelection}
+                  className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-lg text-white font-semibold disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Valider la sélection
+                </button>
+                <button
+                  onClick={refuserSelection}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-white font-semibold disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Refuser la sélection
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Liste des exercices */}
         <div className="space-y-4">
@@ -206,6 +311,15 @@ export default function AdminExercices() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
+                      {/* Case à cocher pour la sélection */}
+                      {!exercice.is_validated && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(exercice.id)}
+                          onChange={() => toggleSelect(exercice.id)}
+                          className="form-checkbox h-5 w-5 text-green-600 mr-2"
+                        />
+                      )}
                       <h3 className="text-xl font-semibold">{exercice.nom}</h3>
                       {exercice.is_validated ? (
                         <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full flex items-center gap-1">
@@ -293,6 +407,8 @@ export default function AdminExercices() {
           )}
         </div>
       </div>
+      {/* Snackbar notification */}
+      <Snackbar message={snackbar} type="success" onClose={() => setSnackbar(null)} />
     </div>
   );
 } 

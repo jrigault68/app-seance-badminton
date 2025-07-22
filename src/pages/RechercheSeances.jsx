@@ -236,7 +236,12 @@ export default function RechercheSeances() {
                   {/* Description */}
                   {seance.description && (
                     <p className="text-gray-300 text-xs mb-3 line-clamp-2">
-                      {seance.description}
+                      {seance.description.split('\n').map((line, idx) => (
+                        <React.Fragment key={idx}>
+                          {line}
+                          <br />
+                        </React.Fragment>
+                      ))}
                     </p>
                   )}
 

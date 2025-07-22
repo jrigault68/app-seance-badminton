@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { Home, Dumbbell, User, LogIn } from "lucide-react";
+import { Home, Dumbbell, User, LogIn, Calendar } from "lucide-react";
 
 export default function BottomNavigation() {
   const navigate = useNavigate();
@@ -21,6 +21,12 @@ export default function BottomNavigation() {
       path: "/recherche",
       icon: <Dumbbell size={20} />,
       activeIcon: <Dumbbell size={20} />
+    },
+    {
+      name: "Programmes",
+      path: "/programmes",
+      icon: <Calendar size={20} />,
+      activeIcon: <Calendar size={20} />
     },
     {
       name: "Profil",

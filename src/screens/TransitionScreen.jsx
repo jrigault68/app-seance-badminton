@@ -12,10 +12,10 @@ export function TransitionScreen({
   setStepIndex
 }) {
   const exo = current.exo || null;		
-  const nom = exo.nom || "Repos";
-  const duree = exo.temps_series || 0;
-  const position = exo.position_depart || null;
-  const description = exo.description || null;
+  const nom = exo?.nom || "Repos";
+  const duree = exo?.temps_series || 0;
+  const position = exo?.position_depart || null;
+  const description = exo?.description || null;
   const globalProgress = (exerciceNumero +1)  / totalExercices * 100
 
   return (
@@ -36,7 +36,7 @@ export function TransitionScreen({
 			? "C’est parti ! Prépare-toi pour le premier exercice !"
 			: "Repos, prépare-toi pour la suite !"}</h2>
 
-        {exo.image && (
+        {exo?.image && (
           <div className="max-h-48 mx-auto pointer-events-none">
             <img src={exo.image} alt={nom} className="mx-auto h-40 rounded-xl shadow-lg" />
           </div>

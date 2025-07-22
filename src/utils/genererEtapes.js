@@ -8,6 +8,17 @@ export function genererEtapesDepuisStructure(structure, exercices = [], isBloc =
       const blocRepos = step.temps_repos_bloc || 0;
       const contenu = step.contenu || [];
 
+      // Ajout de l'étape intro_bloc si demandé
+      if (step.intro_bloc) {
+        etapes.push({
+          type: "intro_bloc",
+          nom: step.nom,
+          description: step.description,
+          exercices: contenu,
+          bloc: step
+        });
+      }
+
       for (let i = 0; i < blocReps; i++) {
         /*if (blocReps > 1) {
           etapes.push({

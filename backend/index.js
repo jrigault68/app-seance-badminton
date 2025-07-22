@@ -1,3 +1,7 @@
+// Smart Sports Backend - ES Modules
+// Ce backend utilise la syntaxe ES modules (import/export) car le package.json contient "type": "module".
+// Tous les fichiers doivent utiliser import/export et non require/module.exports.
+
 const express = require("express");
 const passport = require("passport");
 const cookieParser = require("cookie-parser");
@@ -8,34 +12,78 @@ require("./middleware/google-auth");
 const app = express();
 
 const allowedOrigins = [
-  "https://coach.csbw.fr",
+  "http://localhost:3000",
   "http://localhost:5173",
-  "http://localhost:5000",
-  "https://api.csbw.fr"
+  "http://localhost:4173",
+  "https://smart-sports-app.vercel.app",
+  "https://smart-sports-backend.onrender.com",
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
     }
-
-    // Cas spécial pour les health checks Render (souvent sans origin)
-    if (process.env.NODE_ENV === "production" && origin === undefined) {
-      return callback(null, true);
-    }
-
-    return callback(new Error("Not allowed by CORS: " + origin));
   },
-  credentials: true
-}));
-app.use(cookieParser());
-app.use(express.json());
+  credentials: true,
+};
 
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize());
 
-// Routes
-app.use("/auth", require("./routes/auth"));
+// =====================================================
+// ROUTES DE SANTÉ
+// =====================================================
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
+app.get("/supabase-ping", async (req, res) => {
+  try {
+    const supabase = require("./supabase");
+    if (!supabase) {
+      return res.status(500).json({
+        status: "ERROR",
+        supabase: "not_configured",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const { data, error } = await supabase.from("categories_exercices").select("count").limit(1);
+    
+    if (error) {
+      return res.status(500).json({
+        status: "ERROR",
+        supabase: "connection_failed",
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      status: "OK",
+      supabase: "active",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "ERROR",
+      supabase: "error",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 // =====================================================
 // NOUVELLES ROUTES POUR LA GESTION DES SÉANCES
@@ -50,58 +98,38 @@ app.use("/seances", require("./routes/seances"));
 // API pour les sessions d'entraînement
 app.use("/sessions", require("./routes/sessions"));
 
-// Health check routes
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || "development"
+// API pour les programmes
+app.use("/programmes", require("./routes/programmes"));
+app.use("/niveaux", require("./routes/niveaux"));
+app.use("/categories", require("./routes/categories"));
+app.use("/types", require("./routes/types"));
+
+// =====================================================
+// ROUTES D'AUTHENTIFICATION
+// =====================================================
+
+app.use("/auth", require("./routes/auth"));
+
+// =====================================================
+// GESTION DES ERREURS
+// =====================================================
+
+app.use((err, req, res, next) => {
+  console.error("❌ Erreur serveur:", err);
+  res.status(500).json({
+    error: "Erreur serveur interne",
+    details: process.env.NODE_ENV === "development" ? err.message : "Une erreur est survenue",
   });
 });
 
-app.get("/ping", (req, res) => {
-  res.status(200).send("pong");
-});
+// =====================================================
+// DÉMARRAGE DU SERVEUR
+// =====================================================
 
-// Endpoint pour maintenir Supabase actif
-app.get("/supabase-ping", async (req, res) => {
-  try {
-    const { createClient } = require('@supabase/supabase-js');
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-    
-    // Faire une requête simple pour maintenir Supabase actif
-    const { data, error } = await supabase
-      .from('utilisateurs') // Table correcte
-      .select('count')
-      .limit(1);
-    
-    if (error) {
-      console.log(`⚠️ Supabase ping warning: ${error.message}`);
-      res.status(200).json({
-        status: "OK",
-        supabase: "warning",
-        message: error.message,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      console.log(`✅ Supabase pinged successfully`);
-      res.status(200).json({
-        status: "OK",
-        supabase: "active",
-        timestamp: new Date().toISOString()
-      });
-    }
-  } catch (error) {
-    console.error(`❌ Failed to ping Supabase: ${error.message}`);
-    res.status(500).json({
-      status: "ERROR",
-      supabase: "inactive",
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+const PORT = process.env.PORT || 5000;
 
-const port = process.env.PORT || 5000;
-app.listen(port, () => console.log("API lancée sur http://localhost:" + port));
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  console.log(`📊 Environnement: ${process.env.NODE_ENV || "development"}`);
+  console.log(`🔗 URL: http://localhost:${PORT}`);
+});

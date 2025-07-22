@@ -29,10 +29,10 @@ const SeanceStructure = ({ structure }) => {
                 <span className="text-2xl">🔁</span>
                 <div>
                   <h4 className="font-semibold text-orange-300">
-                    Bloc {etape.repetitions || 1} séries
+                    {etape.nom || 'Section'} (x{etape.nbTours || 1})
                   </h4>
                   <p className="text-sm text-gray-400">
-                    Durée estimée: ~{formatDureeTexte(etape.contenu?.reduce((acc, e) => acc + estimerDureeEtape(e), 0) * (etape.repetitions || 1))}
+                    Durée estimée: ~{formatDureeTexte(etape.contenu?.reduce((acc, e) => acc + estimerDureeEtape(e), 0) * (etape.nbTours || 1))}
                   </p>
                 </div>
               </div>
@@ -71,11 +71,6 @@ const SeanceStructure = ({ structure }) => {
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-white mb-1">{nom}</h4>
               <p className="text-sm text-gray-300">{desc}</p>
-              {etape.description && (
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                  {etape.description}
-                </p>
-              )}
             </div>
           </div>
           <div className="flex items-center space-x-2 text-sm text-gray-400">

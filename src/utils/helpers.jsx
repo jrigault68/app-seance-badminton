@@ -60,6 +60,7 @@ export function estimerDureeEtape(etape) {
 }
 
 export function getDetails(exo){
+  if (!exo) return "Exercice libre";
   // Séries + répétitions (classique)
   if (exo.series && exo.series > 1 && exo.repetitions) {
 	return `${exo.series} x ${exo.repetitions} rép.`;

@@ -4,10 +4,10 @@ const supabase = require('../supabase');
 const verifyToken = require('../middleware/auth');
 
 // =====================================================
-// ROUTES PUBLIQUES (sans authentification)
+// ROUTES POUR LA GESTION DES EXERCICES
 // =====================================================
 
-// GET /api/exercices - Récupérer tous les exercices avec filtres
+// GET /exercices - Récupérer tous les exercices avec filtres
 router.get('/', async (req, res) => {
   try {
     const {
@@ -16,9 +16,9 @@ router.get('/', async (req, res) => {
       niveau,
       type,
       search,
-      is_validated,
       limit = 50,
-      offset = 0
+      offset = 0,
+      is_validated
     } = req.query;
 
     let query = supabase
@@ -38,17 +38,17 @@ router.get('/', async (req, res) => {
     if (type) {
       query = query.eq('type_nom', type);
     }
-    if (search) {
-      query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
-    }
     if (is_validated !== undefined) {
       query = query.eq('is_validated', is_validated === 'true');
     }
+    if (search) {
+      query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
+    }
 
     // Pagination
-    query = query.range(offset, offset + limit - 1);
+    query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-    const { data, error, count } = await query;
+    const { data: exercices, error, count } = await query;
 
     if (error) {
       console.error('❌ Erreur lors de la récupération des exercices:', error);
@@ -59,11 +59,11 @@ router.get('/', async (req, res) => {
     }
 
     res.json({
-      exercices: data,
+      exercices: exercices || [],
       pagination: {
         limit: parseInt(limit),
         offset: parseInt(offset),
-        total: count || data.length
+        total: count || exercices?.length || 0
       }
     });
 
@@ -76,12 +76,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/exercices/:id - Récupérer un exercice par ID
+// GET /exercices/:id - Récupérer un exercice par ID
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data: exercice, error } = await supabase
       .from('v_exercices_completes')
       .select('*')
       .eq('id', id)
@@ -101,7 +101,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    res.json({ exercice: data });
+    res.json({ exercice });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -112,10 +112,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET /api/exercices/categories/list - Récupérer toutes les catégories
+// GET /exercices/categories/list - Récupérer toutes les catégories
 router.get('/categories/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: categories, error } = await supabase
       .from('categories_exercices')
       .select('*')
       .order('ordre_affichage');
@@ -128,7 +128,7 @@ router.get('/categories/list', async (req, res) => {
       });
     }
 
-    res.json({ categories: data });
+    res.json({ categories: categories || [] });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -139,10 +139,10 @@ router.get('/categories/list', async (req, res) => {
   }
 });
 
-// GET /api/exercices/groupes/list - Récupérer tous les groupes musculaires
+// GET /exercices/groupes/list - Récupérer tous les groupes musculaires
 router.get('/groupes/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: groupes, error } = await supabase
       .from('groupes_musculaires')
       .select('*')
       .order('ordre_affichage');
@@ -155,7 +155,7 @@ router.get('/groupes/list', async (req, res) => {
       });
     }
 
-    res.json({ groupes: data });
+    res.json({ groupes: groupes || [] });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -166,10 +166,10 @@ router.get('/groupes/list', async (req, res) => {
   }
 });
 
-// GET /api/exercices/niveaux/list - Récupérer tous les niveaux
+// GET /exercices/niveaux/list - Récupérer tous les niveaux
 router.get('/niveaux/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: niveaux, error } = await supabase
       .from('niveaux_difficulte')
       .select('*')
       .order('ordre');
@@ -182,7 +182,7 @@ router.get('/niveaux/list', async (req, res) => {
       });
     }
 
-    res.json({ niveaux: data });
+    res.json({ niveaux: niveaux || [] });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -193,10 +193,10 @@ router.get('/niveaux/list', async (req, res) => {
   }
 });
 
-// GET /api/exercices/types/list - Récupérer tous les types
+// GET /exercices/types/list - Récupérer tous les types
 router.get('/types/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: types, error } = await supabase
       .from('types_exercices')
       .select('*')
       .order('nom');
@@ -209,7 +209,7 @@ router.get('/types/list', async (req, res) => {
       });
     }
 
-    res.json({ types: data });
+    res.json({ types: types || [] });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -220,84 +220,16 @@ router.get('/types/list', async (req, res) => {
   }
 });
 
-// POST /exercices - Créer un nouvel exercice (collaboratif, en attente de validation)
+// POST /exercices - Créer un nouvel exercice (Admin)
 router.post('/', async (req, res) => {
   try {
-    const {
-      nom,
-      description,
-      position_depart,
-      categorie_id,
-      groupe_musculaire_id,
-      niveau_id,
-      type_id,
-      materiel,
-      erreurs,
-      muscles_sollicites,
-      variantes,
-      conseils,
-      duree_estimee,
-      calories_estimees,
-      created_by
-    } = req.body;
+    const exerciceData = req.body;
 
-    // Validation des champs obligatoires
-    if (!nom || !description) {
-      return res.status(400).json({
-        error: 'Données manquantes',
-        details: 'Les champs nom et description sont obligatoires'
-      });
-    }
+    // Ajouter les champs par défaut
+    exerciceData.created_at = new Date().toISOString();
+    exerciceData.updated_at = new Date().toISOString();
 
-    // Générer l'ID automatiquement basé sur le nom
-    const generateId = (nom) => {
-      return nom.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '_')
-        .replace(/_+/g, '_')
-        .trim();
-    };
-
-    const id = generateId(nom);
-
-    // Vérifier si l'exercice existe déjà
-    const { data: existingExercise } = await supabase
-      .from('exercices')
-      .select('id')
-      .eq('id', id)
-      .single();
-
-    if (existingExercise) {
-      return res.status(409).json({
-        error: 'Exercice déjà existant',
-        details: `Un exercice avec le nom "${nom}" existe déjà`
-      });
-    }
-
-    const exerciceData = {
-      id,
-      nom,
-      description,
-      position_depart,
-      categorie_id: categorie_id || null,
-      groupe_musculaire_id: groupe_musculaire_id || null,
-      niveau_id: niveau_id || null,
-      type_id: type_id || null,
-      materiel: materiel || [],
-      erreurs: erreurs || [],
-      muscles_sollicites: muscles_sollicites || [],
-      variantes: variantes || {},
-      conseils: conseils || [],
-      duree_estimee: duree_estimee || null,
-      calories_estimees: calories_estimees || null,
-      created_by: created_by || 'anonymous',
-      is_validated: false, // En attente de validation par un admin
-      created_at: new Date().toISOString()
-    };
-
-    console.log('🔍 Données de l\'exercice à créer:', JSON.stringify(exerciceData, null, 2));
-
-    const { data, error } = await supabase
+    const { data: exercice, error } = await supabase
       .from('exercices')
       .insert([exerciceData])
       .select()
@@ -305,24 +237,13 @@ router.post('/', async (req, res) => {
 
     if (error) {
       console.error('❌ Erreur lors de la création de l\'exercice:', error);
-      console.error('❌ Détails de l\'erreur:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
       return res.status(500).json({
         error: 'Erreur lors de la création de l\'exercice',
         details: error.message
       });
     }
 
-    console.log('✅ Exercice créé avec succès:', data);
-
-    res.status(201).json({
-      message: 'Exercice créé avec succès et en attente de validation',
-      exercice: data
-    });
+    res.status(201).json({ exercice });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -333,32 +254,18 @@ router.post('/', async (req, res) => {
   }
 });
 
-// =====================================================
-// ROUTES PROTÉGÉES (avec authentification)
-// =====================================================
-
-// PUT /exercices/:id - Mettre à jour un exercice (admin seulement)
-router.put('/:id', verifyToken, async (req, res) => {
+// PUT /exercices/:id - Mettre à jour un exercice (Admin)
+router.put('/:id', async (req, res) => {
   try {
-    // Vérifier les permissions (admin seulement pour l'instant)
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        error: 'Accès refusé',
-        details: 'Seuls les administrateurs peuvent modifier des exercices'
-      });
-    }
-
     const { id } = req.params;
-    const updateData = req.body;
+    const exerciceData = req.body;
 
-    // Supprimer les champs qui ne doivent pas être modifiés
-    delete updateData.id;
-    delete updateData.created_at;
-    delete updateData.updated_at;
+    // Mettre à jour le timestamp
+    exerciceData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data: exercice, error } = await supabase
       .from('exercices')
-      .update(updateData)
+      .update(exerciceData)
       .eq('id', id)
       .select()
       .single();
@@ -377,10 +284,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       });
     }
 
-    res.json({
-      message: 'Exercice mis à jour avec succès',
-      exercice: data
-    });
+    res.json({ exercice });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -391,17 +295,9 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /exercices/:id - Supprimer un exercice (admin seulement)
-router.delete('/:id', verifyToken, async (req, res) => {
+// DELETE /exercices/:id - Supprimer un exercice (Admin)
+router.delete('/:id', async (req, res) => {
   try {
-    // Vérifier les permissions (admin seulement pour l'instant)
-    if (!req.user.isAdmin) {
-      return res.status(403).json({
-        error: 'Accès refusé',
-        details: 'Seuls les administrateurs peuvent supprimer des exercices'
-      });
-    }
-
     const { id } = req.params;
 
     const { error } = await supabase
@@ -417,9 +313,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
 
-    res.json({
-      message: 'Exercice supprimé avec succès'
-    });
+    res.json({ message: 'Exercice supprimé avec succès' });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -430,55 +324,41 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /exercices/:id/validate - Valider un exercice (admin)
-router.post('/:id/validate', async (req, res) => {
+// POST /exercices/:id/validate - Valider un exercice (Admin)
+router.post('/:id/validate', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { user } = req; // Supposé être défini par le middleware d'auth
-
-    console.log(`🔍 Validation de l'exercice ${id} par l'utilisateur ${user?.id}`);
-
-    // Vérifier que l'exercice existe
-    const { data: exercice, error: fetchError } = await supabase
-      .from('exercices')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !exercice) {
-      console.error('❌ Exercice non trouvé:', fetchError);
-      return res.status(404).json({
-        error: 'Exercice non trouvé',
-        details: fetchError?.message
-      });
+    const validatedBy = req.user && req.user.id ? req.user.id : null;
+    if (!validatedBy) {
+      return res.status(401).json({ error: 'Utilisateur non authentifié pour la validation.' });
     }
-
-    // Mettre à jour l'exercice avec les informations de validation
-    const { data, error } = await supabase
+    const { data: exercice, error } = await supabase
       .from('exercices')
       .update({
         is_validated: true,
-        validated_by: user?.id || user?.email,
-        validated_at: new Date().toISOString()
+        validated_by: validatedBy,
+        validated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      console.error('❌ Erreur lors de la validation:', error);
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          error: 'Exercice non trouvé',
+          details: `Aucun exercice trouvé avec l'ID: ${id}`
+        });
+      }
+      console.error('❌ Erreur lors de la validation de l\'exercice:', error);
       return res.status(500).json({
         error: 'Erreur lors de la validation de l\'exercice',
         details: error.message
       });
     }
 
-    console.log(`✅ Exercice ${id} validé avec succès par ${user?.email}`);
-
-    res.json({
-      message: 'Exercice validé avec succès',
-      exercice: data
-    });
+    res.json({ exercice });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);

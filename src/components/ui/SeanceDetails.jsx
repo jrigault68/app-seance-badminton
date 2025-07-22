@@ -60,7 +60,12 @@ const SeanceDetails = ({ seance }) => {
             Description
           </h3>
           <p className="text-gray-300 leading-relaxed bg-black/30 p-4 rounded-xl border border-gray-700">
-            {seance.description}
+            {seance.description.split('\n').map((line, idx) => (
+              <React.Fragment key={idx}>
+                {line}
+                <br />
+              </React.Fragment>
+            ))}
           </p>
         </div>
       )}
@@ -82,7 +87,12 @@ const SeanceDetails = ({ seance }) => {
             Notes
           </h3>
           <p className="text-gray-300 leading-relaxed bg-black/30 p-4 rounded-xl border border-gray-700">
-            {seance.notes}
+            {seance.notes.split('\n').map((line, idx) => (
+              <React.Fragment key={idx}>
+                {line}
+                <br />
+              </React.Fragment>
+            ))}
           </p>
         </div>
       )}

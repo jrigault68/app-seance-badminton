@@ -35,6 +35,7 @@ export default function Header() {
 
   const links = [
     { name: "Séances", path: "/recherche" },
+    { name: "Programmes", path: "/programmes" },
     // d'autres liens viendront ici
   ];
 
