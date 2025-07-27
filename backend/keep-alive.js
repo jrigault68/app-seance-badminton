@@ -2,7 +2,7 @@
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 
-const KEEP_ALIVE_INTERVAL = 5 * 60 * 1000; // 5 minutes (au lieu de 10)
+const KEEP_ALIVE_INTERVAL = 3 * 60 * 1000; // 3 minutes (plus fréquent pour éviter les pauses)
 const SERVER_URL = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL || 'https://ton-app.vercel.app';
 
 // Configuration Supabase

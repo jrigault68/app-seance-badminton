@@ -43,11 +43,6 @@ const navigationItems = (user) => user ? [
     icon: <Home size={22} />,
   },
   {
-    name: "Exercices",
-    path: "/exercices",
-    icon: <Activity size={22} />,
-  },
-  {
     name: "Inscription",
     path: "/login?tab=inscription",
     icon: <User size={22} />,

@@ -10,7 +10,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node backend/index.js",
-    "server:keepalive": "node scripts/start-with-keepalive.js"
+    "server:keepalive": "node scripts/start-with-keepalive.js",
+    "monitor": "node scripts/external-monitor.js",
+    "vercel-keepalive": "node scripts/vercel-keepalive.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
