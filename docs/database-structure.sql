@@ -410,7 +410,7 @@ SELECT
     s.*,
     nd.nom as niveau_nom,
     nd.couleur as niveau_couleur,
-    u.pseudo as auteur_pseudo
+    COALESCE(u.pseudo, u.nom, 'Utilisateur ' || s.created_by::text) as auteur_pseudo
 FROM seances s
 LEFT JOIN niveaux_difficulte nd ON s.niveau_id = nd.id
 LEFT JOIN utilisateurs u ON s.created_by = u.id;

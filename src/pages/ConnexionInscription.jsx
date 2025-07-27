@@ -2,8 +2,9 @@ import { useState, useEffect  } from "react";
 import { register, login } from "../services/authService";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { User, Mail, Lock, ArrowRight, CheckCircle, AlertCircle, HelpCircle } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, AlertCircle, HelpCircle } from "lucide-react";
 import { getDisplayName } from "../config/brand";
+import Layout from "../components/Layout";
 
 export default function ConnexionInscription() {
 	const navigate = useNavigate();
@@ -76,20 +77,21 @@ export default function ConnexionInscription() {
   };
 
   return (
-	<div className="w-full flex items-center justify-center px-4 text-white">
-	  <div className="w-full max-w-md space-y-4 sm:space-y-5">
-		{/* Header avec titre et sous-titre */}
-		<div className="text-center mb-5 sm:mb-7">
-		  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 text-white">
-			{isSignup ? `Rejoignez ${getDisplayName()}` : "Bienvenue"}
-		  </h1>
-		  <p className="text-gray-400 text-xs sm:text-sm">
-			{isSignup 
-			  ? "Commencez votre parcours vers l'excellence sportive" 
-			  : "Connectez-vous à votre espace personnel"
-			}
-		  </p>
-		</div>
+    <Layout pageTitle={`${isSignup ? "Inscription" : "Connexion"}`}>
+      <div className="w-full flex items-center justify-center px-4 mt-4 text-white">
+        <div className="w-full max-w-md space-y-4 sm:space-y-5">
+          {/* Header avec titre et sous-titre */}
+          <div className="text-center mb-5 sm:mb-7">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 text-white">
+              {isSignup ? `Rejoignez ${getDisplayName()}` : "Bienvenue"}
+            </h1>
+            <p className="text-gray-400 text-xs sm:text-sm">
+              {isSignup 
+                ? "Commencez votre parcours vers l'excellence sportive" 
+                : "Connectez-vous à votre espace personnel"
+              }
+            </p>
+          </div>
 
 		{/* Formulaire */}
 		<div className="bg-black/30 backdrop-blur-sm p-5 sm:p-6 rounded-2xl shadow-2xl border border-red-900/30">
@@ -111,6 +113,7 @@ export default function ConnexionInscription() {
 				  type="text"
 				  placeholder="Nom / Pseudo"
 				  value={nom}
+				  autoComplete="username"
 				  onChange={(e) => setNom(e.target.value)}
 				  required
 				/>
@@ -127,6 +130,7 @@ export default function ConnexionInscription() {
 				type="email"
 				placeholder="votre@email.com"
 				value={email}
+				autoComplete="email"
 				onChange={(e) => setEmail(e.target.value)}
 				required
 			  />
@@ -142,6 +146,7 @@ export default function ConnexionInscription() {
 				type="password"
 				placeholder="••••••••"
 				value={password}
+				autoComplete="current-password"
 				onChange={(e) => setPassword(e.target.value)}
 				required
 			  />
@@ -206,7 +211,8 @@ export default function ConnexionInscription() {
 			<span className="text-sm text-red-300">{erreur}</span>
 		  </div>
 		)}
-	  </div>
-	</div>
+		</div>
+      </div>
+    </Layout>
   );
 }

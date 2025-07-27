@@ -9,9 +9,9 @@ export function formatDureeTexte(sec) {
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
 
-  if (h > 0) return `${h}h${m ? m + "m" : ""}`;
-  if (m > 0) return `${m}min${s ? ", " + s + "s" : ""}`;
-  return `${s}s`;
+  if (h > 0) return `${h} h${m ? " " + m + " min" : ""}`;
+  if (m > 0) return `${m} min${s ? " " + s + " sec" : ""}`;
+  return `${s} sec`;
 }
 
 export function clamp(n, min, max) {

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 import { getDisplayName, getTagline, BRAND_CONFIG } from "../config/brand";
 import { Target, Users, Brain, TrendingUp } from "lucide-react";
+import Layout from "../components/Layout";
 
 export default function Accueil() {
   const { user } = useUser();
@@ -38,7 +39,7 @@ export default function Accueil() {
   ];
 
   return (
-    <>
+    <Layout pageTitle="Accueil">
       {/* Hero Section */}
       <section className="flex flex-col items-center justify-center text-center px-4 py-6">
         <h1 className="text-4xl md:text-5xl font-bold mb-8 text-white">
@@ -96,6 +97,6 @@ export default function Accueil() {
           </button>
         </div>
       </section>
-    </>
+    </Layout>
   );
 } 

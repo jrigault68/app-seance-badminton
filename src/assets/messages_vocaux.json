@@ -1,6 +1,7 @@
 {
     "intro": {
         "start_seance": "La séance commence dans {duration}.",
+        "start_bloc": "La section commence dans {duration}.",
         "annonce_premier_exercice": "Premier exercice : {exo.nom} {exo.details}."
     },
     "exercice": {
@@ -8,9 +9,11 @@
 		"description" : "{exo.description}",
 		"erreur" : "{exo.erreurs}",
         "start": "C’est parti !",
-        "start_serie": "C'est partie ! Série {numero} sur {total}.",
+        "start_serie": "C'est partie ! Série {serie} sur {total_series}.",
+        "start_last_serie": "C'est partie ! Dernière série !",
         "mi_temps": "Mi-temps.",
-        "focus_zone": "{focus}"
+        "focus_zone": "{focus}",
+        "enchainement_serie": "On enchaine sur la série suivante dans"
     },
     "repos": {
         "standard": "Repos.",

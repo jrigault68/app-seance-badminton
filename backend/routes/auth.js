@@ -38,14 +38,22 @@ router.get(
     failureRedirect: "/login",
     session: false // ⬅️ pareil ici
   }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+      // Récupérer l'utilisateur complet pour avoir is_admin
+      const { data: user, error } = await supabase
+        .from("utilisateurs")
+        .select("id, is_admin")
+        .eq("id", req.user.id)
+        .single();
+      if (error || !user) throw new Error("Utilisateur Google non trouvé ou erreur Supabase");
+
+      const token = jwt.sign({ id: user.id, is_admin: user.is_admin }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
 
-	const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://coach.csbw.fr");
-	const isLocalhost  = redirectBase.includes("localhost");
+      const redirectBase = decodeURIComponent(req.query.state || process.env.FRONTEND_URL || "https://coach.csbw.fr");
+      const isLocalhost  = redirectBase.includes("localhost");
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -105,7 +113,7 @@ router.post("/login", async (req, res) => {
 
   const { data: user, error } = await supabase
     .from("utilisateurs")
-    .select("id, email, nom, password_hash")
+    .select("id, email, nom, password_hash, is_admin") // <-- ajouter is_admin
     .eq("email", email)
     .single();
 
@@ -114,8 +122,8 @@ router.post("/login", async (req, res) => {
   const match = await bcrypt.compare(password, user.password_hash);
   if (!match) return res.status(401).json({ message: "Mot de passe invalide" });
 
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-	const redirectBase = decodeURIComponent(req.query.redirect || process.env.FRONTEND_URL || "https://coach.csbw.fr");
+  const token = jwt.sign({ id: user.id, is_admin: user.is_admin }, process.env.JWT_SECRET, { expiresIn: "7d" }); // <-- inclure is_admin
+  const redirectBase = decodeURIComponent(req.query.redirect || process.env.FRONTEND_URL || "https://coach.csbw.fr");
 
   const isLocalhost  = redirectBase.includes("localhost");
       res

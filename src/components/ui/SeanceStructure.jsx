@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatDureeTexte, estimerDureeEtape, getDetails } from '@/utils/helpers';
+import { ChevronDown, ChevronRight, SquareChevronRight } from 'lucide-react';
 
-const SeanceStructure = ({ structure }) => {
+const SeanceStructure = ({ structure, hideIcons }) => {
   if (!structure || !Array.isArray(structure)) {
     return (
       <div className="text-center text-gray-400 italic py-8">
@@ -10,96 +11,72 @@ const SeanceStructure = ({ structure }) => {
     );
   }
 
+  // Calcul du temps total (arrondi à la minute supérieure)
   const totalSeconds = structure.reduce((acc, etape) => acc + estimerDureeEtape(etape), 0);
+  const totalMinutes = Math.ceil(totalSeconds / 60);
 
-  const renderEtape = (etape, index, level = 0) => {
+  // Pour gérer l'ouverture des blocs accordéon (par id ou index)
+  const [openBlocks, setOpenBlocks] = useState({});
+  const toggleBlock = (key) => setOpenBlocks((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const renderEtape = (etape, index, level = 0, parentKey = '') => {
     if (!etape) return null;
-
-    const paddingLeft = level * 16; // 16px par niveau
+    const key = parentKey ? `${parentKey}-${index}` : `${index}`;
+    const paddingLeft = level * 12; // plus compact
 
     if (etape.type === "bloc") {
       return (
-        <div key={index} className="mb-4">
-          <div 
-            className="bg-gradient-to-r from-red-900/50 to-red-800/30 border border-red-700/50 rounded-xl p-4 mb-3"
-            style={{ paddingLeft: `${paddingLeft + 16}px` }}
+        <div key={key} className="mb-2 border border-gray-700 rounded-lg bg-black/30">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-3 py-2 focus:outline-none transition group hover:bg-white/10"
+            style={{ paddingLeft: `${paddingLeft + 4}px`, borderRadius: '0.5rem' }}
+            onClick={() => toggleBlock(key)}
+            aria-expanded={!!openBlocks[key]}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">🔁</span>
-                <div>
-                  <h4 className="font-semibold text-orange-300">
-                    {etape.nom || 'Section'} (x{etape.nbTours || 1})
-                  </h4>
-                  <p className="text-sm text-gray-400">
-                    Durée estimée: ~{formatDureeTexte(etape.contenu?.reduce((acc, e) => acc + estimerDureeEtape(e), 0) * (etape.nbTours || 1))}
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              {/* Icône accordéon animée : SquareChevronRight uniquement */}
+              <span className="mr-1 flex items-center ml-2">
+                <SquareChevronRight size={20} className="text-white transition-transform duration-200" style={{ transform: openBlocks[key] ? 'rotate(90deg)' : 'rotate(0deg)' }} />
+              </span>
+              <span className="font-semibold text-white mr-2">{etape.nom || 'Section'}</span>
+              {etape.nbTours > 1 && (
+                <span className="text-xs text-orange-200 font-semibold ml-1">{etape.nbTours} tours</span>
+              )}
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            {(etape.contenu || []).map((sousEtape, i) => 
-              renderEtape(sousEtape, `${index}-${i}`, level + 1)
-            )}
-          </div>
+          </button>
+          {openBlocks[key] && (
+            <div className="pl-4 pr-2 pb-2 pt-1">
+              {(etape.contenu || []).map((sousEtape, i) =>
+                renderEtape(sousEtape, i, level + 1, key)
+              )}
+            </div>
+          )}
         </div>
       );
     }
 
-    // Les détails de l'exercice viennent maintenant de la base de données
-    // via les props ou le contexte
+    // Etape/exercice
     const nom = etape.nom || etape.id || "Exercice";
     const desc = getDetails(etape);
-    const duree = estimerDureeEtape(etape);
-    const categorieIcon = etape.categorie_icone || '💪';
-
+    // Compact : nom, durée, reps, description
     return (
-      <div 
-        key={index} 
-        className="bg-black/40 border border-gray-700 rounded-xl p-4 mb-2 hover:bg-black/60 transition-colors duration-200"
-        style={{ paddingLeft: `${paddingLeft + 16}px` }}
+      <div
+        key={key}
+        className="flex items-center border border-gray-800 rounded-md bg-black/20 px-3 py-2 mb-1 text-sm"
+        style={{ paddingLeft: `${paddingLeft + 8}px` }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-start space-x-3 flex-1">
-            <div className="bg-blue-500/20 p-2 rounded-lg flex-shrink-0">
-              <span className="text-lg">
-                {categorieIcon}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-white mb-1">{nom}</h4>
-              <p className="text-sm text-gray-300">{desc}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <span className="bg-gray-800/50 px-2 py-1 rounded-lg">
-              ⏱️ {formatDureeTexte(duree)}
-            </span>
-          </div>
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-white mr-2">{nom}</span>
+          {desc && <span className="text-xs text-blue-200">{desc}</span>}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold flex items-center">
-          <span className="mr-2">📋</span>
-          Structure de la séance
-        </h3>
-        <div className="text-sm text-gray-400 bg-black/40 px-3 py-1 rounded-lg border border-gray-700">
-          Durée totale: ~{formatDureeTexte(totalSeconds)}
-        </div>
-      </div>
-
-      <div className="bg-black/20 rounded-2xl p-4 border border-gray-700">
-        <div className="space-y-2">
-          {structure.map((etape, idx) => renderEtape(etape, idx))}
-        </div>
-      </div>
+    <div className="space-y-3">
+      {structure.map((etape, idx) => renderEtape(etape, idx))}
     </div>
   );
 };

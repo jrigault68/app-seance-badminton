@@ -72,15 +72,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /:id - Modifier un programme (créateur uniquement)
+// PUT /:id - Modifier un programme (créateur ou admin)
 router.put('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
     const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
     if (errorGet) throw errorGet;
-    if (!existing || existing.created_by !== userId) {
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
     }
     // Préparer les champs à mettre à jour
@@ -96,8 +97,33 @@ router.put('/:id', verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    console.error('Erreur lors de la mise à jour du programme :', err);
     res.status(500).json({ error: "Erreur lors de la mise à jour du programme", details: err.message });
+  }
+});
+
+// DELETE /:id - Supprimer un programme (créateur ou admin)
+router.delete('/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
+  try {
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    if (errorGet) throw errorGet;
+    console.log("existing", existing);
+    console.log("userId", userId);
+    console.log("isAdmin", isAdmin);
+    console.log("existing.created_by", existing.created_by);
+    
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
+      return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
+    }
+    // Supprimer le programme (les entrées dans programme_seances seront supprimées automatiquement grâce à ON DELETE CASCADE)
+    const { error } = await db.from('programmes').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: "Programme supprimé avec succès" });
+  } catch (err) {
+    res.status(500).json({ error: "Erreur lors de la suppression du programme", details: err.message });
   }
 });
 
@@ -105,14 +131,21 @@ router.put('/:id', verifyToken, async (req, res) => {
 router.post('/:id/jours/:jour/seances', verifyToken, async (req, res) => {
   const { id, jour } = req.params;
   const { seance_id } = req.body;
+  const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
   try {
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    if (errorGet) throw errorGet;
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
+      return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
+    }
     const { data, error } = await db.from('programme_seances').insert([
       { programme_id: id, jour: parseInt(jour, 10), date: null, seance_id }
     ]).select();
     if (error) throw error;
     res.status(201).json({ message: 'Séance associée au programme (jour)', data });
   } catch (err) {
-    console.error('Erreur lors de l\'association séance-programme (jour) :', err);
     res.status(500).json({ error: 'Erreur lors de l\'association séance-programme (jour)', details: err.message });
   }
 });
@@ -121,14 +154,21 @@ router.post('/:id/jours/:jour/seances', verifyToken, async (req, res) => {
 router.post('/:id/dates/:date/seances', verifyToken, async (req, res) => {
   const { id, date } = req.params;
   const { seance_id } = req.body;
+  const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
   try {
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    if (errorGet) throw errorGet;
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
+      return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
+    }
     const { data, error } = await db.from('programme_seances').insert([
       { programme_id: id, jour: null, date, seance_id }
     ]).select();
     if (error) throw error;
     res.status(201).json({ message: 'Séance associée au programme (date)', data });
   } catch (err) {
-    console.error('Erreur lors de l\'association séance-programme (date) :', err);
     res.status(500).json({ error: 'Erreur lors de l\'association séance-programme (date)', details: err.message });
   }
 });
@@ -136,7 +176,15 @@ router.post('/:id/dates/:date/seances', verifyToken, async (req, res) => {
 // Supprimer une séance d'un jour (programme libre)
 router.delete('/:id/jours/:jour/seances/:seanceId', verifyToken, async (req, res) => {
   const { id, jour, seanceId } = req.params;
+  const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
   try {
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    if (errorGet) throw errorGet;
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
+      return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
+    }
     const { error } = await db
       .from('programme_seances')
       .delete()
@@ -146,7 +194,6 @@ router.delete('/:id/jours/:jour/seances/:seanceId', verifyToken, async (req, res
     if (error) throw error;
     res.json({ message: 'Séance dissociée du programme (jour)' });
   } catch (err) {
-    console.error('Erreur lors de la suppression séance-programme (jour) :', err);
     res.status(500).json({ error: 'Erreur lors de la suppression séance-programme (jour)', details: err.message });
   }
 });
@@ -154,7 +201,15 @@ router.delete('/:id/jours/:jour/seances/:seanceId', verifyToken, async (req, res
 // Supprimer une séance d'une date (programme calendaire)
 router.delete('/:id/dates/:date/seances/:seanceId', verifyToken, async (req, res) => {
   const { id, date, seanceId } = req.params;
+  const userId = req.user?.id;
+  const isAdmin = req.user?.is_admin;
   try {
+    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    if (errorGet) throw errorGet;
+    if (!existing || (!isAdmin && existing.created_by !== userId)) {
+      return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
+    }
     const { error } = await db
       .from('programme_seances')
       .delete()
@@ -164,7 +219,6 @@ router.delete('/:id/dates/:date/seances/:seanceId', verifyToken, async (req, res
     if (error) throw error;
     res.json({ message: 'Séance dissociée du programme (date)' });
   } catch (err) {
-    console.error('Erreur lors de la suppression séance-programme (date) :', err);
     res.status(500).json({ error: 'Erreur lors de la suppression séance-programme (date)', details: err.message });
   }
 });

@@ -16,4 +16,6 @@ export const highlightStyle =
   "text-orange-400 font-semibold";
 
 export const blockStyle =
-  "bg-black/40 rounded-2xl p-6 shadow-2xl space-y-4";
+  "bg-black/40 rounded-2xl p-6 shadow-2xl space-y-4 border border-gray-700";
+
+export const backgroundMainColor = "bg-[#18191a]";
