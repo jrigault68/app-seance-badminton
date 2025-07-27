@@ -25,8 +25,8 @@ jobs:
     - name: Run external monitoring
       run: node scripts/external-monitor.js
       env:
-        VERCEL_URL: ${{ secrets.VERCEL_URL }}
-        RENDER_URL: ${{ secrets.RENDER_URL }}
+        VERCEL_URL: ${{ secrets.VERCEL_URL || 'https://app-seance-badminton.vercel.app' }}
+        RENDER_URL: ${{ secrets.RENDER_URL || 'https://app-seance-badminton.onrender.com' }}
         
     - name: Notify on failure
       if: failure()
