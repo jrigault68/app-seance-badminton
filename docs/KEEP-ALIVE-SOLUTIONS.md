@@ -49,12 +49,12 @@ Vercel et Render mettent en pause les applications gratuites après une période
 ### GitHub Secrets (pour GitHub Actions)
 ```bash
 VERCEL_URL=https://app-seance-badminton.vercel.app
-RENDER_URL=https://app-seance-badminton.onrender.com
+RENDER_URL=https://api.csbw.fr/health
 ```
 
 ### Variables d'environnement Render
 ```bash
-RENDER_EXTERNAL_URL=https://app-seance-badminton.onrender.com
+RENDER_EXTERNAL_URL=https://api.csbw.fr
 ```
 
 ## Commandes utiles

@@ -42,7 +42,7 @@ package.json
 
    **Secret 2:**
    - Name: `RENDER_URL`
-   - Value: `https://app-seance-badminton.onrender.com`
+   - Value: `https://api.csbw.fr/health`
    - Cliquez "Add secret"
 
 ### Étape 3: Vérifier le workflow
@@ -113,7 +113,7 @@ jobs:
    🔍 Starting external monitoring...
    🔄 Checking vercel at https://app-seance-badminton.vercel.app...
    ✅ vercel: OK (1234ms)
-   🔄 Checking render at https://app-seance-badminton.onrender.com...
+   🔄 Checking render at https://api.csbw.fr/health...
    ✅ render: OK (567ms)
    📊 Monitoring Summary:
    ✅ vercel: 1234ms

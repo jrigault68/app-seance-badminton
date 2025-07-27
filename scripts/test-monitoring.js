@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 
 const SERVICES = {
   vercel: 'https://app-seance-badminton.vercel.app',
-  render: 'https://app-seance-badminton.onrender.com'
+  render: 'https://api.csbw.fr/health'
 };
 
 async function testMonitoring() {

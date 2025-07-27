@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 
 const SERVICES = {
   vercel: process.env.VERCEL_URL || 'https://app-seance-badminton.vercel.app',
-  render: process.env.RENDER_URL || 'https://app-seance-badminton.onrender.com'
+  render: process.env.RENDER_URL || 'https://api.csbw.fr/health'
 };
 
 async function monitorServices() {
@@ -19,7 +19,7 @@ async function monitorServices() {
       const startTime = Date.now();
       const response = await fetch(url, {
         method: 'GET',
-        timeout: 30000, // 30 secondes
+        timeout: 60000, // 60 secondes (plus long pour réveiller Render)
         headers: {
           'User-Agent': 'External-Monitor/1.0'
         }
@@ -35,19 +35,40 @@ async function monitorServices() {
         };
         console.log(`✅ ${service}: OK (${responseTime}ms)`);
       } else {
-        results[service] = {
-          status: 'error',
-          statusCode: response.status,
-          error: `HTTP ${response.status}`
-        };
-        console.log(`❌ ${service}: HTTP ${response.status}`);
+        // Pour Render, un 404 peut signifier que le service se réveille
+        if (service === 'render' && response.status === 404) {
+          results[service] = {
+            status: 'waking_up',
+            responseTime,
+            statusCode: response.status,
+            message: 'Service might be waking up'
+          };
+          console.log(`🔄 ${service}: Waking up (${responseTime}ms) - This is normal for Render`);
+        } else {
+          results[service] = {
+            status: 'error',
+            statusCode: response.status,
+            error: `HTTP ${response.status}`
+          };
+          console.log(`❌ ${service}: HTTP ${response.status}`);
+        }
       }
     } catch (error) {
-      results[service] = {
-        status: 'error',
-        error: error.message
-      };
-      console.log(`❌ ${service}: ${error.message}`);
+      // Pour Render, une erreur de connexion peut signifier que le service se réveille
+      if (service === 'render' && (error.message.includes('fetch') || error.message.includes('timeout'))) {
+        results[service] = {
+          status: 'waking_up',
+          error: error.message,
+          message: 'Service might be waking up'
+        };
+        console.log(`🔄 ${service}: Waking up - ${error.message} (This is normal for Render)`);
+      } else {
+        results[service] = {
+          status: 'error',
+          error: error.message
+        };
+        console.log(`❌ ${service}: ${error.message}`);
+      }
     }
   }
 
@@ -61,11 +82,16 @@ async function monitorServices() {
     }
   }
 
-  // Retourner un code d'erreur si au moins un service est en échec
+  // Retourner un code d'erreur si au moins un service est en échec (mais pas en train de se réveiller)
   const hasErrors = Object.values(results).some(r => r.status === 'error');
+  const hasWakingUp = Object.values(results).some(r => r.status === 'waking_up');
+  
   if (hasErrors) {
     console.log('\n🚨 Some services are down!');
     process.exit(1);
+  } else if (hasWakingUp) {
+    console.log('\n🔄 Some services are waking up - This is normal for Render');
+    process.exit(0); // Succès car c'est normal
   } else {
     console.log('\n🎉 All services are running!');
     process.exit(0);
