@@ -271,6 +271,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
       <ActiveExerciceScreen
         exo={{
           ...current.exo,
+          duree: current.duree,
           serie: current.serie || 1,
           total_series: current.total_series || current.exo?.series || 1,
           blocTour: current.exo?.blocTour || 1,

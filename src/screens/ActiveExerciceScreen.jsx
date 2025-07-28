@@ -14,7 +14,7 @@ export function ActiveExerciceScreen({
 }) {
   console.log("exo :", exo);
   const nom = exo.nom || "Repos";
-  const duration = exo.duration || 0;
+  const duration = exo.duree || exo.duration || 0;
   const description = exo.description || null;
   const position = exo.position_depart || null;
   const image = exo.image || null;

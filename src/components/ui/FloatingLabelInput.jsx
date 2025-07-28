@@ -90,15 +90,21 @@ const FloatingLabelInput = ({ label, value, onChange, type = 'text', as = 'input
   const id = restOfProps.id || `floating-input-${Math.random()}`;
   commonProps.id = id;
 
+  // Il n'existe pas de classe utilitaire Tailwind officielle pour h-min-content.
+  // On peut utiliser style={{ height: 'min-content' }} si besoin.
   const wrapperClassName = size === 'small' ? 'relative inline-block' : 'relative';
+  const wrapperStyle = size === 'small' ? undefined : { height: 'min-content' };
 
   return (
-    <div className={wrapperClassName}>
+    <div className={wrapperClassName} style={wrapperStyle}>
       <InputComponent {...commonProps} />
       <label
         htmlFor={id}
         className={`absolute text-sm duration-300 transform z-10 origin-[0] px-2 left-1
-                   peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100
+                   ${as === 'textarea' 
+                     ? 'peer-placeholder-shown:top-7 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100' 
+                     : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100'
+                   }
                    top-4 -translate-y-3 scale-75
                    peer-focus:scale-75 peer-focus:-translate-y-3 peer-focus:top-4
                    max-w-full break-words whitespace-normal leading-snug text-xs
@@ -146,7 +152,7 @@ const FloatingLabelInput = ({ label, value, onChange, type = 'text', as = 'input
 
       {/* Bouton de clear intégré */}
       {showClear && !readonly && value !== null && value !== undefined && value !== '' && as !== 'select' && (
-        <div className={`absolute top-0 bottom-0 flex items-center ${type === 'number' ? 'right-8' : 'right-2'}`}>
+        <div className={`absolute top-4 ${type === 'number' ? 'right-8' : 'right-2'}`}>
           <button
             type="button"
             onClick={handleClear}

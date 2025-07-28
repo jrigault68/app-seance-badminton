@@ -5,7 +5,7 @@ import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import { useBlocker } from "react-router-dom";
-import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity,  X, Trash2, Upload, HelpCircle, Copy } from "lucide-react";
+import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, Upload, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle } from "lucide-react";
 import { useUser } from "../contexts/UserContext";
 
 export default function ExerciceDetail() {
@@ -33,7 +33,7 @@ export default function ExerciceDetail() {
   const exempleJson = `{
   "nom": "Course sur place",
   "description": "Lève alternativement tes genoux vers ta poitrine en gardant le dos droit.",
-  "position_depart": "Debout, les pieds écartés de la largeur des hanches, les bras le long du corps.",
+  "position_depart": "Debout, les pieds écartés de la largeur des hanches.",
   "categorie_id": 1,
   "groupe_musculaire_id": 1,
   "niveau_id": 1,
@@ -522,7 +522,7 @@ export default function ExerciceDetail() {
               {/* Informations de base */}
               <div className="bg-[#222] rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-orange-100 mb-4">Informations de base</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-4">
                   <FloatingLabelInput
                     label="Nom *"
                     name="nom"
@@ -539,76 +539,6 @@ export default function ExerciceDetail() {
                     rows={3}
                     required
                   />
-                </div>
-              </div>
-
-              {/* Catégorisation */}
-              <div className="bg-[#222] rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-orange-100 mb-4">Catégorisation</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Catégorie</label>
-                    <select
-                      name="categorie_id"
-                      value={form.categorie_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-[#2a2a2a] text-gray-100 border border-[#232526] rounded-lg focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="">Sélectionner une catégorie</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.nom}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Groupe musculaire</label>
-                    <select
-                      name="groupe_musculaire_id"
-                      value={form.groupe_musculaire_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-[#2a2a2a] text-gray-100 border border-[#232526] rounded-lg focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="">Sélectionner un groupe</option>
-                      {groupesMusculaires.map(groupe => (
-                        <option key={groupe.id} value={groupe.id}>{groupe.nom}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Niveau</label>
-                    <select
-                      name="niveau_id"
-                      value={form.niveau_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-[#2a2a2a] text-gray-100 border border-[#232526] rounded-lg focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="">Sélectionner un niveau</option>
-                      {niveaux.map(niveau => (
-                        <option key={niveau.id} value={niveau.id}>{niveau.nom}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                    <select
-                      name="type_id"
-                      value={form.type_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-[#2a2a2a] text-gray-100 border border-[#232526] rounded-lg focus:ring-2 focus:ring-orange-400"
-                    >
-                      <option value="">Sélectionner un type</option>
-                      {types.map(type => (
-                        <option key={type.id} value={type.id}>{type.nom}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Détails techniques */}
-              <div className="bg-[#222] rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-orange-100 mb-4">Détails techniques</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FloatingLabelInput
                     label="Position de départ"
                     name="position_depart"
@@ -617,6 +547,69 @@ export default function ExerciceDetail() {
                     as="textarea"
                     rows={3}
                   />
+                </div>
+              </div>
+
+              {/* Catégorisation */}
+              <div className="bg-[#222] rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-orange-100 mb-4">Catégorisation</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <FloatingLabelInput
+                    label="Catégorie"
+                    name="categorie_id"
+                    value={form.categorie_id}
+                    onChange={handleChange}
+                    as="select"
+                  >
+                    <option value="">Sélectionner une catégorie</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.nom}</option>
+                    ))}
+                  </FloatingLabelInput>
+                  <FloatingLabelInput
+                    label="Groupe musculaire"
+                    name="groupe_musculaire_id"
+                    value={form.groupe_musculaire_id}
+                    onChange={handleChange}
+                    as="select"
+                  >
+                    <option value="">Sélectionner un groupe</option>
+                    {groupesMusculaires.map(groupe => (
+                      <option key={groupe.id} value={groupe.id}>{groupe.nom}</option>
+                    ))}
+                  </FloatingLabelInput>
+                  <FloatingLabelInput
+                    label="Niveau"
+                    name="niveau_id"
+                    value={form.niveau_id}
+                    onChange={handleChange}
+                    as="select"
+                  >
+                    <option value="">Sélectionner un niveau</option>
+                    {niveaux.map(niveau => (
+                      <option key={niveau.id} value={niveau.id}>{niveau.nom}</option>
+                    ))}
+                  </FloatingLabelInput>
+                  <FloatingLabelInput
+                    label="Type"
+                    name="type_id"
+                    value={form.type_id}
+                    onChange={handleChange}
+                    as="select"
+                  >
+                    <option value="">Sélectionner un type</option>
+                    {types.map(type => (
+                      <option key={type.id} value={type.id}>{type.nom}</option>
+                    ))}
+                  </FloatingLabelInput>
+                </div>
+              </div>
+
+              {/* Détails techniques */}
+              <div className="bg-[#222] rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-orange-100 mb-4">Détails techniques</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
                   <div className="space-y-4">
                     <FloatingLabelInput
                       label="Durée estimée (secondes)"
@@ -703,7 +696,7 @@ export default function ExerciceDetail() {
               </div>
 
               {/* Médias */}
-              <div className="bg-[#222] rounded-lg p-6">
+              <div className="bg-[#222] rounded-lg p-6 hidden">
                 <h3 className="text-lg font-semibold text-orange-100 mb-4">Médias</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FloatingLabelInput
@@ -871,105 +864,92 @@ export default function ExerciceDetail() {
     );
   }
 
-  const pageActions = {...((user && (user.is_admin || exercice.created_by === user.id)) ? {
-    pageActions: [
-      { icon: <Pencil size={20} className="text-white" />, label: 'Modifier', onClick: () => setMode('edit') },
-      { icon: <Trash2 size={20} className="text-red-400" />, label: 'Supprimer', onClick: () => setShowDeleteDialog(true), disabled: saving }
-    ]
-  } : {})}
+  const isCreatorOrAdmin = user && (user.is_admin || exercice.created_by === user.id);
 
   return (
     <Layout 
       pageTitle={exercice.nom} 
-      pageActions={pageActions}
+      pageActions={isCreatorOrAdmin ? [
+        { icon: <Pencil size={20} className="text-white" />, label: 'Modifier', onClick: () => setMode('edit') },
+        { icon: <Trash2 size={20} className="text-red-400" />, label: 'Supprimer', onClick: () => setShowDeleteDialog(true), disabled: saving }
+      ] : []}
       backTo="/exercices"
       backLabel="Retour à la liste des exercices"
     >
-      <div className="w-full flex flex-col items-center bg-[#18191a] min-h-screen">
-        <div className="w-full max-w-4xl mx-auto p-4">
-          {/* En-tête de l'exercice */}
-          <div className="bg-[#222] rounded-lg p-6 mb-6">
-            <div className="flex items-start gap-4">
-              <div className="text-4xl bg-[#232526] rounded-lg p-4 flex-shrink-0">
-                {getCategorieIcon(exercice.categorie_nom)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-orange-100 mb-2">{exercice.nom}</h1>
-                {exercice.description && (
-                  <p className="text-gray-300 mb-4">{exercice.description}</p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {exercice.categorie_nom && (
-                    <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm">
-                      {exercice.categorie_nom}
-                    </span>
-                  )}
-                  {exercice.groupe_musculaire_nom && (
-                    <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm">
-                      {exercice.groupe_musculaire_nom}
-                    </span>
-                  )}
-                  {exercice.niveau_nom && (
-                    <span className={`text-white px-3 py-1 rounded-full text-sm font-medium ${getNiveauColor(exercice.niveau_nom)}`}>
-                      {exercice.niveau_nom}
-                    </span>
-                  )}
-                  {exercice.type_nom && (
-                    <span className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm">
-                      {exercice.type_nom}
-                    </span>
-                  )}
+      <div className="w-full flex justify-center mt-4 mb-4 px-2 sm:px-4 md:px-12">
+        <div className="bg-black/40 border border-gray-700 rounded-2xl shadow-lg w-full max-w-none mx-auto p-4 sm:p-4 md:p-6 xl:px-8 xl:py-6" style={{maxWidth: '1800px'}}>
+          {/* Badges arrondis */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Catégorie de l'exercice">
+              <Tag size={14} className="inline-block text-gray-300 mr-1" />
+              {exercice.categorie_nom || <span className="italic text-gray-500">Catégorie inconnue</span>}
+            </span>
+            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Groupe musculaire">
+              <Activity size={14} className="inline-block text-gray-300 mr-1" />
+              {exercice.groupe_musculaire_nom || <span className="italic text-gray-500">Groupe inconnu</span>}
+            </span>
+            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Niveau de l'exercice">
+              <BarChart2 size={14} className="inline-block text-gray-300 mr-1" />
+              {exercice.niveau_nom || <span className="italic text-gray-500">Niveau inconnu</span>}
+            </span>
+            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Type d'exercice">
+              <Layers size={14} className="inline-block text-gray-300 mr-1" />
+              {exercice.type_nom || <span className="italic text-gray-500">Type inconnu</span>}
+            </span>
+            {exercice.auteur_pseudo && (
+              <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Auteur de l'exercice">
+                <User size={14} className="inline-block text-gray-300 mr-1" />
+                {exercice.auteur_pseudo}
+              </span>
+            )}
+            {exercice.is_validated !== undefined && (
+              <span className={
+                "rounded-full px-4 py-1 text-xs font-semibold border flex items-center gap-1 " +
+                (exercice.is_validated
+                  ? "bg-green-900/80 border-green-700 text-green-300"
+                  : "bg-yellow-900/80 border-yellow-700 text-yellow-300")
+              } title={exercice.is_validated ? "Exercice validé" : "Exercice en attente de validation"}>
+                {exercice.is_validated ? <CheckCircle size={14} className="inline-block text-green-300 mr-1" /> : <XCircle size={14} className="inline-block text-yellow-300 mr-1" />}
+                {exercice.is_validated ? "Validé" : "En attente"}
+              </span>
+            )}
+            {exercice.created_at && (
+              <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Date de création">
+                <Calendar size={14} className="inline-block text-gray-300 mr-1" />
+                {new Date(exercice.created_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </span>
+            )}
+            {exercice.updated_at && (
+              <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Date de dernière modification">
+                <Pencil size={14} className="inline-block text-gray-300 mr-1" />
+                {new Date(exercice.updated_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+          
+          <h2 className="text-2xl font-bold mb-2 text-rose-400">{exercice.nom}</h2>
+          {/* Position de départ + Description ensemble */}
+          {(exercice.position_depart || exercice.description) && (
+            <div className="bg-black/40 rounded-lg p-4 border border-gray-700 mb-6">
+              {exercice.position_depart && (
+                <div className="mb-2">
+                  <span className="font-semibold text-orange-100">Position de départ</span>
+                  <p className="text-gray-300 text-sm">{exercice.position_depart}</p>
                 </div>
-              </div>
+              )}
+              {exercice.description && (
+                <div>
+                  <span className="font-semibold text-orange-100">Description</span>
+                  <p className="text-gray-300 text-sm">{exercice.description}</p>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Informations principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {exercice.duree_estimee && (
-              <div className="bg-[#222] rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock size={20} className="text-orange-400" />
-                  <span className="font-semibold text-orange-100">Durée estimée</span>
-                </div>
-                <p className="text-gray-300">{formatDuree(exercice.duree_estimee)}</p>
-              </div>
-            )}
-            
-            {exercice.calories_estimees && (
-              <div className="bg-[#222] rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target size={20} className="text-orange-400" />
-                  <span className="font-semibold text-orange-100">Calories estimées</span>
-                </div>
-                <p className="text-gray-300">{exercice.calories_estimees} cal</p>
-              </div>
-            )}
-
-            {exercice.created_by && (
-              <div className="bg-[#222] rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={20} className="text-orange-400" />
-                  <span className="font-semibold text-orange-100">Créé par</span>
-                </div>
-                <p className="text-gray-300">{exercice.created_by}</p>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Contenu détaillé */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Colonne gauche */}
-            <div className="space-y-6">
-              {exercice.position_depart && (
-                <div className="bg-[#222] rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-orange-100 mb-3">Position de départ</h3>
-                  <p className="text-gray-300 whitespace-pre-line">{exercice.position_depart}</p>
-                </div>
-              )}
-
               {exercice.muscles_sollicites && Array.isArray(exercice.muscles_sollicites) && exercice.muscles_sollicites.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-lg font-semibold text-orange-100 mb-3">Muscles sollicités</h3>
                   <ul className="space-y-1">
                     {exercice.muscles_sollicites.map((muscle, index) => (
@@ -982,8 +962,22 @@ export default function ExerciceDetail() {
                 </div>
               )}
 
+              {exercice.focus_zone && Array.isArray(exercice.focus_zone) && exercice.focus_zone.length > 0 && (
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-semibold text-orange-100 mb-3">Zones à focus</h3>
+                  <ul className="space-y-1">
+                    {exercice.focus_zone.map((zone, index) => (
+                      <li key={index} className="text-gray-300 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        {zone}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {exercice.erreurs && Array.isArray(exercice.erreurs) && exercice.erreurs.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-lg font-semibold text-orange-100 mb-3 flex items-center gap-2">
                     <AlertTriangle size={20} className="text-red-400" />
                     Erreurs fréquentes
@@ -998,26 +992,9 @@ export default function ExerciceDetail() {
                   </ul>
                 </div>
               )}
-            </div>
-
-            {/* Colonne droite */}
-            <div className="space-y-6">
-              {exercice.focus_zone && Array.isArray(exercice.focus_zone) && exercice.focus_zone.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-orange-100 mb-3">Zones à focus</h3>
-                  <ul className="space-y-1">
-                    {exercice.focus_zone.map((zone, index) => (
-                      <li key={index} className="text-gray-300 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                        {zone}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               {exercice.conseils && Array.isArray(exercice.conseils) && exercice.conseils.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-lg font-semibold text-orange-100 mb-3 flex items-center gap-2">
                     <Lightbulb size={20} className="text-yellow-400" />
                     Conseils
@@ -1032,11 +1009,10 @@ export default function ExerciceDetail() {
                   </ul>
                 </div>
               )}
-
               {exercice.variantes && exercice.variantes.plus_faciles && Array.isArray(exercice.variantes.plus_faciles) && exercice.variantes.plus_faciles.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-lg font-semibold text-orange-100 mb-3">Variantes plus faciles</h3>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {exercice.variantes.plus_faciles.map((variante, index) => (
                       <li key={index} className="text-gray-300 flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -1046,9 +1022,8 @@ export default function ExerciceDetail() {
                   </ul>
                 </div>
               )}
-
               {exercice.variantes && exercice.variantes.plus_difficiles && Array.isArray(exercice.variantes.plus_difficiles) && exercice.variantes.plus_difficiles.length > 0 && (
-                <div className="bg-[#222] rounded-lg p-6">
+                <div className="bg-black/40 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-lg font-semibold text-orange-100 mb-3">Variantes plus difficiles</h3>
                   <ul className="space-y-1">
                     {exercice.variantes.plus_difficiles.map((variante, index) => (
@@ -1060,12 +1035,11 @@ export default function ExerciceDetail() {
                   </ul>
                 </div>
               )}
-            </div>
           </div>
 
           {/* Médias */}
           {(exercice.image_url || exercice.video_url) && (
-            <div className="mt-6 bg-[#222] rounded-lg p-6">
+            <div className="mt-6 bg-black/40 rounded-lg p-6 border border-gray-700">
               <h3 className="text-lg font-semibold text-orange-100 mb-4">Médias</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {exercice.image_url && (
@@ -1095,44 +1069,6 @@ export default function ExerciceDetail() {
               </div>
             </div>
           )}
-
-          {/* Métadonnées */}
-          <div className="mt-6 bg-[#222] rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-orange-100 mb-4 flex items-center gap-2">
-              <Calendar size={20} />
-              Informations
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {exercice.created_at && (
-                <div>
-                  <span className="text-gray-400">Créé le :</span>
-                  <span className="text-gray-300 ml-2">
-                    {new Date(exercice.created_at).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-              )}
-              {exercice.updated_at && (
-                <div>
-                  <span className="text-gray-400">Modifié le :</span>
-                  <span className="text-gray-300 ml-2">
-                    {new Date(exercice.updated_at).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-              )}
-              {exercice.is_validated !== undefined && (
-                <div>
-                  <span className="text-gray-400">Statut :</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                    exercice.is_validated 
-                      ? 'bg-green-500/20 text-green-300' 
-                      : 'bg-yellow-500/20 text-yellow-300'
-                  }`}>
-                    {exercice.is_validated ? 'Validé' : 'En attente de validation'}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 

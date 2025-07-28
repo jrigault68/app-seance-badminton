@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { UserProvider } from "./contexts/UserContext";
+import { PageTitleProvider } from "./contexts/PageTitleContext";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Accueil from "./pages/Accueil";
 import ConnexionInscription from "./pages/ConnexionInscription";
@@ -15,72 +16,98 @@ import ProgrammeDetail from "./pages/ProgrammeDetail";
 import AdminExercices from "./pages/AdminExercices";
 import Exercices from "./pages/Exercices";
 import ExerciceDetail from "./pages/ExerciceDetail";
+import DynamicTitle from "./components/DynamicTitle";
 
 import "./index.css";
 
-const router = createBrowserRouter([
+// Composant wrapper pour encapsuler la structure commune
+const PageWrapper = ({ children, requireAuth = false }) => {
+  const content = (
+    <PageTitleProvider>
+      <DynamicTitle />
+      <UserProvider>
+        {requireAuth ? <PrivateRoute>{children}</PrivateRoute> : children}
+      </UserProvider>
+    </PageTitleProvider>
+  );
+
+  return content;
+};
+
+// Configuration des routes avec leurs éléments
+const routes = [
   {
     path: "/profil",
-    element: <UserProvider><PrivateRoute><Profil /></PrivateRoute></UserProvider>,
+    element: <Profil />,
+    requireAuth: true,
   },
   {
     path: "/auth-success",
-    element: <UserProvider><AuthSuccess /></UserProvider>,
+    element: <AuthSuccess />,
   },
   {
     path: "/login",
-    element: <UserProvider><ConnexionInscription /></UserProvider>,
+    element: <ConnexionInscription />,
   },
   {
     path: "/",
-    element: <UserProvider><Accueil /></UserProvider>,
+    element: <Accueil />,
   },
   {
     path: "/seances/:id/execution",
-    element: <UserProvider><SeanceExecution /></UserProvider>,
+    element: <SeanceExecution />,
   },
   {
     path: "/seances/:id",
-    element: <UserProvider><SeanceDetail /></UserProvider>,
+    element: <SeanceDetail />,
   },
   {
     path: "/seances",
-    element: <UserProvider><Seances /></UserProvider>,
+    element: <Seances />,
   },
   {
     path: "/programmes",
-    element: <UserProvider><Programmes /></UserProvider>,
+    element: <Programmes />,
   },
   {
     path: "/programmes/:id",
-    element: <UserProvider><ProgrammeDetail /></UserProvider>,
+    element: <ProgrammeDetail />,
   },
   {
     path: "/exercices",
-    element: <UserProvider><Exercices /></UserProvider>,
+    element: <Exercices />,
   },
   {
     path: "/exercices/new",
-    element: <UserProvider><ExerciceDetail /></UserProvider>,
+    element: <ExerciceDetail />,
   },
   {
     path: "/exercices/:id",
-    element: <UserProvider><ExerciceDetail /></UserProvider>,
+    element: <ExerciceDetail />,
   },
   {
     path: "/admin-exercices",
-    element: <UserProvider><PrivateRoute><AdminExercices /></PrivateRoute></UserProvider>,
+    element: <AdminExercices />,
+    requireAuth: true,
   },
   {
     path: "/seances/:id/modifier",
-    element: <UserProvider><PrivateRoute><SeanceDetail mode="edit" /></PrivateRoute></UserProvider>,
+    element: <SeanceDetail mode="edit" />,
+    requireAuth: true,
   },
-
   {
     path: "*",
-    element: <UserProvider><Accueil /></UserProvider>,
+    element: <Accueil />,
   },
-]);
+];
+
+// Création du router avec la structure simplifiée
+const router = createBrowserRouter(
+  routes.map(({ path, element, requireAuth }) => ({
+    path,
+    element: <PageWrapper requireAuth={requireAuth}>{element}</PageWrapper>,
+  }))
+);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

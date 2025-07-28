@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import { Menu, ChevronLeft, MoreVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { usePageTitle } from "../contexts/PageTitleContext";
 
 function ActionButton({ icon, label, onClick, className = "" }) {
   return (
@@ -113,11 +114,19 @@ export default function Layout({ children, pageTitle, pageActions, pageLeftActio
     }
     return false;
   });
+  const { setPageTitle } = usePageTitle();
+  
   // Synchronise le localStorage si modifié par Sidebar
   const handleCollapse = (value) => {
     setCollapsed(value);
     localStorage.setItem('sidebar-collapsed', value);
   };
+  
+  // Mettre à jour le titre de la page quand pageTitle change
+  useEffect(() => {
+    setPageTitle(pageTitle);
+  }, [pageTitle, setPageTitle]);
+  
   const navigate = useNavigate();
   // Générer le bouton retour si backTo fourni
   const leftAction = backTo

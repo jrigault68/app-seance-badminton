@@ -426,12 +426,14 @@ SELECT
     gm.zone_corps,
     nd.nom as niveau_nom,
     nd.couleur as niveau_couleur,
-    te.nom as type_nom
+    te.nom as type_nom,
+    COALESCE(u.pseudo, u.nom, 'Utilisateur ' || e.created_by::text) as auteur_pseudo
 FROM exercices e
 LEFT JOIN categories ce ON e.categorie_id = ce.id
 LEFT JOIN groupes_musculaires gm ON e.groupe_musculaire_id = gm.id
 LEFT JOIN niveaux_difficulte nd ON e.niveau_id = nd.id
-LEFT JOIN types te ON e.type_id = te.id;
+LEFT JOIN types te ON e.type_id = te.id
+LEFT JOIN utilisateurs u ON e.created_by = u.id;
 
 -- Vue pour les statistiques utilisateur par semaine
 --CREATE OR REPLACE VIEW v_stats_utilisateur_semaine AS

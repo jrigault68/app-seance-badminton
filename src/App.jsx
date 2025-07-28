@@ -14,6 +14,7 @@ import ExerciceDetail from "./pages/ExerciceDetail";
 import CreerProgramme from "./pages/CreerProgramme";
 import ProgrammeDetail from "./pages/ProgrammeDetail";
 import CreerSeance from "./pages/CreerSeance";
+import { PageTitleProvider } from "./contexts/PageTitleContext";
 
 import Seances from './pages/Seances';
 import SeanceDetail from './pages/SeanceDetail';
@@ -37,7 +38,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <PageTitleProvider>
       <DynamicTitle />
       <Routes>
         <Route path="/profil" element={
@@ -76,6 +77,6 @@ export default function App() {
         
         <Route path="*" element={<Accueil />} />
       </Routes>
-    </>
+    </PageTitleProvider>
   );
 }

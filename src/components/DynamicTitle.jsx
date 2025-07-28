@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { getDisplayName, getTagline } from '../config/brand';
+import { usePageTitle } from '../contexts/PageTitleContext';
 
-export default function DynamicTitle({ pageTitle = null }) {
+export default function DynamicTitle() {
+  const { pageTitle } = usePageTitle();
+  
   useEffect(() => {
     const title = pageTitle 
       ? `${pageTitle} - ${getDisplayName()}`
