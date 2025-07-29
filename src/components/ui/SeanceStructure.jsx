@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { formatDureeTexte, estimerDureeEtape, getDetails } from '@/utils/helpers';
-import { ChevronDown, ChevronRight, SquareChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, SquareChevronRight, HelpCircle } from 'lucide-react';
+import ExerciceHelpDialog from './ExerciceHelpDialog';
 
 const SeanceStructure = ({ structure, hideIcons }) => {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [selectedExo, setSelectedExo] = useState(null);
+
   if (!structure || !Array.isArray(structure)) {
     return (
       <div className="text-center text-gray-400 italic py-8">
@@ -45,8 +49,15 @@ const SeanceStructure = ({ structure, hideIcons }) => {
               )}
             </div>
           </button>
+          
           {openBlocks[key] && (
             <div className="pl-4 pr-2 pb-2 pt-1">
+              {/* Description du bloc si disponible */}
+              {etape.description && (
+                <div className="px-3 pb-2 text-sm text-gray-300 italic">
+                  {etape.description}
+                </div>
+              )}
               {(etape.contenu || []).map((sousEtape, i) =>
                 renderEtape(sousEtape, i, level + 1, key)
               )}
@@ -67,8 +78,27 @@ const SeanceStructure = ({ structure, hideIcons }) => {
         style={{ paddingLeft: `${paddingLeft + 8}px` }}
       >
         <div className="flex-1 min-w-0">
-          <span className="font-semibold text-white mr-2">{nom}</span>
-          {desc && <span className="text-xs text-blue-200">{desc}</span>}
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-white mr-2">{nom}</span>
+            {desc && <div className="text-xs text-blue-200 mr-2">{desc}</div>}
+            {etape.id && (
+              <button
+                className="text-orange-300 hover:text-orange-400"
+                title="Aide exercice"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setSelectedExo(etape); 
+                  setHelpOpen(true); 
+                }}
+              >
+                <HelpCircle size={16} />
+              </button>
+            )}
+          </div>
+          
+          {etape.description && (
+            <div className="text-xs text-gray-300 mt-1 italic">{etape.description}</div>
+          )}
         </div>
       </div>
     );
@@ -77,6 +107,7 @@ const SeanceStructure = ({ structure, hideIcons }) => {
   return (
     <div className="space-y-3">
       {structure.map((etape, idx) => renderEtape(etape, idx))}
+      <ExerciceHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} exercice={selectedExo} />
     </div>
   );
 };

@@ -36,3 +36,80 @@
 [class*="space-y-"] > .fixed {
   margin-top: 0 !important;
 }
+
+/* Scrollbar personnalisée pour le thème sombre */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+::-webkit-scrollbar-corner {
+  background: #1f2937;
+}
+
+/* Pour Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+/* Scrollbar plus fine pour les petits éléments */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #111827;
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Scrollbar pour les éléments avec fond sombre */
+.scrollbar-dark::-webkit-scrollbar-track {
+  background: #111827;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Scrollbar pour les éléments avec fond plus clair */
+.scrollbar-light::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.scrollbar-light::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.scrollbar-light::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

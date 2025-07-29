@@ -151,7 +151,7 @@ export function genererEtapesDepuisStructure(
 
     if (
       etapes.length === 0 &&
-      (!isBloc || blocIndex == 1) &&
+      (!isBloc || blocIndex >= 1) &&
       !(s === 0 && step.type === "bloc" && step.intro_bloc)
     ) {
       etapes.push({

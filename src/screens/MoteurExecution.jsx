@@ -8,8 +8,10 @@ import { FinishedScreen } from "@/screens/FinishedScreen";
 import { speak, speakMessage, estimerTempsParole, expandMessages } from "@/utils/vocal";
 import { pickRandom } from "@/utils/helpers";
 import { backgroundMainColor, blockStyle } from "@/styles/styles";
+import { HelpCircle } from 'lucide-react';
+import ExerciceHelpDialog from '../components/ui/ExerciceHelpDialog';
 
-// Composant pour l'intro de bloc
+// Fonction pour obtenir le résumé d'un exercice
 function getExoResume(exo) {
   const s = exo.series || 1;
   const r = exo.repetitions || 0;
@@ -21,7 +23,48 @@ function getExoResume(exo) {
   return '(' + main + reposSerie + ')';
 }
 
-function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposBloc = 0, onStart }) {
+// Composant pour l'intro de bloc
+function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposBloc = 0, onStart, numeroSection = 1, totalSections = 1 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [selectedExo, setSelectedExo] = useState(null);
+  const hasSpoken = useRef(false);
+  
+  // Lecture vocale de l'introduction du bloc
+  useEffect(() => {
+    // Éviter les lectures multiples
+    if (hasSpoken.current) return;
+    hasSpoken.current = true;
+    
+    // Déterminer le type de section
+    let typeSection = "";
+    if (totalSections >= 3) {
+      if (numeroSection === 1) {
+        typeSection = "Première section : ";
+      } else if (numeroSection === totalSections) {
+        typeSection = "Dernière section : ";
+      } else {
+        typeSection = "Prochaine section : ";
+      }
+    } else {
+      typeSection = "Section : ";
+    }
+
+    const messages = [
+      `${typeSection}${nom}`,
+      nbTours > 1 ? `${nbTours} tours` : "",
+      description || "",
+      "Cliquez sur commencer pour démarrer la section"
+    ].filter(msg => msg); // Filtrer les messages vides
+    
+    if (messages.length > 0) {
+      // Petit délai pour éviter les conflits avec d'autres lectures vocales
+      setTimeout(() => {
+        speak(messages, { nom, nbTours, description, numeroSection, totalSections }, 1000000, 1000);
+      }, 500);
+    }
+  }, [nom, nbTours, description, numeroSection, totalSections]);
+
+  //console.log("exercices :", exercices);
   return (
     <div className={`h-[calc(100vh-56px)] w-full flex items-center justify-center flex-col gap-4 ${backgroundMainColor} text-white px-4`}>
       <div className={"max-w-xl w-full " + blockStyle + " text-center"}>
@@ -38,8 +81,20 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
           <ol className="list-decimal ml-6 space-y-2">
             {exercices && exercices.map((exo, idx) => (
               <li key={exo._uid || exo.id || idx} className="text-orange-100">
-                <span className="font-bold text-orange-100">{exo.nom || `Exercice ${idx + 1}`}</span>
-                <span className="text-xs text-orange-300 ml-2">{getExoResume(exo)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-orange-100">{exo.nom || `Exercice ${idx + 1}`}</span>
+                  <span className="text-xs text-orange-300 ml-2">{getExoResume(exo)}</span>
+                  <button
+                    className="ml-2 text-orange-300 hover:text-orange-400"
+                    title="Aide exercice"
+                    onClick={() => { setSelectedExo(exo); setHelpOpen(true); }}
+                  >
+                    <HelpCircle size={18} />
+                  </button>
+                </div>
+                {exo.description && (
+                  <div className="text-xs text-orange-200 mt-1">{exo.description}</div>
+                )}
               </li>
             ))}
           </ol>
@@ -50,6 +105,7 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
         >
           Commencer la section
         </button>
+        <ExerciceHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} exercice={selectedExo} />
       </div>
     </div>
   );
@@ -88,6 +144,19 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 
   const current = etapes[stepIndex];
 
+  // Compter le nombre de sections (intro_bloc) pour déterminer le numéro de section
+  // On compte les étapes intro_bloc qui ont été générées
+  const sections = etapes.filter(e => e.type === "intro_bloc");
+  // Pour trouver le numéro de section actuelle, on compte combien d'étapes intro_bloc 
+  // sont passées avant l'étape actuelle (stepIndex)
+  const currentSectionIndex = etapes
+    .slice(0, stepIndex + 1)
+    .filter(e => e.type === "intro_bloc")
+    .length - 1; // -1 car on veut l'index (0-based)
+  const numeroSection = currentSectionIndex + 1;
+
+  const totalSections = sections.length;
+
   const expandedMessagesFin = useMemo(() => {
     if (current && current.messages_fin && current.messages_fin.length > 0) {
       return expandMessages(current.messages_fin, current);
@@ -114,13 +183,21 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 	
     //console.log("🔁 Nouvelle étape", stepIndex, current.type);
 	  //console.log("🔍 current =", JSON.stringify(current, null, 2));
+    
+    // Ne pas déclencher la lecture vocale pour les étapes intro_bloc
+    // car elles ont leur propre logique de lecture vocale
+    if (current.type === "intro_bloc") {
+      setMode("intro_bloc");
+      return;
+    }
+    
     const shouldSpeak = current.messages?.length && spokenStepIndex.current !== stepIndex;
 
     // Identifie si on est dans une transition (repos, intro...) ou un exercice
     const isTransition = ["repos", "intro", "annonce_bloc"].includes(current.type);
     setMode(isTransition ? "transition" : "exercice");
     if(isTransition || !current.exo?.repetitions){setTimeLeft(current.duree);}
-    console.log("should speak : " + shouldSpeak + current.messages?.length + spokenStepIndex.current);
+    console.log("should speak : " + shouldSpeak + " messages: " + current.messages?.length + " spokenStep: " + spokenStepIndex.current);
     if (shouldSpeak) {
       // todo : voir si on peut trouvre une solution pour lire les message non lu après une pause ou si on passe direct à l'exo
       speak(current.messages, current, (current.duree -5) * 1000,500, skippedMessagesRef)
@@ -239,6 +316,8 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
         nbTours={current.nbTours}
         tempsReposBloc={current.tempsReposBloc}
         onStart={() => setStepIndex(prev => prev + 1)}
+        numeroSection={numeroSection}
+        totalSections={totalSections}
       />
     );
   }
