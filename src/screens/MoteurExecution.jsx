@@ -105,7 +105,12 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
         >
           Commencer la section
         </button>
-        <ExerciceHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} exercice={selectedExo} />
+        <ExerciceHelpDialog 
+          open={helpOpen} 
+          onClose={() => setHelpOpen(false)} 
+          exercice={selectedExo} 
+          modifiedData={selectedExo}
+        />
       </div>
     </div>
   );

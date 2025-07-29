@@ -7,8 +7,8 @@ import { ChevronRight, GripVertical, MoreVertical, Copy, Trash2, ClipboardPaste,
 import FloatingLabelInput from "./ui/FloatingLabelInput";
 import Snackbar from './Snackbar';
 import Switch from "./ui/Switch";
-import ExerciceAutocompleteInput from "./ui/ExerciceAutocompleteInput";
 import FloatingSaveButton from "./ui/FloatingSaveButton";
+import ExerciceHelpDialog from "./ui/ExerciceHelpDialog";
 
 // =================================================================
 // HELPERS
@@ -188,9 +188,9 @@ const Item = ({ children }) => <div className="bg-gray-700 rounded-lg shadow-xl"
 // Composant de confirmation générique
 function ConfirmDialog({ open, message, onCancel, onConfirm }) {
   if (!open) return null;
-  return (
+  return ReactDOM.createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50"
       onClick={onCancel}
     >
       <div
@@ -204,85 +204,12 @@ function ConfirmDialog({ open, message, onCancel, onConfirm }) {
           <button onClick={onConfirm} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 border border-red-700">Confirmer</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
-// Dialog de détails d'exercice
-function ExerciceDetailsDialog({ open, onClose, item }) {
-  const [details, setDetails] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
 
-  React.useEffect(() => {
-    if (open && item && item.id) {
-      setLoading(true);
-      setError(null);
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/exercices/${item.id}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.exercice) {
-            setDetails(d.exercice);
-          } else {
-            setError("Exercice non trouvé");
-          }
-        })
-        .catch(() => setError("Erreur lors du chargement"))
-        .finally(() => setLoading(false));
-    } else if (!open) {
-      setDetails(null);
-      setError(null);
-    }
-  }, [open, item]);
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={onClose}>
-      <div
-        className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-6 min-w-[400px] max-w-lg w-full relative"
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          className="absolute top-2 right-2 text-gray-400 hover:text-orange-400"
-          onClick={onClose}
-          aria-label="Fermer"
-        >
-          <X size={18} />
-        </button>
-        <div className="text-orange-300 font-semibold mb-4">Détails de l'exercice</div>
-        {loading ? (
-          <div className="flex items-center justify-center py-8"><svg className="animate-spin h-6 w-6 text-orange-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg></div>
-        ) : error ? (
-          <div className="text-red-400 text-center py-8">{error}</div>
-        ) : details ? (
-          <div className="text-sm text-gray-200 space-y-2 max-h-[32rem] overflow-y-auto pr-1">
-            <div><b>Nom :</b> {details.nom}</div>
-            {details.description && <div><b>Description :</b> {details.description}</div>}
-            {details.position_depart && <div><b>Position de départ :</b> {details.position_depart}</div>}
-            {details.categorie_nom && <div><b>Catégorie :</b> {details.categorie_nom} {details.categorie_icone && <span>{details.categorie_icone}</span>}</div>}
-            {details.groupe_musculaire_nom && <div><b>Groupe musculaire :</b> {details.groupe_musculaire_nom}</div>}
-            {details.zone_corps && <div><b>Zone du corps :</b> {details.zone_corps}</div>}
-            {details.niveau_nom && <div><b>Niveau :</b> {details.niveau_nom}</div>}
-            {details.type_nom && <div><b>Type :</b> {details.type_nom}</div>}
-            {details.erreurs && Array.isArray(details.erreurs) && details.erreurs.length > 0 && <div><b>Erreurs fréquentes :</b> <ul className="list-disc ml-5">{details.erreurs.map((e,i) => <li key={i}>{e}</li>)}</ul></div>}
-            {details.focus_zone && Array.isArray(details.focus_zone) && details.focus_zone.length > 0 && <div><b>Zones à focus :</b> <ul className="list-disc ml-5">{details.focus_zone.map((z,i) => <li key={i}>{z}</li>)}</ul></div>}
-            {details.image_url && <div><b>Image :</b><br/><img src={details.image_url} alt="Aperçu exercice" className="max-h-32 rounded mt-1" /></div>}
-            {details.video_url && <div><b>Vidéo :</b> <a href={details.video_url} target="_blank" rel="noopener noreferrer" className="text-orange-300 underline">Voir la vidéo</a></div>}
-            {details.muscles_sollicites && Array.isArray(details.muscles_sollicites) && details.muscles_sollicites.length > 0 && <div><b>Muscles sollicités :</b> <ul className="list-disc ml-5">{details.muscles_sollicites.map((m,i) => <li key={i}>{m}</li>)}</ul></div>}
-            {details.variantes && Array.isArray(details.variantes) && details.variantes.length > 0 && <div><b>Variantes :</b> <ul className="list-disc ml-5">{details.variantes.map((v,i) => <li key={i}>{v}</li>)}</ul></div>}
-            {details.conseils && Array.isArray(details.conseils) && details.conseils.length > 0 && <div><b>Conseils :</b> <ul className="list-disc ml-5">{details.conseils.map((c,i) => <li key={i}>{c}</li>)}</ul></div>}
-            {details.materiel && Array.isArray(details.materiel) && details.materiel.length > 0 && <div><b>Matériel :</b> <ul className="list-disc ml-5">{details.materiel.map((m,i) => <li key={i}>{m}</li>)}</ul></div>}
-          </div>
-        ) : (
-          <div className="text-gray-400 text-center py-8">Aucun détail à afficher</div>
-        )}
-        <div className="mt-6 flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-700 text-white hover:bg-gray-600 border border-gray-600">Fermer</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function StepContent({
   uid,
@@ -315,6 +242,28 @@ function StepContent({
   // État pour l'accordéon de configuration automatique des blocs
   const showAutoConfig = item.showAutoConfig || false;
 
+  // Variable pour stocker les infos de l'exercice depuis l'API backend
+  const [exerciceInfos, setExerciceInfos] = useState(null);
+
+  // Fonction pour aller chercher les infos de l'exercice dans la bdd via l'API backend
+  useEffect(() => {
+    // On ne fait la requête que si l'item est un exercice et qu'il a un id
+    if (item && item.type === "exercice" && item.id) {
+      // Remplacez l'URL par celle de votre API backend
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/exercices/${item.id}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Erreur lors de la récupération de l'exercice");
+          return res.json();
+        })
+                 .then(data => setExerciceInfos(data.exercice))
+        .catch(err => {
+          setExerciceInfos(null);
+          // Optionnel : log ou gestion d'erreur
+        });
+    } else {
+      setExerciceInfos(null);
+    }
+  }, [item && item.type === "exercice" ? item.id : null]);
 
 
   useEffect(() => {
@@ -612,7 +561,10 @@ function StepContent({
     <div className="bg-gray-800/80 md:rounded-2xl rounded-lg mb-3 border border-gray-700 shadow-lg w-full">
       <div className={`flex items-center gap-1.5 p-2`} onClick={toggleAccordion}>
         <div className="p-1"><ChevronRight className={`text-white transition-transform duration-200 ${(openAccordions || []).includes(uid) ? 'rotate-90' : ''}`} size={18} /></div>
-        <span className="font-medium text-orange-300 flex-grow select-none text-sm tracking-wide">{item.type === "bloc" ? item.nom || "Section" : item.nom || "Exercice"}</span>
+        <div className="flex-1 flex items-center gap-2">
+          <span className="font-medium text-orange-300 select-none text-sm tracking-wide">{item.type === "bloc" ? item.nom || "Section" : item.nom || "Exercice"}</span>
+
+        </div>
         <div className="flex items-center gap-2">
           <button type="button" {...dragHandleListeners} className="text-white p-1 cursor-grab active:cursor-grabbing" onClick={e => e.stopPropagation()}><GripVertical size={18} /></button> 
           
@@ -825,26 +777,11 @@ function StepContent({
               <div className="space-y-4">                
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1">
-                    <ExerciceAutocompleteInput
-                      value={item.id ? { id: item.id, nom: item.nom } : null}
-                      onChange={exo => {
-                        // Met à jour tous les champs liés à l'exercice
-                        onUpdate(uid, {
-                          ...item,
-                          id: exo.id,
-                          nom: exo.nom,
-                          // description: exo.description || "", // NE PAS mettre à jour la description
-                          position_depart: exo.position_depart || "",
-                          categorie_nom: exo.categorie_nom || "",
-                          instructions: exo.instructions || "",
-                          focus_zone: exo.focus_zone || [],
-                          erreurs_courantes: exo.erreurs_courantes || [],
-                          conseils: exo.conseils || [],
-                          // Ajoute d'autres champs si besoin
-                        });
-                      }}
-                      placeholder="Rechercher un exercice..."
+                    <FloatingLabelInput
                       label="Nom de l'exercice"
+                      value={item.nom !== undefined ? item.nom : (exerciceInfos?.nom || "")}
+                      onChange={e => handleChange("nom", e.target.value)}
+                      placeholder="Nom de l'exercice"
                     />
                   </div>
                   <button
@@ -855,8 +792,81 @@ function StepContent({
                     Détails
                   </button>
                 </div>
-                <ExerciceDetailsDialog open={showDetails} onClose={() => setShowDetails(false)} item={item} />
-                <FloatingLabelInput label="Description" value={item.description || ""} onChange={e => handleChange("description", e.target.value)} />
+                <ExerciceHelpDialog open={showDetails} onClose={() => setShowDetails(false)} exercice={item} />
+                
+                {/* Accordéon pour les options avancées */}
+                <div className="border border-gray-700 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setOpenAccordions(o => o.includes(uid + '_advanced') ? o.filter(i => i !== uid + '_advanced') : [...o, uid + '_advanced']); }}
+                    className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-800/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChevronRight 
+                        size={18} 
+                        className={`text-white transition-transform ${(openAccordions || []).includes(uid + '_advanced') ? 'rotate-90' : ''}`}
+                      />
+                      <span className="text-sm font-medium text-orange-300">Options avancées</span>
+                      {/* Indicateur si des champs sont personnalisés */}
+                      {( item.description || item.position_depart || 
+                        (item.conseils && item.conseils.length > 0) || 
+                        (item.erreurs && item.erreurs.length > 0) || 
+                        (item.focus_zone && item.focus_zone.length > 0)) && (
+                        <span className="px-2 py-1 text-xs bg-orange-500 text-white rounded-full">Personnalisé</span>
+                      )}
+                    </div>
+                    
+                  </button>
+                  
+                  {(openAccordions || []).includes(uid + '_advanced') && (
+                    <div className="px-4 pb-4 space-y-4 border-t border-gray-700/50 pt-4">
+                        <FloatingLabelInput 
+                         label="Description" 
+                         value={item.description !== undefined ? item.description : (exerciceInfos?.description || "")} 
+                         onChange={e => handleChange("description", e.target.value)}
+                         placeholder="Laisser vide pour ne pas afficher de description"
+                       />
+                                                <FloatingLabelInput 
+                          label="Position de départ" 
+                          value={item.position_depart !== undefined ? item.position_depart : (exerciceInfos?.position_depart || "")} 
+                          onChange={e => handleChange("position_depart", e.target.value)}
+                          placeholder="Laisser vide pour ne pas afficher de position"
+                        />
+
+                      
+                      {/* Conseils personnalisés */}
+                      <FloatingLabelInput
+                        as="textarea"
+                        label="Conseils (un par ligne)"
+                        value={Array.isArray(item.conseils) ? item.conseils.join('\n') : (Array.isArray(exerciceInfos?.conseils) ? exerciceInfos.conseils.join('\n') : '')}
+                        onChange={e => handleChange("conseils", e.target.value.split('\n').filter(line => line.trim()))}
+                        placeholder="Un conseil par ligne. Laisser vide pour ne pas afficher de conseils"
+                        rows={3}
+                      />
+                      
+                      {/* Erreurs courantes personnalisées */}
+                      <FloatingLabelInput
+                        as="textarea"
+                        label="Erreurs fréquentes (une par ligne)"
+                        value={Array.isArray(item.erreurs) ? item.erreurs.join('\n') : (Array.isArray(exerciceInfos?.erreurs) ? exerciceInfos.erreurs.join('\n') : '')}
+                        onChange={e => handleChange("erreurs", e.target.value.split('\n').filter(line => line.trim()))}
+                        placeholder="Une erreur par ligne. Laisser vide pour ne pas afficher d'erreurs"
+                        rows={3}
+                      />
+                      
+                      {/* Zones de focus personnalisées */}
+                      <FloatingLabelInput
+                        as="textarea"
+                        label="Zones de focus (une par ligne)"
+                        value={Array.isArray(item.focus_zone) ? item.focus_zone.join('\n') : (Array.isArray(exerciceInfos?.focus_zone) ? exerciceInfos.focus_zone.join('\n') : '')}
+                        onChange={e => handleChange("focus_zone", e.target.value.split('\n').filter(line => line.trim()))}
+                        placeholder="Une zone par ligne. Laisser vide pour ne pas afficher de zones"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </div>
+                
                   {/* 2ème ligne : Sélecteur du type d'exercice */}
                 <div className="flex flex-row gap-4">
                 <FloatingLabelInput
@@ -971,14 +981,15 @@ function StepContent({
               </div>
             </>
           )}
-          <ConfirmDialog
+          
+        </div>
+      )}
+      <ConfirmDialog
             open={showConfirmDelete}
             message={"Supprimer cette étape ?"}
             onCancel={() => setShowConfirmDelete(false)}
             onConfirm={handleConfirmDelete}
           />
-        </div>
-      )}
     </div>
   );
 }
@@ -1025,20 +1036,20 @@ function AddExerciceDialog({ open, onClose, search, setSearch, onAddExercice }) 
     }
   }, [open]);
   if (!open) return null;
-  return (
+  return ReactDOM.createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
       onClick={e => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
       <div
         ref={contentRef}
-        className="bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-700 min-w-[400px] w-[420px] max-w-full"
+        className="bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-700 min-w-[400px] w-[420px] max-w-full max-h-[90vh] flex flex-col"
       >
         <h2 className="text-xl font-bold mb-4 text-orange-300">Ajouter un exercice</h2>
-        <div className="space-y-3">
+        <div className="space-y-3 flex-1 flex flex-col min-h-0">
           <div className="relative w-full">
             <FloatingLabelInput
               label="Nom de l'exercice"
@@ -1053,7 +1064,7 @@ function AddExerciceDialog({ open, onClose, search, setSearch, onAddExercice }) 
               </span>
             )}
           </div>
-          <div className="flex flex-col gap-2 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded scrollbar-thumb-rounded-full scrollbar-track-rounded-full pr-1 transition-opacity duration-200" style={{ scrollbarColor: '#374151 #111827', scrollbarWidth: 'thin', opacity: loading ? 0.7 : 1 }}>
+          <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded scrollbar-thumb-rounded-full scrollbar-track-rounded-full pr-1 transition-opacity duration-200" style={{ scrollbarColor: '#374151 #111827', scrollbarWidth: 'thin', opacity: loading ? 0.7 : 1 }}>
             {(!loading && exercices.length === 0) ? (
               <div className="text-gray-400 text-center py-4">Aucun exercice trouvé</div>
             ) : (
@@ -1064,17 +1075,18 @@ function AddExerciceDialog({ open, onClose, search, setSearch, onAddExercice }) 
                   className="p-2 bg-gray-800 rounded-md text-left text-sm hover:bg-gray-700 text-white border border-gray-700 transition-colors duration-150"
                   style={{ opacity: loading ? 0.7 : 1 }}
                 >
-                  {exo.nom}
+                  <div className="font-medium">{exo.nom}</div>
                 </button>
               ))
             )}
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end flex-shrink-0">
           <button onClick={onClose} className="p-2 bg-gray-700 rounded-md text-sm hover:bg-gray-600 text-white border border-gray-600">Annuler</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1509,8 +1521,18 @@ export default function EditeurStructureSeance({
               type: 'exercice',
               id: exo.id,
               nom: exo.nom,
+              // Champs personnalisables - initialisés avec les valeurs de la base
+              // Ces champs ne seront sauvegardés que s'ils sont modifiés
+              description: exo.description || "",
+              position_depart: exo.position_depart || "",
+              
+              focus_zone: exo.focus_zone || [],
+                              erreurs: exo.erreurs || [],
+              conseils: exo.conseils || [],
+              // Champs de configuration
               ...config
             };
+            console.log('Nouvel exercice créé:', newExo); // Debug temporaire
             onUpdate(null, { add: true, item: newExo, containerId: addExoTargetPath });
             setSearch("");
           }}

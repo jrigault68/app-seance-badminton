@@ -107,7 +107,12 @@ const SeanceStructure = ({ structure, hideIcons }) => {
   return (
     <div className="space-y-3">
       {structure.map((etape, idx) => renderEtape(etape, idx))}
-      <ExerciceHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} exercice={selectedExo} />
+      <ExerciceHelpDialog 
+        open={helpOpen} 
+        onClose={() => setHelpOpen(false)} 
+        exercice={selectedExo} 
+        modifiedData={selectedExo}
+      />
     </div>
   );
 };
