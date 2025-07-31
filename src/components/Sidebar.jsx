@@ -24,16 +24,19 @@ const navigationItems = (user) => user ? [
     path: "/programmes",
     icon: <Calendar size={22} />,
   },
-  {
-    name: "Séances",
-    path: "/seances",
-    icon: <Dumbbell size={22} />,
-  },
-  {
-    name: "Exercices",
-    path: "/exercices",
-    icon: <Activity size={22} />,
-  },
+  // Affiche "Séances" et "Exercices" uniquement si l'utilisateur est admin
+  ...(user?.is_admin ? [
+    {
+      name: "Séances",
+      path: "/seances",
+      icon: <Dumbbell size={22} />,
+    },
+    {
+      name: "Exercices",
+      path: "/exercices",
+      icon: <Activity size={22} />,
+    },
+  ] : []),
   
   
 ] : [

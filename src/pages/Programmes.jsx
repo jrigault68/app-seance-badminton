@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import { useUser } from "../contexts/UserContext";
 import { Filter, Search, List, SortAsc, ChevronDown, ChevronRight, LayoutGrid, Plus, Calendar } from 'lucide-react';
 
 function groupByCategory(programmes) {
@@ -24,6 +25,7 @@ function highlightMatch(text, query) {
 
 export default function Programmes() {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [programmes, setProgrammes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -233,14 +235,16 @@ export default function Programmes() {
             </div>
           )}
         </div>
-        {/* Bouton flottant */}
-        <button
-          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg text-lg z-50"
-          onClick={() => navigate('/programmes/new')}
-        >
-          <Plus size={20} className="" />
-          Créer un programme
-        </button>
+        {/* Bouton flottant - visible seulement pour les admins */}
+        {user?.is_admin && (
+          <button
+            className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg text-lg z-50"
+            onClick={() => navigate('/programmes/new')}
+          >
+            <Plus size={20} className="" />
+            Créer un programme
+          </button>
+        )}
       </div>
     </Layout>
   );

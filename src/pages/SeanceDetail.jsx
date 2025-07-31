@@ -507,6 +507,21 @@ export default function SeanceDetail() {
         </div>
       )}
       
+      {/* Bouton flottant pour lancer la séance */}
+      {hasPlayableStructure && (
+        <button
+          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold shadow-lg text-lg z-50"
+          onClick={() => {
+            if (seance) {
+              navigate(`/seances/${seance.id}/execution`);
+            }
+          }}
+        >
+          <Play size={20} className="" />
+          Lancer la séance
+        </button>
+      )}
+      
     </Layout>
   );
 } 

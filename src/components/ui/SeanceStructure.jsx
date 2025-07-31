@@ -95,10 +95,6 @@ const SeanceStructure = ({ structure, hideIcons }) => {
               </button>
             )}
           </div>
-          
-          {etape.description && (
-            <div className="text-xs text-gray-300 mt-1 italic">{etape.description}</div>
-          )}
         </div>
       </div>
     );
