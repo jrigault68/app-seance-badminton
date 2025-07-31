@@ -11,8 +11,7 @@ export function ActiveExerciceScreen({
   setFinished,
   exerciceNumero,
   totalExercices
-}) {
-  console.log("exo :", exo);
+}) {  
   const nom = exo.nom || "Repos";
   const duration = exo.duree || exo.duration || 0;
   const description = exo.description || null;

@@ -156,28 +156,53 @@ CREATE TABLE IF NOT EXISTS programme_seances (
 -- Pour un programme libre : renseigner 'jour', laisser 'date' à NULL
 -- Pour un programme calendaire : renseigner 'date', laisser 'jour' à NULL
 
+-- Table des programmes suivis par les utilisateurs
+CREATE TABLE IF NOT EXISTS utilisateur_programmes (
+  id SERIAL PRIMARY KEY,
+  utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE,
+  date_debut DATE DEFAULT CURRENT_DATE,
+  date_fin DATE,
+  est_actif BOOLEAN DEFAULT TRUE,
+  progression JSONB DEFAULT '{}', -- Suivi de la progression dans le programme
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(utilisateur_id, programme_id) -- Un utilisateur ne peut suivre qu'un seul programme à la fois
+);
+
 -- =====================================================
 -- TABLES POUR LE SUIVI DES SÉANCES
 -- =====================================================
 
 -- Table des sessions d'entraînement
--- CREATE TABLE IF NOT EXISTS sessions_entrainement (
---     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---     utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
---     seance_id VARCHAR(100) REFERENCES seances(id),
---     nom_session VARCHAR(150),
---     date_debut TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---     date_fin TIMESTAMP WITH TIME ZONE,
---     duree_totale INTEGER, -- en secondes
---     calories_brulees INTEGER,
---     niveau_effort DECIMAL(3,1), -- 1.0 à 10.0
---     satisfaction DECIMAL(3,1), -- 1.0 à 5.0
---     notes TEXT,
---     etat VARCHAR(20) DEFAULT 'en_cours', -- 'en_cours', 'terminee', 'interrompue'
---     progression JSONB DEFAULT '{}', -- Suivi de la progression pendant la session
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
--- );
+CREATE TABLE IF NOT EXISTS sessions_entrainement (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    seance_id UUID REFERENCES seances(id),
+    seance_personnalisee_id UUID, -- Pour les séances personnalisées
+    programme_id INTEGER REFERENCES programmes(id), -- Lien avec le programme
+    jour_programme INTEGER, -- Jour dans le programme (1, 2, 3...)
+    nom_session VARCHAR(150),
+    date_debut TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    date_fin TIMESTAMP WITH TIME ZONE,
+    duree_totale INTEGER, -- en secondes
+    calories_brulees INTEGER,
+    niveau_effort DECIMAL(3,1), -- 1.0 à 10.0
+    satisfaction DECIMAL(3,1), -- 1.0 à 5.0
+    notes TEXT,
+    etat VARCHAR(20) DEFAULT 'en_cours', -- 'en_cours', 'terminee', 'interrompue'
+    progression JSONB DEFAULT '{}', -- Suivi de la progression pendant la session
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index pour les performances de sessions_entrainement
+CREATE INDEX IF NOT EXISTS idx_sessions_utilisateur ON sessions_entrainement(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_programme ON sessions_entrainement(programme_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_seance ON sessions_entrainement(seance_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions_entrainement(date_debut);
+CREATE INDEX IF NOT EXISTS idx_sessions_etat ON sessions_entrainement(etat);
 
 -- Table des exercices réalisés dans une session
 -- CREATE TABLE IF NOT EXISTS exercices_realises (

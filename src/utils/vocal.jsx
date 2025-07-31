@@ -34,9 +34,9 @@ export function expandMessages(messages, current = {}, skippedMessagesRef) {
   return []
     .concat(messages) // au cas où messagesInput est un string ou un seul objet
     .flatMap(msg => {
-      console.log("🔍 expandMessages :", msg);
+      //console.log("🔍 expandMessages :", msg);
       const resultat = getMessagesFromKey(msg, current, skippedMessagesRef);
-      console.log("🔍 resultat :", resultat);
+      //console.log("🔍 resultat :", resultat);
       if (Array.isArray(resultat)) return resultat;
       if (typeof resultat === "string" || typeof resultat === "object") return [resultat];
       return [];
@@ -87,12 +87,12 @@ export async function speak(messages, current = {}, tempsRestantMs, margeMs = 50
 
 import messagesJSON from "@/assets/messages_vocaux.json";
 
-function getMessagesFromKey(key, current = {}, skippedMessagesRef) {
+export function getMessagesFromKey(key, current = {}, skippedMessagesRef, infosDejaDiffusees={}) {
   if (!key || typeof key !== "string") return [];
   
   if (key === "message_retarde" && skippedMessagesRef?.current?.length) {
     const allMsg = skippedMessagesRef.current.join(" ");
-    console.log("🔍 Retard getMessagesFromKey :", key, "→", allMsg);
+    //console.log("🔍 Retard getMessagesFromKey :", key, "→", allMsg);
     return [allMsg]; // retourne sous forme de tableau
   }else if (key === "message_retarde"){return "";}
   
@@ -103,54 +103,124 @@ function getMessagesFromKey(key, current = {}, skippedMessagesRef) {
   
   const [cat, sub] = key.split(".");
   const raw = messagesJSON[cat]?.[sub];
-  console.log("🔍 Résultat getMessagesFromKey :", key, "→", raw);
+ // console.log("🔍 Résultat getMessagesFromKey :", key, "→", raw);
   if (!raw) return [key]; // fallback si pas trouvé
 
   // 🎯 Cas 1 : tableau de variantes
   if (Array.isArray(raw)) {
     const texte = raw[Math.floor(Math.random() * raw.length)];
-    return [remplacerVariables(texte, current)];
+    return [remplacerVariables(texte, current,infosDejaDiffusees)];
   }
 
   // 🎯 Cas 2 : string simple à template
-  return [remplacerVariables(raw, current)];
+  return [remplacerVariables(raw, current,infosDejaDiffusees)];
 }
 
 // ✨ Fonction helper pour insérer les variables dynamiques
-function remplacerVariables(template, current) {
+function remplacerVariables(template, current, infosDejaDiffusees) {
+  // On récupère l'exoId si possible pour alimenter le bon sous-objet
+  const exoId = current?.exo?.id || current?.exoId || current?.id;
+  // S'assurer que la structure existe
+  if (exoId && infosDejaDiffusees && !infosDejaDiffusees[exoId]) {
+    infosDejaDiffusees[exoId] = {
+      description: "",
+      position_depart: "",
+      nom: "",
+      erreurs: new Set(),
+      conseils: new Set(),
+      focus_zone: new Set()
+    };
+  }
+
+  // Helper pour alimenter infosDejaDiffusees
+  function setInfo(key, value) {
+    if (exoId && infosDejaDiffusees && value) {
+      if (key === "erreurs") {
+        if (!infosDejaDiffusees[exoId].erreurs) infosDejaDiffusees[exoId].erreurs = new Set();
+        infosDejaDiffusees[exoId].erreurs.add(value);
+      } else {
+        infosDejaDiffusees[exoId][key] = value;
+      }
+    }
+  }
+
+  // On prépare les valeurs à injecter
+  const duration = formatDureeVocal(current?.duree || current?.duration || 0);
+  const serie = current?.serie || "";
+  const total_series = current?.total_series || "";
+  const exoNom = current?.exo?.nom || "";
+  const blocTour = current?.blocTour || current?.exo?.blocTour || "";
+  const totalBlocTour = current?.totalBlocTour || current?.exo?.totalBlocTour || "";
+  const exoDescription = current?.exo?.description || "";
+  const exoPosition = current?.exo?.position_depart || "";
+  let exoErreur = "";
+  if (Array.isArray(current?.exo?.erreurs) && current?.exo?.erreurs.length > 0) {
+    exoErreur = pickRandom(current?.exo?.erreurs);
+  }
+
+  // Si le template demande une variable exo.* qui n'est plus dispo, on retourne null
+  if (
+    (template.includes("{exo.description}") && !exoDescription) ||
+    (template.includes("{exo.position_depart}") && !exoPosition) ||
+    (template.includes("{exo.erreurs}") && !exoErreur) ||
+    (template.includes("{exo.nom}") && !exoNom)
+  ) {
+    return null;
+  }
+  // Ajout à infosDejaDiffusees uniquement si le template contient la variable correspondante
+  if (template.includes("{exo.description}") && exoDescription) {
+    setInfo("description", exoDescription);
+  }
+  if (template.includes("{exo.position_depart}") && exoPosition) {
+    setInfo("position_depart", exoPosition);
+  }
+  if (template.includes("{exo.erreurs}") && exoErreur) {
+    setInfo("erreurs", exoErreur);
+  }
+  if (template.includes("{exo.nom}") && exoNom) {
+    setInfo("nom", exoNom);
+  }
+
+  
+
+  const exoDetails = (() => {
+    //console.log("exoDetails :", current)
+    const exo = current?.exo || {};
+    // Séries + répétitions (classique)
+    if (exo.series && exo.series > 1 && exo.repetitions) {
+      return `${exo.series} séries de ${exo.repetitions} répétitions`;
+    }
+    // Séries + temps par série
+    if (exo.series && exo.series > 1 && exo.temps_series) {
+      return `${exo.series} séries de ${formatDureeVocal(exo.temps_series)}`;
+    }
+    // Juste répétitions
+    if (exo.repetitions) {
+      return `${exo.repetitions} répétitions`;
+    }
+    // Pas de séries, mais durée fixe
+    if ((!exo.series || exo.series <= 1) && exo.temps_series) {
+      return `pendant ${formatDureeVocal(exo.temps_series)}`;
+    }
+    // Juste durée
+    if (exo.duree || exo.duration || current?.duree) {
+      return `pendant ${formatDureeVocal(exo.duree || exo.duration)}`;
+    }
+    // Fallback
+    return "Exercice libre";
+  })();
+
   return template
-    .replace(/{duration}/g, formatDureeVocal(current?.duree || current?.duration || 0))
-    .replace(/{serie}/g, current?.serie || "")
-    .replace(/{total_series}/g, current?.total_series || "")
-    .replace(/{exo\.nom}/g, current?.exo?.nom || "")
-    .replace(/{exo\.description}/g, current?.exo?.description || "")
-    .replace(/{exo\.position_depart}/g, current?.exo?.position_depart || "")
-	  .replace(/{exo\.erreurs}/g, Array.isArray(current?.exo?.erreurs) && current?.exo?.erreurs.length > 0 ? pickRandom(current?.exo?.erreurs) : "")
-    .replace(/{exo\.details}/g, (() => {
-		  const exo = current?.exo || {};
-		  // Séries + répétitions (classique)
-		  if (exo.series && exo.series > 1 && exo.repetitions) {
-			return `${exo.series} séries de ${exo.repetitions} répétitions`;
-		  }
-		  // Séries + temps par série
-		  if (exo.series && exo.series > 1 && exo.temps_series) {
-			return `${exo.series} séries de ${formatDureeVocal(exo.temps_series)}`;
-		  }
-		   // Juste répétitions
-		  if (exo.repetitions) {
-			return `${exo.repetitions} répétitions`;
-		  }
-		  // Pas de séries, mais durée fixe
-		  if ((!exo.series || exo.series <=1) && exo.temps_series) {
-			return `pendant ${formatDureeVocal(exo.temps_series)}`;
-		  }
-		  // Juste durée
-		  if (exo.duree || exo.duration) {
-			return `pendant ${formatDureeVocal(exo.duree || exo.duration)}`;
-		  }
-		  // Fallback
-		  return "Exercice libre";
-		})());
+    .replace(/{duration}/g, duration)
+    .replace(/{serie}/g, serie)
+    .replace(/{total_series}/g, total_series)
+    .replace(/{exo\.nom}/g, exoNom)
+    .replace(/{exo\.description}/g, exoDescription)
+    .replace(/{exo\.position_depart}/g, exoPosition)
+    .replace(/{exo\.erreurs}/g, exoErreur)
+    .replace(/{blocTour}/g, blocTour)
+    .replace(/{totalBlocTour}/g, totalBlocTour)
+    .replace(/{exo\.details}/g, exoDetails);
 }
 
 export function formatDureeVocal(sec) {

@@ -5,9 +5,12 @@ import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import CustomRadio from "../components/ui/CustomRadio";
 import Switch from "../components/ui/Switch";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
+import FloatingProgrammeButton from "../components/ui/FloatingProgrammeButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
-import { useBlocker } from "react-router-dom";
-import { Pencil, Layers, Plus, Trash2, BarChart2, Tag, User, CheckCircle, XCircle, Calendar } from "lucide-react";
+import ProgrammeFollowDialog from "../components/ui/ProgrammeFollowDialog";
+import Snackbar from "../components/Snackbar";
+import { useSafeBlocker } from "../utils/useBlocker";
+import { Pencil, Layers, Plus, Trash2, BarChart2, Tag, User, CheckCircle, XCircle, Calendar, Play, Square, RefreshCw } from "lucide-react";
 import { useUser } from "../contexts/UserContext";
 import SeanceStructure from "../components/ui/SeanceStructure";
 
@@ -39,6 +42,18 @@ export default function ProgrammeDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // États pour les snackbars
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarType, setSnackbarType] = useState("success");
+
+  // États pour le suivi de programme
+  const [programmeActuel, setProgrammeActuel] = useState(null);
+  const [programmesUtilisateur, setProgrammesUtilisateur] = useState([]);
+  const [loadingProgrammeActuel, setLoadingProgrammeActuel] = useState(false);
+  const [showFollowDialog, setShowFollowDialog] = useState(false);
+  const [followDialogType, setFollowDialogType] = useState(null);
+  const [followLoading, setFollowLoading] = useState(false);
+
   useEffect(() => {
     fetch(`${apiUrl}/niveaux`).then(res => res.json()).then(setNiveaux);
     fetch(`${apiUrl}/categories`).then(res => res.json()).then(setCategories);
@@ -58,6 +73,46 @@ export default function ProgrammeDetail() {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, [id, isNew]);
+
+  // Récupérer le programme actuel et tous les programmes de l'utilisateur
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchProgrammesUtilisateur = async () => {
+      setLoadingProgrammeActuel(true);
+      try {
+        // Récupérer le programme actuel
+        const responseActuel = await fetch(`${apiUrl}/programmes/utilisateur/actuel`, {
+          credentials: 'include'
+        });
+        if (responseActuel.ok) {
+          const dataActuel = await responseActuel.json();
+          setProgrammeActuel(dataActuel);
+        } else {
+          setProgrammeActuel(null);
+        }
+
+        // Récupérer tous les programmes de l'utilisateur
+        const responseTous = await fetch(`${apiUrl}/programmes/utilisateur/tous`, {
+          credentials: 'include'
+        });
+        if (responseTous.ok) {
+          const dataTous = await responseTous.json();
+          setProgrammesUtilisateur(dataTous);
+        } else {
+          setProgrammesUtilisateur([]);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des programmes utilisateur:', error);
+        setProgrammeActuel(null);
+        setProgrammesUtilisateur([]);
+      } finally {
+        setLoadingProgrammeActuel(false);
+      }
+    };
+
+    fetchProgrammesUtilisateur();
+  }, [user, apiUrl]);
 
   // Ajout : récupération des séances associées au programme (lecture seule)
   useEffect(() => {
@@ -294,24 +349,209 @@ export default function ProgrammeDetail() {
     return JSON.stringify(clean(form)) !== JSON.stringify(clean(normalizeFormValues(reference)));
   }, [form, programme, mode]);
 
-  // Blocage navigation avec useBlocker (exactement comme dans ProgrammeForm)
-  const blocker = useBlocker(hasChanged);
+  const blocker = useSafeBlocker(
+    ({ currentLocation, nextLocation }) => {
+      if (mode === "detail") return false;
+      return hasChanged;
+    }
+  );
   const [savingAndQuit, setSavingAndQuit] = useState(false);
+  const [showNavigationDialog, setShowNavigationDialog] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null);
+
   const handleSaveAndQuit = async () => {
     setSavingAndQuit(true);
     try {
       await handleUpdate(form);
-      if (blocker) blocker.proceed();
+      if (blocker && blocker.state === "blocked") blocker.proceed();
+      if(pendingMode && pendingMode !== mode) {
+        setMode(pendingMode);
+        setPendingMode(null);
+      }
     } finally {
       setSavingAndQuit(false);
+      setShowNavigationDialog(false);
     }
   };
+
   const handleConfirm = () => {
-    blocker.proceed();
+    if (blocker && blocker.state === "blocked") blocker.proceed();
+    if(pendingMode && pendingMode !== mode) {
+      setMode(pendingMode);
+      setPendingMode(null);
+    }
+    setShowNavigationDialog(false);
   };
+
   const handleCancel = () => {
-    blocker.reset();
+    if (blocker && blocker.state === "blocked") blocker.reset();
+    setShowNavigationDialog(false);
+    setPendingMode(null);
   };
+
+  // Fonctions pour le suivi de programme
+  const handleSuivreProgramme = () => {
+    setFollowDialogType('suivre');
+    setShowFollowDialog(true);
+  };
+
+  const handleArreterProgramme = () => {
+    setFollowDialogType('arreter');
+    setShowFollowDialog(true);
+  };
+
+  const handleChangerProgramme = () => {
+    setFollowDialogType('changer');
+    setShowFollowDialog(true);
+  };
+
+  const handleReprendreProgramme = () => {
+    setFollowDialogType('reprendre');
+    setShowFollowDialog(true);
+  };
+
+  const handleConfirmFollowAction = async () => {
+    setFollowLoading(true);
+    try {
+      let response;
+      
+      switch (followDialogType) {
+        case 'suivre':
+          response = await fetch(`${apiUrl}/programmes/utilisateur/suivre`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ programme_id: programme.id })
+          });
+          break;
+        case 'arreter':
+          response = await fetch(`${apiUrl}/programmes/utilisateur/arreter`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ programme_id: programme.id })
+          });
+          break;
+        case 'reprendre':
+          response = await fetch(`${apiUrl}/programmes/utilisateur/reprendre`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ programme_id: programme.id })
+          });
+          break;
+        case 'changer':
+          response = await fetch(`${apiUrl}/programmes/utilisateur/changer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ nouveau_programme_id: programme.id })
+          });
+          break;
+        default:
+          throw new Error('Type d\'action non reconnu');
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        setSnackbarMessage(data.message || 'Action effectuée avec succès');
+        setSnackbarType('success');
+        
+        // Recharger le programme actuel et tous les programmes utilisateur
+        const [programmeActuelResponse, programmesUtilisateurResponse] = await Promise.all([
+          fetch(`${apiUrl}/programmes/utilisateur/actuel`, { credentials: 'include' }),
+          fetch(`${apiUrl}/programmes/utilisateur/tous`, { credentials: 'include' })
+        ]);
+        
+        if (programmeActuelResponse.ok) {
+          const programmeActuelData = await programmeActuelResponse.json();
+          setProgrammeActuel(programmeActuelData);
+        }
+        
+        if (programmesUtilisateurResponse.ok) {
+          const programmesUtilisateurData = await programmesUtilisateurResponse.json();
+          setProgrammesUtilisateur(programmesUtilisateurData);
+        }
+      } else {
+        const errorData = await response.json();
+        setSnackbarMessage(errorData.error || 'Erreur lors de l\'action');
+        setSnackbarType('error');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'action sur le programme:', error);
+      setSnackbarMessage('Erreur lors de l\'action');
+      setSnackbarType('error');
+    } finally {
+      setFollowLoading(false);
+      setShowFollowDialog(false);
+    }
+  };
+
+  const handleCloseFollowDialog = () => {
+    setShowFollowDialog(false);
+    setFollowDialogType(null);
+  };
+
+  // Logique pour le bouton flottant de programme
+  const getProgrammeButtonConfig = () => {
+    if (!user) return { show: false };
+    
+    if (loadingProgrammeActuel) {
+      return { show: true, type: 'suivre', disabled: true };
+    }
+    console.log("programmeActuel", programmeActuel);
+    console.log("programmesUtilisateur", programmesUtilisateur);
+    // Vérifier si l'utilisateur suit actuellement ce programme
+    if (programmeActuel && programmeActuel.id === programme.id) {
+      return { 
+        show: true, 
+        type: 'arreter', 
+        onClick: handleArreterProgramme,
+        disabled: false
+      };
+    }
+    
+    // Vérifier si l'utilisateur a déjà suivi ce programme (mais ne le suit plus)
+    const programmeSuivi = programmesUtilisateur.find(p => p.id === programme.id);
+    if (programmeSuivi && !programmeSuivi.est_actif) {
+      return { 
+        show: true, 
+        type: 'reprendre', 
+        onClick: handleReprendreProgramme,
+        disabled: false
+      };
+    }
+    
+    // Si l'utilisateur suit un autre programme
+    if (programmeActuel) {
+      return { 
+        show: true, 
+        type: 'changer', 
+        onClick: handleChangerProgramme,
+        disabled: false
+      };
+    }
+    
+    // Si l'utilisateur ne suit aucun programme
+    return { 
+      show: true, 
+      type: 'suivre', 
+      onClick: handleSuivreProgramme,
+      disabled: false
+    };
+  };
+
+  const programmeButtonConfig = getProgrammeButtonConfig();
+
+  const handleBackClick = () => {
+    if (hasChanged) {
+      setPendingMode("detail");
+      setShowNavigationDialog(true);
+    } else {
+      setMode("detail");
+    }
+  };
+
   useEffect(() => {
     if (!hasChanged) return;
     const handleBeforeUnload = (event) => {
@@ -366,7 +606,7 @@ export default function ProgrammeDetail() {
         });
         if (!response.ok) throw new Error("Erreur lors de la mise à jour");
         const data = await response.json();
-        setMode("detail");
+        //setMode("detail");
         // Recharge le programme depuis l'API pour avoir les bonnes valeurs
         fetch(`${apiUrl}/programmes/${data.id}`)
           .then(res => res.json())
@@ -374,6 +614,8 @@ export default function ProgrammeDetail() {
         if (id !== String(data.id)) {
           navigate(`/programmes/${data.id}`, { replace: true });
         }
+        setSnackbarMessage("Programme mis à jour avec succès !");
+        setSnackbarType("success");
       } else {
         const response = await fetch(`${apiUrl}/programmes`, {
           method: "POST",
@@ -390,9 +632,13 @@ export default function ProgrammeDetail() {
         fetch(`${apiUrl}/programmes/${newId}`)
           .then(res => res.json())
           .then(data => setProgramme(data));
+        setSnackbarMessage("Programme créé avec succès !");
+        setSnackbarType("success");
       }
     } catch (err) {
       setError(err.message);
+      setSnackbarMessage("Erreur lors de la sauvegarde du programme.");
+      setSnackbarType("error");
     }
   };
 
@@ -407,8 +653,12 @@ export default function ProgrammeDetail() {
       });
       if (!response.ok) throw new Error("Erreur lors de la suppression du programme");
       navigate("/programmes");
+      setSnackbarMessage("Programme supprimé avec succès !");
+      setSnackbarType("success");
     } catch (err) {
       setError(err.message);
+      setSnackbarMessage("Erreur lors de la suppression du programme.");
+      setSnackbarType("error");
     } finally {
       setSaving(false);
       setShowDeleteDialog(false);
@@ -421,7 +671,12 @@ export default function ProgrammeDetail() {
   // Mode édition ou création
   if (mode === "edit" || mode === "new") {
     return (
-      <Layout pageTitle={mode === "edit" ? "Modifier le programme" : "Créer un programme"} backTo="/programmes" backLabel="Retour à la liste des programmes">
+      <Layout 
+        pageTitle={mode === "edit" ? "Modifier le programme" : "Créer un programme"} 
+        backTo="/programmes" 
+        backLabel="Retour à la liste des programmes"
+        onBackClick={handleBackClick}
+      >
         <div className="w-full flex items-center justify-center px-4 text-white mt-4">
           <div className="w-full max-w-4xl space-y-8 mx-auto">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -569,18 +824,20 @@ export default function ProgrammeDetail() {
                 loading={loading}
                 label="Enregistrer"
               />
-               {blocker.state === "blocked" && (
-                 <NavigationPromptDialog
-                   open={blocker.state === "blocked"}
-                   onCancel={handleCancel}
-                   onConfirm={handleConfirm}
-                   onSaveAndQuit={handleSaveAndQuit}
-                   savingAndQuit={savingAndQuit}
-                 />
-               )}
+
             </form>
           </div>
         </div>
+        {(blocker || showNavigationDialog) && (
+        <NavigationPromptDialog
+          open={blocker?.state === "blocked" || showNavigationDialog}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          onSaveAndQuit={handleSaveAndQuit}
+          savingAndQuit={savingAndQuit}
+        />
+      )}
+      <Snackbar message={snackbarMessage} type={snackbarType} onClose={() => setSnackbarMessage("")} />
       </Layout>
     );
   }
@@ -649,6 +906,7 @@ export default function ProgrammeDetail() {
             )}
           </div>
           <h2 className="text-2xl font-bold mb-2 text-rose-400">{programme.nom}</h2>
+          
           {/* Description */}
           <p className="text-gray-300 italic mb-6 whitespace-pre-line">
             {programme.description || <span className="italic text-gray-500">Aucune description</span>}
@@ -903,6 +1161,27 @@ export default function ProgrammeDetail() {
           </div>
         </div>
       )}
+      
+      {/* Bouton flottant pour le suivi de programme */}
+      <FloatingProgrammeButton
+        show={programmeButtonConfig.show}
+        onClick={programmeButtonConfig.onClick}
+        type={programmeButtonConfig.type}
+        loading={followLoading}
+        disabled={programmeButtonConfig.disabled}
+      />
+      
+      {/* Dialogue de confirmation pour le suivi de programme */}
+      <ProgrammeFollowDialog
+        open={showFollowDialog}
+        onClose={handleCloseFollowDialog}
+        onConfirm={handleConfirmFollowAction}
+        type={followDialogType}
+        programme={programme}
+        programmeActuel={programmeActuel}
+        loading={followLoading}
+      />
+      
     </Layout>
   );
 } 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useSafeBlocker } from "../utils/useBlocker";
 import Layout from "../components/Layout";
 import SeanceStructure from "../components/ui/SeanceStructure";
 import EditeurStructureSeance from "../components/EditeurStructureSeance";
@@ -7,6 +8,7 @@ import SeanceService from "../services/seanceService";
 import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
+import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
 import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings } from "lucide-react";
 import { estimerDureeEtape } from "../utils/helpers";
@@ -33,11 +35,16 @@ export default function SeanceDetail() {
   const [showDialog, setShowDialog] = useState(false);
   const [blockedLocation, setBlockedLocation] = useState(null);
   const [savingAndQuit, setSavingAndQuit] = useState(false);
+  const [showNavigationDialog, setShowNavigationDialog] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null);
   const initialFormRef = useRef(form);
-  const [hasChanged, setHasChanged] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const isCreatorOrAdmin = user && seance && (user.id === seance.created_by || user.is_admin);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // États pour les snackbars
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarType, setSnackbarType] = useState("success");
 
   // Récupère les listes de référence
   useEffect(() => {
@@ -83,22 +90,74 @@ export default function SeanceDetail() {
       SeanceService.getExercicesSeance(id).then(data => setExercices(data || []));
   }, [id, isNew]);
 
-  // Dirty state
-  useEffect(() => {
-    setHasChanged(JSON.stringify(form) !== JSON.stringify(initialFormRef.current));
-  }, [form]);
+  // Navigation blocker pour les modifications non sauvegardées
+  const hasChanged = (() => {
+    if (mode === "detail" && !structureEditMode) {
+      return false;
+    }
+    
+    const formChanged = mode !== "detail" && JSON.stringify(form) !== JSON.stringify(initialFormRef.current);
+    const structureChanged = structureEditMode && seance && JSON.stringify(seance.structure) !== JSON.stringify(initialFormRef.current.structure);
+    console.log("formChanged", formChanged);
+    console.log("structureChanged", structureChanged);
+    return formChanged || structureChanged;
+  })();
 
-  // Blocage navigateur (fermeture/rafraîchissement)
-  useEffect(() => {
-    if (!hasChanged) return;
-    const handleBeforeUnload = (event) => {
-      event.preventDefault();
-      event.returnValue = '';
-      return '';
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasChanged]);
+  const blocker = useSafeBlocker(
+    ({ currentLocation, nextLocation }) => {
+      if (mode === "detail" && !structureEditMode) return false;
+      return hasChanged;
+    }
+  );
+
+  const handleSaveAndQuit = async () => {
+    setSavingAndQuit(true);
+    try {
+      if (structureEditMode) {
+        await handleSaveStructure(seance.structure);
+      } else {
+        await handleSave();
+      }
+      if (blocker && blocker.state === "blocked") blocker.proceed();
+      if (pendingMode && pendingMode !== mode) {
+        setMode(pendingMode);
+        setPendingMode(null);
+      }
+    } finally {
+      setSavingAndQuit(false);
+      setShowNavigationDialog(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (blocker && blocker.state === "blocked") blocker.proceed();
+    if (pendingMode && pendingMode !== mode) {
+      setMode(pendingMode);
+      setPendingMode(null);
+    }
+    setShowNavigationDialog(false);
+  };
+
+  const handleCancel = () => {
+    if (blocker && blocker.state === "blocked") blocker.reset();
+    setShowNavigationDialog(false);
+    setPendingMode(null);
+  };
+
+  // Handler pour le bouton retour avec vérification des modifications
+  const handleBackClick = () => {
+    console.log("hasChanged", hasChanged);
+    if (hasChanged) {
+      setPendingMode("detail");
+      setShowNavigationDialog(true);
+    } else {
+      if (structureEditMode) {
+        setStructureEditMode(false);
+      } else {
+        setMode("detail");
+      }
+    }
+  };
 
   // Handlers formulaire
   const handleChange = (e) => {
@@ -128,10 +187,10 @@ export default function SeanceDetail() {
         });
         if (!response.ok) throw new Error("Erreur lors de la modification de la séance");
         seanceResp = await response.json();
-        setMode("detail");
         setSeance({ ...seance, ...form });
         initialFormRef.current = form;
-        setHasChanged(false);
+        setSnackbarMessage("Séance modifiée avec succès !");
+        setSnackbarType("success");
       } else {
         const response = await fetch(`${apiUrl}/seances`, {
           method: "POST",
@@ -146,10 +205,13 @@ export default function SeanceDetail() {
         setMode("detail");
         setSeance({ ...form, id: newId });
         initialFormRef.current = form;
-        setHasChanged(false);
+        setSnackbarMessage("Séance créée avec succès !");
+        setSnackbarType("success");
       }
     } catch (err) {
       setError(err.message);
+      setSnackbarMessage("Erreur lors de la sauvegarde de la séance : " + err.message);
+      setSnackbarType("error");
     } finally {
       setSaving(false);
     }
@@ -165,8 +227,12 @@ export default function SeanceDetail() {
       });
       if (!response.ok) throw new Error("Erreur lors de la suppression de la séance");
       navigate("/seances");
+      setSnackbarMessage("Séance supprimée avec succès !");
+      setSnackbarType("success");
     } catch (err) {
       setError(err.message);
+      setSnackbarMessage("Erreur lors de la suppression de la séance : " + err.message);
+      setSnackbarType("error");
     } finally {
       setSaving(false);
       setShowDeleteDialog(false);
@@ -189,10 +255,26 @@ export default function SeanceDetail() {
       });
       if (!response.ok) throw new Error("Erreur lors de la sauvegarde de la structure");
       const updatedSeance = await response.json();
-      setSeance(updatedSeance.seance || updatedSeance);
+      // Mettre à jour la séance en préservant la structure exacte qui a été sauvegardée
+      setSeance(prev => ({
+        ...(updatedSeance.seance || updatedSeance),
+        structure: newStructure // Garder la structure exacte qui a été envoyée
+      }));
+      
+      // Mettre à jour initialFormRef.current pour que hasChanged repasse à false
+      initialFormRef.current = {
+        ...initialFormRef.current,
+        structure: newStructure
+      };
+      
       //setStructureEditMode(false);
+      setSnackbarMessage("Structure sauvegardée avec succès !");
+      setSnackbarType("success");
     } catch (err) {
       setError(err.message);
+      setSnackbarMessage("Erreur lors de la sauvegarde de la structure : " + err.message);
+      setSnackbarType("error");
+      throw err; // Re-lancer l'erreur pour que l'éditeur puisse la gérer
     } finally {
       setSaving(false);
     }
@@ -207,7 +289,12 @@ export default function SeanceDetail() {
   // Mode édition ou création
   if (mode === "edit" || mode === "new") {
     return (
-      <Layout pageTitle={mode === "edit" ? "Modifier la séance" : "Créer une séance"} backTo="/seances" backLabel="Retour à la liste des séances">
+      <Layout 
+        pageTitle={mode === "edit" ? "Modifier la séance" : "Créer une séance"} 
+        backTo="/seances" 
+        backLabel="Retour à la liste des séances"
+        onBackClick={handleBackClick}
+      >
         <div className="w-full flex items-center justify-center px-4 text-white">
           <div className="w-full max-w-4xl space-y-8 mx-auto">
             <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="bg-black/40 rounded-2xl p-6 border border-gray-700 space-y-6 mt-8">
@@ -239,6 +326,16 @@ export default function SeanceDetail() {
             />
           </div>
         </div>
+        {(blocker || showNavigationDialog) && (
+        <NavigationPromptDialog
+          open={blocker?.state === "blocked" || showNavigationDialog}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          onSaveAndQuit={handleSaveAndQuit}
+          savingAndQuit={savingAndQuit}
+        />
+      )}
+      <Snackbar message={snackbarMessage} type={snackbarType} onClose={() => setSnackbarMessage("")} />
       </Layout>
     );
   }
@@ -255,6 +352,7 @@ export default function SeanceDetail() {
       pageTitle={seance?.nom || "Détail de la séance"}
       backTo="/seances"
       backLabel="Retour à la liste des séances"
+      onBackClick={handleBackClick}
       pageActions={[
         hasPlayableStructure && {
           icon: <Play size={20} className="text-green-400" />,
@@ -408,6 +506,7 @@ export default function SeanceDetail() {
           </div>
         </div>
       )}
+      
     </Layout>
   );
 } 

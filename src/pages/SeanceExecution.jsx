@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import MoteurExecution from "../screens/MoteurExecution";
 import SeanceService from "../services/seanceService";
+import programmeService from "../services/programmeService";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
 
 export default function SeanceExecution() {
@@ -12,6 +13,7 @@ export default function SeanceExecution() {
   const [etapes, setEtapes] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [programmeId, setProgrammeId] = useState(null);
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -29,6 +31,17 @@ export default function SeanceExecution() {
           // Générer les étapes avec les exercices récupérés
           const etapesGenerees = genererEtapesDepuisStructure(seance.structure, exercices);
           setEtapes(etapesGenerees);
+          
+          // Vérifier si l'utilisateur suit un programme actif
+          try {
+            const programmeActuel = await programmeService.getProgrammeActuel();
+            if (programmeActuel && programmeActuel.programme_id) {
+              setProgrammeId(programmeActuel.programme_id);
+            }
+          } catch (error) {
+            console.log('Aucun programme actif ou erreur:', error);
+          }
+          
           setStarted(true);
           setLoading(false);
         } else if (isMounted) {
@@ -58,6 +71,16 @@ export default function SeanceExecution() {
     );
   }
 
+  const handleMarquerComplete = async (programmeId, seanceId, sessionData) => {
+    try {
+      await programmeService.marquerSeanceComplete(programmeId, seanceId, sessionData);
+      console.log('Séance marquée comme terminée avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la marque comme terminée:', error);
+      throw error;
+    }
+  };
+
   return (
     <Layout>
       <MoteurExecution
@@ -66,6 +89,8 @@ export default function SeanceExecution() {
         resetToAccueil={() => navigate('/')}
         intervalRef={intervalRef}
         currentSession={currentSession}
+        programmeId={programmeId}
+        onMarquerComplete={handleMarquerComplete}
       />
     </Layout>
   );

@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable} from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronRight, GripVertical, MoreVertical, Copy, Trash2, ClipboardPaste, Plus, Search, Save, X } from 'lucide-react';
+import { ChevronRight, GripVertical, MoreVertical, Copy, Trash2, ClipboardPaste, Plus, Search, Save, X, RotateCcw } from 'lucide-react';
 import FloatingLabelInput from "./ui/FloatingLabelInput";
 import Snackbar from './Snackbar';
 import Switch from "./ui/Switch";
@@ -142,6 +142,16 @@ function buildNestedStructure(allItems, containers) {
       
       // Nettoyer les valeurs incohérentes
       updatedItem = cleanExerciceValues(updatedItem);
+      
+      // Ne sauvegarder les champs personnalisables que s'ils sont explicitement définis
+      // (c'est-à-dire modifiés par l'utilisateur, même si c'est pour les vider)
+      const fieldsToCheck = ['description', 'position_depart', 'focus_zone', 'erreurs', 'conseils'];
+      fieldsToCheck.forEach(field => {
+        if (updatedItem[field] === undefined || updatedItem[field] === null) {
+          delete updatedItem[field];
+        }
+        // Note: les champs vides ('') ou tableaux vides ([]) sont conservés car ils indiquent une personnalisation
+      });
       
       return updatedItem;
     }
@@ -338,8 +348,43 @@ function StepContent({
       }
       onUpdate(uid, updatedItem);
     } else {
-      // Mise à jour simple pour tous les autres champs
-      onUpdate(uid, { ...item, [field]: value });
+      // Gestion spéciale pour les champs personnalisables des exercices
+      const personalizableFields = ['description', 'position_depart', 'conseils', 'erreurs', 'focus_zone'];
+      
+      if (item.type === 'exercice' && personalizableFields.includes(field)) {
+        const updatedItem = { ...item };
+        
+        // Si la valeur est vide ou null, sauvegarder une chaîne vide pour indiquer qu'on ne veut pas l'info
+        if (value === '' || value === null || (Array.isArray(value) && value.length === 0)) {
+          updatedItem[field] = field === 'conseils' || field === 'erreurs' || field === 'focus_zone' ? [] : '';
+        } else {
+          // Vérifier si la nouvelle valeur correspond à la valeur de base de l'exercice
+          let baseValue = '';
+          if (field === 'description') {
+            baseValue = exerciceInfos?.description || '';
+          } else if (field === 'position_depart') {
+            baseValue = exerciceInfos?.position_depart || '';
+          } else if (field === 'conseils') {
+            baseValue = Array.isArray(exerciceInfos?.conseils) ? exerciceInfos.conseils : [];
+          } else if (field === 'erreurs') {
+            baseValue = Array.isArray(exerciceInfos?.erreurs) ? exerciceInfos.erreurs : [];
+          } else if (field === 'focus_zone') {
+            baseValue = Array.isArray(exerciceInfos?.focus_zone) ? exerciceInfos.focus_zone : [];
+          }
+          
+          // Si la valeur correspond à la valeur de base, supprimer le champ de la structure
+          if (JSON.stringify(value) === JSON.stringify(baseValue)) {
+            delete updatedItem[field];
+          } else {
+            updatedItem[field] = value;
+          }
+        }
+        
+        onUpdate(uid, updatedItem);
+      } else {
+        // Mise à jour simple pour tous les autres champs
+        onUpdate(uid, { ...item, [field]: value });
+      }
       
       // Si on change la configuration automatique d'un bloc, appliquer immédiatement
       if (item.type === 'bloc' && (
@@ -442,6 +487,18 @@ function StepContent({
         position, 
         targetUid: uid 
     });
+  };
+
+  // Fonction pour réinitialiser un champ à sa valeur par défaut
+  const handleResetField = (field) => {
+    const updatedItem = { ...item };
+    delete updatedItem[field];
+    onUpdate(uid, updatedItem);
+  };
+
+  // Fonction pour vérifier si un champ est personnalisé
+  const isFieldPersonalized = (field) => {
+    return item[field] !== undefined;
   };
 
   // Handler générique pour les champs numériques
@@ -784,13 +841,22 @@ function StepContent({
                       placeholder="Nom de l'exercice"
                     />
                   </div>
-                  <button
-                    type="button"
-                    className="text-xs text-orange-300 underline hover:text-orange-400 focus:outline-none shrink-0 ml-2"
-                    onClick={e => { e.stopPropagation(); setShowDetails(true); }}
-                  >
-                    Détails
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {!item.id && (
+                      <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded-full">
+                        Perso
+                      </span>
+                    )}
+                    {item.id && (
+                      <button
+                        type="button"
+                        className="text-xs text-orange-300 underline hover:text-orange-400 focus:outline-none"
+                        onClick={e => { e.stopPropagation(); setShowDetails(true); }}
+                      >
+                        Détails
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <ExerciceHelpDialog open={showDetails} onClose={() => setShowDetails(false)} exercice={item} />
                 
@@ -808,10 +874,10 @@ function StepContent({
                       />
                       <span className="text-sm font-medium text-orange-300">Options avancées</span>
                       {/* Indicateur si des champs sont personnalisés */}
-                      {( item.description || item.position_depart || 
-                        (item.conseils && item.conseils.length > 0) || 
-                        (item.erreurs && item.erreurs.length > 0) || 
-                        (item.focus_zone && item.focus_zone.length > 0)) && (
+                      {( item.description !== undefined || item.position_depart !== undefined || 
+                        item.conseils !== undefined || 
+                        item.erreurs !== undefined || 
+                        item.focus_zone !== undefined) && (
                         <span className="px-2 py-1 text-xs bg-orange-500 text-white rounded-full">Personnalisé</span>
                       )}
                     </div>
@@ -820,49 +886,142 @@ function StepContent({
                   
                   {(openAccordions || []).includes(uid + '_advanced') && (
                     <div className="px-4 pb-4 space-y-4 border-t border-gray-700/50 pt-4">
-                        <FloatingLabelInput 
-                         label="Description" 
-                         value={item.description !== undefined ? item.description : (exerciceInfos?.description || "")} 
-                         onChange={e => handleChange("description", e.target.value)}
-                         placeholder="Laisser vide pour ne pas afficher de description"
-                       />
-                                                <FloatingLabelInput 
-                          label="Position de départ" 
-                          value={item.position_depart !== undefined ? item.position_depart : (exerciceInfos?.position_depart || "")} 
-                          onChange={e => handleChange("position_depart", e.target.value)}
-                          placeholder="Laisser vide pour ne pas afficher de position"
+                      {/* Option changement de côté */}
+                      <div className="flex items-center gap-3 mt-3 mb-2">
+                        <Switch
+                          checked={item.changement_cote || false}
+                          onChange={checked => handleChange("changement_cote", checked)}
+                          id={`changement-cote-switch-${uid}`}
                         />
+                        <label htmlFor={`changement-cote-switch-${uid}`} className="text-sm text-orange-200 cursor-pointer select-none ml-1">
+                          Changement de côté
+                        </label>
+                        <span className="relative group ml-2">
+                          {/* Icône ? dans un cercle orange */}
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold shadow-md border-2 border-orange-400 group-hover:bg-orange-600 group-focus:bg-orange-600 transition-colors cursor-pointer outline-none" tabIndex={0}>
+                            ?
+                          </span>
+                          <span className="absolute left-1/2 -translate-x-1/2 mt-3 w-72 bg-orange-900 text-orange-100 text-xs rounded-lg p-3 shadow-2xl border border-orange-500 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-50 pointer-events-none select-text">
+                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-orange-900"></span>
+                            Divise automatiquement l'exercice en deux parties égales avec une transition "Changement de côté" au milieu.<br />Utile pour les exercices qui nécessitent de faire chaque côté (gauche/droite).
+                          </span>
+                        </span>
+                      </div>
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <FloatingLabelInput 
+                             label="Description" 
+                             value={item.description !== undefined ? item.description : (exerciceInfos?.description || "")} 
+                             onChange={e => handleChange("description", e.target.value)}
+                             placeholder="Laisser vide pour ne pas afficher de description"
+                           />
+                          </div>
+                          {isFieldPersonalized('description') && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetField('description')}
+                              className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500"
+                              title="Remettre la valeur par défaut"
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <FloatingLabelInput 
+                              label="Position de départ" 
+                              value={item.position_depart !== undefined ? item.position_depart : (exerciceInfos?.position_depart || "")} 
+                              onChange={e => handleChange("position_depart", e.target.value)}
+                              placeholder="Laisser vide pour ne pas afficher de position"
+                            />
+                          </div>
+                          {isFieldPersonalized('position_depart') && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetField('position_depart')}
+                              className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500"
+                              title="Remettre la valeur par défaut"
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          )}
+                        </div>
 
                       
                       {/* Conseils personnalisés */}
-                      <FloatingLabelInput
-                        as="textarea"
-                        label="Conseils (un par ligne)"
-                        value={Array.isArray(item.conseils) ? item.conseils.join('\n') : (Array.isArray(exerciceInfos?.conseils) ? exerciceInfos.conseils.join('\n') : '')}
-                        onChange={e => handleChange("conseils", e.target.value.split('\n').filter(line => line.trim()))}
-                        placeholder="Un conseil par ligne. Laisser vide pour ne pas afficher de conseils"
-                        rows={3}
-                      />
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1">
+                          <FloatingLabelInput
+                            as="textarea"
+                            label="Conseils (un par ligne)"
+                            value={item.conseils !== undefined ? (Array.isArray(item.conseils) ? item.conseils.join('\n') : '') : (Array.isArray(exerciceInfos?.conseils) ? exerciceInfos.conseils.join('\n') : '')}
+                            onChange={e => handleChange("conseils", e.target.value.split('\n').filter(line => line.trim()))}
+                            placeholder="Un conseil par ligne. Laisser vide pour ne pas afficher de conseils"
+                            rows={3}
+                          />
+                        </div>
+                        {isFieldPersonalized('conseils') && (
+                          <button
+                            type="button"
+                            onClick={() => handleResetField('conseils')}
+                            className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500 mt-3"
+                            title="Remettre la valeur par défaut"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                      </div>
                       
                       {/* Erreurs courantes personnalisées */}
-                      <FloatingLabelInput
-                        as="textarea"
-                        label="Erreurs fréquentes (une par ligne)"
-                        value={Array.isArray(item.erreurs) ? item.erreurs.join('\n') : (Array.isArray(exerciceInfos?.erreurs) ? exerciceInfos.erreurs.join('\n') : '')}
-                        onChange={e => handleChange("erreurs", e.target.value.split('\n').filter(line => line.trim()))}
-                        placeholder="Une erreur par ligne. Laisser vide pour ne pas afficher d'erreurs"
-                        rows={3}
-                      />
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1">
+                          <FloatingLabelInput
+                            as="textarea"
+                            label="Erreurs fréquentes (une par ligne)"
+                            value={item.erreurs !== undefined ? (Array.isArray(item.erreurs) ? item.erreurs.join('\n') : '') : (Array.isArray(exerciceInfos?.erreurs) ? exerciceInfos.erreurs.join('\n') : '')}
+                            onChange={e => handleChange("erreurs", e.target.value.split('\n').filter(line => line.trim()))}
+                            placeholder="Une erreur par ligne. Laisser vide pour ne pas afficher d'erreurs"
+                            rows={3}
+                          />
+                        </div>
+                        {isFieldPersonalized('erreurs') && (
+                          <button
+                            type="button"
+                            onClick={() => handleResetField('erreurs')}
+                            className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500 mt-3"
+                            title="Remettre la valeur par défaut"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                      </div>
                       
                       {/* Zones de focus personnalisées */}
-                      <FloatingLabelInput
-                        as="textarea"
-                        label="Zones de focus (une par ligne)"
-                        value={Array.isArray(item.focus_zone) ? item.focus_zone.join('\n') : (Array.isArray(exerciceInfos?.focus_zone) ? exerciceInfos.focus_zone.join('\n') : '')}
-                        onChange={e => handleChange("focus_zone", e.target.value.split('\n').filter(line => line.trim()))}
-                        placeholder="Une zone par ligne. Laisser vide pour ne pas afficher de zones"
-                        rows={3}
-                      />
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1">
+                          <FloatingLabelInput
+                            as="textarea"
+                            label="Zones de focus (une par ligne)"
+                            value={item.focus_zone !== undefined ? (Array.isArray(item.focus_zone) ? item.focus_zone.join('\n') : '') : (Array.isArray(exerciceInfos?.focus_zone) ? exerciceInfos.focus_zone.join('\n') : '')}
+                            onChange={e => handleChange("focus_zone", e.target.value.split('\n').filter(line => line.trim()))}
+                            placeholder="Une zone par ligne. Laisser vide pour ne pas afficher de zones"
+                            rows={3}
+                          />
+                        </div>
+                        {isFieldPersonalized('focus_zone') && (
+                          <button
+                            type="button"
+                            onClick={() => handleResetField('focus_zone')}
+                            className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500 mt-3"
+                            title="Remettre la valeur par défaut"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                      </div>
+                      
+                      
                     </div>
                   )}
                 </div>
@@ -1009,6 +1168,16 @@ function AddExerciceDialog({ open, onClose, search, setSearch, onAddExercice }) 
   const [exercices, setExercices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [mode, setMode] = useState('search'); // 'search' ou 'free'
+  const [freeExercice, setFreeExercice] = useState({
+    nom: '',
+    description: '',
+    position_depart: '',
+    conseils: [],
+    erreurs: [],
+    focus_zone: [],
+    changement_cote: false
+  });
 
   // Debounce la recherche
   useEffect(() => {
@@ -1049,37 +1218,142 @@ function AddExerciceDialog({ open, onClose, search, setSearch, onAddExercice }) 
         className="bg-gray-900 p-6 rounded-lg shadow-xl border border-gray-700 min-w-[400px] w-[420px] max-w-full max-h-[90vh] flex flex-col"
       >
         <h2 className="text-xl font-bold mb-4 text-orange-300">Ajouter un exercice</h2>
+        
+        {/* Onglets */}
+        <div className="flex gap-1 mb-4">
+          <button
+            type="button"
+            onClick={() => setMode('search')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'search' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Rechercher
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('free')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'free' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Exercice libre
+          </button>
+        </div>
+
         <div className="space-y-3 flex-1 flex flex-col min-h-0">
-          <div className="relative w-full">
-            <FloatingLabelInput
-              label="Nom de l'exercice"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              inputRef={inputRef}
-              className="w-full pr-10" // padding right pour le spinner
-            />
-            {loading && (
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Spinner />
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded scrollbar-thumb-rounded-full scrollbar-track-rounded-full pr-1 transition-opacity duration-200" style={{ scrollbarColor: '#374151 #111827', scrollbarWidth: 'thin', opacity: loading ? 0.7 : 1 }}>
-            {(!loading && exercices.length === 0) ? (
-              <div className="text-gray-400 text-center py-4">Aucun exercice trouvé</div>
-            ) : (
-              exercices.map(exo => (
-                <button
-                  key={exo.id}
-                  onClick={() => { onAddExercice(exo); onClose(); }}
-                  className="p-2 bg-gray-800 rounded-md text-left text-sm hover:bg-gray-700 text-white border border-gray-700 transition-colors duration-150"
-                  style={{ opacity: loading ? 0.7 : 1 }}
-                >
-                  <div className="font-medium">{exo.nom}</div>
-                </button>
-              ))
-            )}
-          </div>
+          {mode === 'search' ? (
+            <div className="relative w-full">
+              <FloatingLabelInput
+                label="Nom de l'exercice"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                inputRef={inputRef}
+                className="w-full pr-10" // padding right pour le spinner
+              />
+              {loading && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Spinner />
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <FloatingLabelInput
+                label="Nom de l'exercice"
+                value={freeExercice.nom}
+                onChange={e => setFreeExercice(prev => ({ ...prev, nom: e.target.value }))}
+                placeholder="Nom de l'exercice"
+              />
+              <FloatingLabelInput
+                label="Position de départ"
+                value={freeExercice.position_depart}
+                onChange={e => setFreeExercice(prev => ({ ...prev, position_depart: e.target.value }))}
+                placeholder="Position de départ"
+              />
+              <FloatingLabelInput
+                label="Description"
+                value={freeExercice.description}
+                onChange={e => setFreeExercice(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Description de l'exercice"
+              />
+              <FloatingLabelInput
+                as="textarea"
+                label="Conseils (un par ligne)"
+                value={freeExercice.conseils.join('\n')}
+                onChange={e => setFreeExercice(prev => ({ 
+                  ...prev, 
+                  conseils: e.target.value.split('\n').filter(line => line.trim())
+                }))}
+                placeholder="Un conseil par ligne"
+                rows={2}
+              />
+              <FloatingLabelInput
+                as="textarea"
+                label="Erreurs fréquentes (une par ligne)"
+                value={freeExercice.erreurs.join('\n')}
+                onChange={e => setFreeExercice(prev => ({ 
+                  ...prev, 
+                  erreurs: e.target.value.split('\n').filter(line => line.trim())
+                }))}
+                placeholder="Une erreur par ligne"
+                rows={2}
+              />
+              <FloatingLabelInput
+                as="textarea"
+                label="Zones de focus (une par ligne)"
+                value={freeExercice.focus_zone.join('\n')}
+                onChange={e => setFreeExercice(prev => ({ 
+                  ...prev, 
+                  focus_zone: e.target.value.split('\n').filter(line => line.trim())
+                }))}
+                placeholder="Une zone par ligne"
+                rows={2}
+              />
+
+            </div>
+          )}
+          {mode === 'search' ? (
+            <div className="flex flex-col gap-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 rounded scrollbar-thumb-rounded-full scrollbar-track-rounded-full pr-1 transition-opacity duration-200" style={{ scrollbarColor: '#374151 #111827', scrollbarWidth: 'thin', opacity: loading ? 0.7 : 1 }}>
+              {(!loading && exercices.length === 0) ? (
+                <div className="text-gray-400 text-center py-4">Aucun exercice trouvé</div>
+              ) : (
+                exercices.map(exo => (
+                  <button
+                    key={exo.id}
+                    onClick={() => { onAddExercice(exo); onClose(); }}
+                    className="p-2 bg-gray-800 rounded-md text-left text-sm hover:bg-gray-700 text-white border border-gray-700 transition-colors duration-150"
+                    style={{ opacity: loading ? 0.7 : 1 }}
+                  >
+                    <div className="font-medium">{exo.nom}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-end">
+              <button
+                onClick={() => {
+                  if (freeExercice.nom.trim()) {
+                    onAddExercice({
+                      ...freeExercice,
+                      id: null, // Pas d'ID car c'est un exercice libre
+                      type: 'exercice'
+                    });
+                    onClose();
+                  }
+                }}
+                disabled={!freeExercice.nom.trim()}
+                className="w-full p-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+              >
+                Créer l'exercice libre
+              </button>
+            </div>
+          )}
         </div>
         <div className="mt-4 flex justify-end flex-shrink-0">
           <button onClick={onClose} className="p-2 bg-gray-700 rounded-md text-sm hover:bg-gray-600 text-white border border-gray-600">Annuler</button>
@@ -1146,7 +1420,8 @@ export default function EditeurStructureSeance({
   containers: containersFromParent,
   onUpdate: onUpdateFromParent,
   globalStates: globalStatesFromParent,
-  pathPrefix = []
+  pathPrefix = [],
+  isSaving = false
 }) {
   const isRoot = !isSubEditor;
   
@@ -1464,11 +1739,18 @@ export default function EditeurStructureSeance({
       {isRoot && onSave && (
         <FloatingSaveButton
           show={hasChanged}
-          onClick={() => {
+          loading={isSaving}
+          onClick={async () => {
+            if (isSaving) return; // Empêcher les clics multiples
             const newStruct = buildNestedStructure(allItems, containers);
-            onSave(newStruct);
-            setLastSavedStructure(newStruct);
-            setSnackbarMessage("Structure enregistrée avec succès !");
+            try {
+              await onSave(newStruct);
+              setLastSavedStructure(newStruct);
+              setSnackbarMessage("Structure enregistrée avec succès !");
+            } catch (error) {
+              // L'erreur est déjà gérée dans handleSaveStructure
+              console.error("Erreur lors de la sauvegarde:", error);
+            }
           }}
           label="Enregistrer"
         />
@@ -1517,23 +1799,39 @@ export default function EditeurStructureSeance({
             };
 
             const config = applyParentConfig(addExoTargetPath);
-            const newExo = {
-              type: 'exercice',
-              id: exo.id,
-              nom: exo.nom,
-              // Champs personnalisables - initialisés avec les valeurs de la base
-              // Ces champs ne seront sauvegardés que s'ils sont modifiés
-              description: exo.description || "",
-              position_depart: exo.position_depart || "",
-              
-              focus_zone: exo.focus_zone || [],
-                              erreurs: exo.erreurs || [],
-              conseils: exo.conseils || [],
-              // Champs de configuration
-              ...config
-            };
-            console.log('Nouvel exercice créé:', newExo); // Debug temporaire
-            onUpdate(null, { add: true, item: newExo, containerId: addExoTargetPath });
+            
+            // Gestion différente selon le type d'exercice (base de données ou libre)
+            if (exo.id) {
+              // Exercice de la base de données
+              const newExo = {
+                type: 'exercice',
+                id: exo.id,
+                nom: exo.nom,
+                // Champs personnalisables - NE PAS initialiser avec les valeurs de base
+                // Ils ne seront sauvegardés que s'ils sont explicitement modifiés
+                // Champs de configuration
+                ...config
+              };
+              onUpdate(null, { add: true, item: newExo, containerId: addExoTargetPath });
+            } else {
+              // Exercice libre - tous les champs sont déjà définis
+              const newExo = {
+                type: 'exercice',
+                id: null, // Pas d'ID pour les exercices libres
+                nom: exo.nom,
+                // Champs personnalisables - déjà définis dans l'exercice libre
+                description: exo.description || '',
+                position_depart: exo.position_depart || '',
+                conseils: exo.conseils || [],
+                erreurs: exo.erreurs || [],
+                focus_zone: exo.focus_zone || [],
+                changement_cote: exo.changement_cote || false,
+                // Champs de configuration
+                ...config
+              };
+              onUpdate(null, { add: true, item: newExo, containerId: addExoTargetPath });
+            }
+            
             setSearch("");
           }}
         />

@@ -106,7 +106,7 @@ export function PageToolbar({ title, actions, leftAction, showMenuButton, onMenu
   );
 }
 
-export default function Layout({ children, pageTitle, pageActions, pageLeftAction, backTo, backLabel }) {
+export default function Layout({ children, pageTitle, pageActions, pageLeftAction, backTo, backLabel, onBackClick }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -132,7 +132,7 @@ export default function Layout({ children, pageTitle, pageActions, pageLeftActio
   const leftAction = backTo
     ? (
       <button
-        onClick={() => navigate(backTo)}
+        onClick={onBackClick || (() => navigate(backTo))}
         className="mr-2 ml-1 flex items-center justify-center rounded-full p-3 hover:bg-rose-800/60 transition"
         aria-label={backLabel || "Retour"}
       >

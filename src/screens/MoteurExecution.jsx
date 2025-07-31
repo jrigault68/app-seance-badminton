@@ -116,7 +116,7 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
   );
 }
 
-export default function MoteurExecution({ etapes, onFinish, resetToAccueil, intervalRef  }) {
+export default function MoteurExecution({ etapes, onFinish, resetToAccueil, intervalRef, currentSession, programmeId, onMarquerComplete }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [mode, setMode] = useState("transition"); // "transition", "exercice", "fini"
@@ -124,6 +124,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   const [finished, setFinished] = useState(false);
   const [currentFocus, setCurrentFocus] = useState(null);
   const [finMessagesSpoken, setFinMessagesSpoken] = useState(false);
+  const [startTime, setStartTime] = useState(Date.now());
 
   const timerRef = useRef(null);
   const spokenStepIndex = useRef(null);
@@ -177,13 +178,13 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 
 // === 1. Initialisation de l'étape courante ===
   useEffect(() => {
-	clearInterval(intervalRef.current);
-	setPaused(false);
-	speechSynthesis.cancel();
-	setTimeLeft(0);
-	setFinMessagesSpoken(false);
+	  clearInterval(intervalRef.current);
+    setPaused(false);
+    speechSynthesis.cancel();
+    setTimeLeft(0);
+    setFinMessagesSpoken(false);
 
-	if (stepIndex >= etapes.length) { setFinished(true); return; }
+	  if (stepIndex >= etapes.length) { setFinished(true); return; }
     if (!current || finished) return;
 	
     //console.log("🔁 Nouvelle étape", stepIndex, current.type);
@@ -197,21 +198,21 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     }
     
     const shouldSpeak = current.messages?.length && spokenStepIndex.current !== stepIndex;
-
+  console.log("shouldSpeak :", shouldSpeak, current.messages, spokenStepIndex.current, stepIndex)
     // Identifie si on est dans une transition (repos, intro...) ou un exercice
-    const isTransition = ["repos", "intro", "annonce_bloc"].includes(current.type);
+    const isTransition = ["repos", "intro", "annonce_bloc", "changement_cote"].includes(current.type);
     setMode(isTransition ? "transition" : "exercice");
     if(isTransition || !current.exo?.repetitions){setTimeLeft(current.duree);}
-    console.log("should speak : " + shouldSpeak + " messages: " + current.messages?.length + " spokenStep: " + spokenStepIndex.current);
+    //console.log("should speak : " + shouldSpeak + " messages: " + current.messages?.length + " spokenStep: " + spokenStepIndex.current);
     if (shouldSpeak) {
       // todo : voir si on peut trouvre une solution pour lire les message non lu après une pause ou si on passe direct à l'exo
-      speak(current.messages, current, (current.duree -5) * 1000,500, skippedMessagesRef)
+      speak(current.messages, current, (current.duree - (current.type === "changement_cote" ? 0:5)) * 1000,500, skippedMessagesRef)
         .then(skipped => {
           skippedMessagesRef.current = skipped;
         });
       spokenStepIndex.current = stepIndex;
     }
-    }, [stepIndex]);
+  }, [stepIndex]);
 
   // === 2 & 3 & 4. Décompte vocal + chronomètre principal + gestion fin d'étape ===
   useEffect(() => {
@@ -229,7 +230,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     if (!current || paused || finished || timeLeft <= 0) return;
 
     // Décompte vocal si <= 5 secondes
-    if ((current.duree > 30 ? timeLeft <= 5 : timeLeft <=3) && timeLeft >= 1) {
+    if (current.duree > 5 && (current.duree > 30 ? timeLeft <= 5 : timeLeft <=3) && timeLeft >= 1) {
       if (spokenCountdownRef.current !== timeLeft) {
         spokenCountdownRef.current = timeLeft;
         speechSynthesis.cancel();
@@ -258,7 +259,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
       timeLeft === (dureeFinSec + (current.duree > 30 ?  5 : 3) + 1) &&
       timeLeft > 0
     ) {
-      console.log("Lecture message de fin");
+      //console.log("Lecture message de fin");
       setFinMessagesSpoken(true);
       // Si on a le temps d'afficher au moins 1 message, on le fait
       if (expandedMessagesFin.length > 0 && messagesQueueRef.current.length === 0) {
@@ -308,7 +309,15 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   // === 5. Rendu selon l'état ===
 
   if (finished || mode === "fini") {
-    return <FinishedScreen resetToAccueil={resetToAccueil} />;
+    return (
+      <FinishedScreen 
+        resetToAccueil={resetToAccueil}
+        startTime={startTime}
+        seanceId={currentSession?.id}
+        programmeId={programmeId}
+        onMarquerComplete={onMarquerComplete}
+      />
+    );
   }
 
   // Ajout gestion intro_bloc
@@ -343,8 +352,8 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
         serie={current.serie || 1}
         total_series={current.total_series || current.exo?.series || 1}
         series={current.total_series || current.exo?.series || 1}
-        blocTour={current.exo?.blocTour || 1}
-        totalBlocTour={current.exo?.totalBlocTour || 1}
+        blocTour={current?.blocTour || current.exo?.blocTour || 1}
+        totalBlocTour={current?.totalBlocTour || current.exo?.totalBlocTour || 1}
       />
     );
   }

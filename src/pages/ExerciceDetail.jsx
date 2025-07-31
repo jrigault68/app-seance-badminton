@@ -4,7 +4,8 @@ import Layout from "../components/Layout";
 import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
-import { useBlocker } from "react-router-dom";
+import Snackbar from "../components/Snackbar";
+import { useSafeBlocker } from "../utils/useBlocker";
 import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, Upload, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle } from "lucide-react";
 import { useUser } from "../contexts/UserContext";
 
@@ -24,6 +25,13 @@ export default function ExerciceDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+  const [showNavigationDialog, setShowNavigationDialog] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null);
+  
+  // États pour les snackbars
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarType, setSnackbarType] = useState("success");
+
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState({ json: false, prompt: false });
@@ -123,15 +131,9 @@ export default function ExerciceDetail() {
 
   // Navigation blocker pour les modifications non sauvegardées
   const hasChanged = JSON.stringify(form) !== JSON.stringify(normalizeFormValues(exercice || {}));
-  const blocker = useBlocker(
+  const blocker = useSafeBlocker(
     ({ currentLocation, nextLocation }) => {
-      // Ne pas bloquer si on est en mode détail
       if (mode === "detail") return false;
-      
-      // Ne pas bloquer si on reste sur la même page
-      if (currentLocation.pathname === nextLocation.pathname) return false;
-      
-      // Bloquer seulement si il y a des changements
       return hasChanged;
     }
   );
@@ -242,18 +244,44 @@ export default function ExerciceDetail() {
     setSavingAndQuit(true);
     try {
       await handleUpdate(form);
-      if (blocker) blocker.proceed();
+      if (blocker && blocker.state === "blocked") blocker.proceed();
+      if(pendingMode && pendingMode !== mode) {
+        setMode(pendingMode);
+        setPendingMode(null);
+      }
     } finally {
       setSavingAndQuit(false);
+      setShowNavigationDialog(false);
     }
   };
 
   const handleConfirm = () => {
-    blocker.proceed();
+    if (blocker && blocker.state === "blocked") blocker.proceed();
+    if(pendingMode && pendingMode !== mode) {
+      setMode(pendingMode);
+      setPendingMode(null);
+    }
+    setShowNavigationDialog(false);
   };
 
   const handleCancel = () => {
-    blocker.reset();
+    if (blocker && blocker.state === "blocked") blocker.reset();
+    setPendingMode(null);
+    setShowNavigationDialog(false);
+  };
+
+  // Handler pour le bouton retour avec vérification des modifications
+  const handleBackClick = () => {
+    console.log("🔍 handleBackClick called:", { hasChanged, mode, showNavigationDialog });
+    if (hasChanged) {
+      // Si il y a des modifications, montrer le dialog
+      setPendingMode("detail");
+      console.log("mode", mode);
+      setShowNavigationDialog(true);
+    } else {
+      // Sinon, changer le mode directement
+      setMode("detail");
+    }
   };
 
   useEffect(() => {
@@ -325,13 +353,17 @@ export default function ExerciceDetail() {
         });
         if (!response.ok) throw new Error("Erreur lors de la mise à jour");
         const data = await response.json();
-        setMode("detail");
+
+        // Afficher le message de succès
+        setSnackbarType("success");
+        setSnackbarMessage("Exercice mis à jour avec succès !");
+
         // Recharger l'exercice
         fetch(`${apiUrl}/exercices/${id}`)
           .then(res => res.json())
           .then(data => {
             setExercice(data.exercice);
-            setForm(normalizeFormValues(data.exercice));
+            //setForm(normalizeFormValues(data.exercice));
           });
       } else {
         // Création
@@ -355,7 +387,13 @@ export default function ExerciceDetail() {
         if (!response.ok) throw new Error("Erreur lors de la création");
         const data = await response.json();
         const newId = data.exercice?.id || generatedId;
+        
+        // Afficher le message de succès
+        setSnackbarType("success");
+        setSnackbarMessage("Exercice créé avec succès !");
+        
         navigate(`/exercices/${newId}`, { replace: true });
+        console.log("set mode detail2");
         setMode("detail");
         // Recharger l'exercice
         fetch(`${apiUrl}/exercices/${newId}`)
@@ -367,6 +405,9 @@ export default function ExerciceDetail() {
       }
     } catch (err) {
       setFormError(err.message);
+      // Afficher le message d'erreur
+      setSnackbarType("error");
+      setSnackbarMessage(err.message);
     } finally {
       setSaving(false);
     }
@@ -380,9 +421,17 @@ export default function ExerciceDetail() {
         credentials: "include"
       });
       if (!response.ok) throw new Error("Erreur lors de la suppression");
+      
+      // Afficher le message de succès
+      setSnackbarType("success");
+      setSnackbarMessage("Exercice supprimé avec succès !");
+      
       navigate('/exercices');
     } catch (err) {
       setFormError(err.message);
+      // Afficher le message d'erreur
+      setSnackbarType("error");
+      setSnackbarMessage(err.message);
     } finally {
       setSaving(false);
       setShowDeleteDialog(false);
@@ -509,7 +558,13 @@ export default function ExerciceDetail() {
     ];
 
     return (
-      <Layout pageTitle={pageTitle} pageActions={pageActions} backTo="/exercices" backLabel="Retour aux exercices">
+          <Layout 
+      pageTitle={pageTitle} 
+      pageActions={pageActions} 
+      backTo="/exercices" 
+      backLabel="Retour aux exercices"
+      onBackClick={handleBackClick}
+    >
         <div className="w-full flex flex-col items-center bg-[#18191a] min-h-screen">
           <div className="w-full max-w-4xl mx-auto p-4">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -724,13 +779,22 @@ export default function ExerciceDetail() {
           loading={saving}
           disabled={saving}
         />
-        {blocker && (
+        {showNavigationDialog && (
           <NavigationPromptDialog
-            isOpen={blocker.state === "blocked"}
+            open={showNavigationDialog}
             onConfirm={handleConfirm}
             onCancel={handleCancel}
             onSaveAndQuit={handleSaveAndQuit}
-            saving={savingAndQuit}
+            savingAndQuit={savingAndQuit}
+          />
+        )}
+        {blocker && !showNavigationDialog && (
+          <NavigationPromptDialog
+            open={blocker.state === "blocked"}
+            onConfirm={handleConfirm}
+            onCancel={handleCancel}
+            onSaveAndQuit={handleSaveAndQuit}
+            savingAndQuit={savingAndQuit}
           />
         )}
 
@@ -840,10 +904,17 @@ export default function ExerciceDetail() {
               </div>
             </div>
           </div>
-        )}
-      </Layout>
-    );
-  }
+              )}
+      
+      {/* Snackbar pour les messages de validation et d'erreur */}
+      <Snackbar 
+        message={snackbarMessage} 
+        type={snackbarType} 
+        onClose={() => setSnackbarMessage("")} 
+      />
+    </Layout>
+  );
+}
 
   // Mode affichage (détail)
   if (!exercice) {
@@ -1109,6 +1180,13 @@ export default function ExerciceDetail() {
           </div>
         </div>
       )}
+      
+      {/* Snackbar pour les messages de validation et d'erreur */}
+      <Snackbar 
+        message={snackbarMessage} 
+        type={snackbarType} 
+        onClose={() => setSnackbarMessage("")} 
+      />
     </Layout>
   );
 } 

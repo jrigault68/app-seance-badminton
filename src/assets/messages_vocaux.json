@@ -13,15 +13,19 @@
         "start_last_serie": "C'est partie ! Dernière série !",
         "mi_temps": "Mi-temps.",
         "focus_zone": "{focus}",
-        "enchainement_serie": "On enchaine sur la série suivante dans"
+        "enchainement_serie": "On enchaine sur la série suivante dans",
+        "premier_cote": "Premier côté."
     },
     "repos": {
         "standard": "Repos.",
+        "prochain_tour": "Tour N°{blocTour} sur {totalBlocTour}.",
+        "dernier_tour": "Dernier tour !",
         "annonce_suivant": "Prochain exercice : {exo.nom} {exo.details}.",
         "serie_suivante": "Série suivante dans {duration}.",
         "avant_derniere_serie": "Plus que 2 séries.",
         "derniere_serie": "Dernière série ! On ne lâche pas !",
-        "transition_breve": "Prépare-toi."
+        "transition_breve": "Prépare-toi.",
+        "changement_cote": "Changement de côté !"
     },
     "seance": {
         "dernier_exo": "Dernier exercice !",
