@@ -3,7 +3,7 @@ import { formatDureeTexte, estimerDureeEtape, getDetails } from '@/utils/helpers
 import { ChevronDown, ChevronRight, SquareChevronRight, HelpCircle } from 'lucide-react';
 import ExerciceHelpDialog from './ExerciceHelpDialog';
 
-const SeanceStructure = ({ structure, hideIcons }) => {
+const SeanceStructure = ({ structure, hideIcons, tempsTotal }) => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedExo, setSelectedExo] = useState(null);
 
@@ -15,9 +15,9 @@ const SeanceStructure = ({ structure, hideIcons }) => {
     );
   }
 
-  // Calcul du temps total (arrondi à la minute supérieure)
-  const totalSeconds = structure.reduce((acc, etape) => acc + estimerDureeEtape(etape), 0);
-  const totalMinutes = Math.ceil(totalSeconds / 60);
+  // Utiliser le temps total passé en props, avec fallback vers le calcul si pas disponible
+  const totalSeconds = tempsTotal || 0;
+  const totalMinutes = Math.round(totalSeconds / 60);
 
   // Pour gérer l'ouverture des blocs accordéon (par id ou index)
   const [openBlocks, setOpenBlocks] = useState({});

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { blockStyle, paragraphStyle } from "../styles/styles";
 import SeanceService from "@/services/seanceService";
-import { estimerDureeEtape } from "@/utils/helpers";
+import { estimerDureeEtape, calculerTempsTotalSeance } from "@/utils/helpers";
 import { Plus, Search, Filter, ChevronDown } from "lucide-react";
 
 export default function Seances() {
@@ -89,15 +89,22 @@ export default function Seances() {
     }
   };
 
-  const calculerDureeReelle = (structure) => {
-    if (!structure || !Array.isArray(structure)) return 0;
-    return structure.reduce((total, etape) => total + estimerDureeEtape(etape), 0);
+  const calculerDureeReelle = (seance) => {
+    // Utiliser le temps total depuis la BDD si disponible
+    console.log('Duree reelle:', seance.duree_estimee);
+    if (seance.duree_estimee) {
+      return seance.duree_estimee;
+    }
+    
+    // Fallback vers le calcul si pas de temps en BDD
+    if (!seance.structure || !Array.isArray(seance.structure)) return 0;
+    return calculerTempsTotalSeance(seance.structure);
   };
 
   const formatDuree = (secondes) => {
     if (!secondes || secondes === 0) return 'Non calculée';
     const heures = Math.floor(secondes / 3600);
-    const minutes = Math.floor((secondes % 3600) / 60);
+    const minutes = Math.round((secondes % 3600) / 60);
     if (heures > 0) {
       return `${heures}h${minutes > 0 ? ` ${minutes}min` : ''}`;
     }
@@ -219,7 +226,7 @@ export default function Seances() {
           ) : (
             <div className="divide-y divide-[#232526]">
               {seances.map((seance, idx) => {
-                const dureeReelle = calculerDureeReelle(seance.structure);
+                const dureeReelle = calculerDureeReelle(seance);
                 return (
                   <div
                     key={seance.id}

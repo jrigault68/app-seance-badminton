@@ -1,3 +1,5 @@
+import { genererEtapesDepuisStructure } from "./genererEtapes";
+
 export function pickRandom(arr) {
   if (!Array.isArray(arr) || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
@@ -83,4 +85,72 @@ export function getDetails(exo){
   }
   // Fallback
   return "Exercice libre";
+}
+
+/**
+ * Calcule le temps total d'une séance en parcourant chaque étape
+ * @param {Array} structure - Structure de la séance
+ * @param {Array} exercices - Liste des exercices disponibles
+ * @returns {number} Temps total en secondes
+ */
+export function calculerTempsTotalSeance(structure, exercices = []) {
+  if (!structure || !Array.isArray(structure) || structure.length === 0) {
+    return 0;
+  }
+
+  // Déplacer l'import en haut du fichier si ce n'est pas déjà fait :
+  // import { genererEtapesDepuisStructure } from "./genererEtapes";
+  const etapes = genererEtapesDepuisStructure(structure, exercices);
+
+  // Temps par défaut pour les transitions
+  const TEMPS_DEFAUT = {
+    transition: 30,         // Transition par défaut : 30 secondes
+    exercice_sans_duree: 60 // Exercice sans durée : 60 secondes
+  };
+
+  // Fonction pour calculer la durée d'une étape
+  function calculerDureeEtape(etape) {
+    // Si l'étape a une durée, l'utiliser directement (convertir en nombre)
+    if (etape.duree) {
+      return parseInt(etape.duree, 10) || 0;
+    }
+
+    // Si c'est un exercice avec séries et répétitions
+    if (etape.series && etape.repetitions) {
+      const tempsParRep = parseInt(etape.temps_par_repetition, 10) || 3;
+      const tempsSeries = parseInt(etape.series, 10) * parseInt(etape.repetitions, 10) * tempsParRep;
+      const tempsRepos = (parseInt(etape.series, 10) - 1) * (parseInt(etape.temps_repos_series, 10) || 0);
+      return tempsSeries + tempsRepos;
+    }
+
+    // Si c'est un exercice avec séries et temps par série
+    if (etape.series && etape.temps_series) {
+      const tempsSeries = parseInt(etape.series, 10) * parseInt(etape.temps_series, 10);
+      const tempsRepos = (parseInt(etape.series, 10) - 1) * (parseInt(etape.temps_repos_series, 10) || 0);
+      return tempsSeries + tempsRepos;
+    }
+
+    // Si c'est un exercice avec juste temps par série
+    if (etape.temps_series) {
+      return parseInt(etape.temps_series, 10);
+    }
+
+    // Si c'est un exercice sans durée spécifiée
+    if (etape.type === "exercice") {
+      return TEMPS_DEFAUT.exercice_sans_duree;
+    }
+
+    // Pour les transitions ou autres étapes sans durée
+    return TEMPS_DEFAUT.transition;
+  }
+
+  // Parcourir chaque étape et additionner les durées
+  const tempsTotal = etapes.reduce((acc, etape) => {
+    const duree = calculerDureeEtape(etape);
+    console.log('Étape:', etape.type, 'Durée calculée:', duree);
+    return acc + duree;
+  }, 0);
+
+  console.log('Temps total calculé:', tempsTotal);
+  return tempsTotal;
 }

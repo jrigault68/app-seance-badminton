@@ -11,7 +11,7 @@ import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
 import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings } from "lucide-react";
-import { estimerDureeEtape } from "../utils/helpers";
+import { estimerDureeEtape, calculerTempsTotalSeance } from "../utils/helpers";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
 import { JsonViewer } from "json-viewer-react";
 
@@ -176,11 +176,17 @@ export default function SeanceDetail() {
     setError(null);
     try {
       const { categorie_id, type_id, niveau_id, ...rest } = form;
+      
+      // Calculer le temps total de la séance
+      const tempsTotal = await calculerTempsTotalSeanceAmelioree(form.structure, exercices)
+        .catch(() => calculerTempsTotalSeance(form.structure, exercices));
+      
       const body = {
         ...rest,
         categorie_id: categorie_id ? parseInt(categorie_id, 10) : null,
         type_id: type_id ? parseInt(type_id, 10) : null,
         niveau_id: niveau_id ? parseInt(niveau_id, 10) : null,
+        duree_estimee: tempsTotal, // Ajouter le temps total calculé dans le champ existant
       };
       let seanceResp;
       if (mode === "edit") {
@@ -192,7 +198,7 @@ export default function SeanceDetail() {
         });
         if (!response.ok) throw new Error("Erreur lors de la modification de la séance");
         seanceResp = await response.json();
-        setSeance({ ...seance, ...form });
+        setSeance({ ...seance, ...form, duree_estimee: tempsTotal });
         initialFormRef.current = form;
         setSnackbarMessage("Séance modifiée avec succès !");
         setSnackbarType("success");
@@ -251,21 +257,35 @@ export default function SeanceDetail() {
         throw new Error("ID de séance invalide. Veuillez sauvegarder la séance d'abord.");
       }
       
+      // Calculer le temps total de la séance avec la nouvelle structure
+      const tempsTotal = calculerTempsTotalSeance(newStructure, exercices);
+      console.log('Temps total calculé:', tempsTotal);
+      
+      const bodyData = { 
+        structure: newStructure, 
+        duree_estimee: tempsTotal // Sauvegarder le temps total calculé dans le champ existant
+      };
+      
+      console.log('Données envoyées au serveur:', bodyData);
+      
       const response = await fetch(`${apiUrl}/seances/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ 
-          structure: newStructure, 
-          updated_at: new Date().toISOString() 
-        })
+        body: JSON.stringify(bodyData)
       });
-      if (!response.ok) throw new Error("Erreur lors de la sauvegarde de la structure");
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Réponse du serveur:', response.status, errorText);
+        throw new Error(`Erreur lors de la sauvegarde de la structure: ${response.status} - ${errorText}`);
+      }
       const updatedSeance = await response.json();
       // Mettre à jour la séance en préservant la structure exacte qui a été sauvegardée
       setSeance(prev => ({
         ...(updatedSeance.seance || updatedSeance),
-        structure: newStructure // Garder la structure exacte qui a été envoyée
+        structure: newStructure, // Garder la structure exacte qui a été envoyée
+        duree_estimee: tempsTotal // Mettre à jour le temps total
       }));
       
       // Mettre à jour initialFormRef.current pour que hasChanged repasse à false
@@ -349,10 +369,11 @@ export default function SeanceDetail() {
   }
 
   // Mode détail (lecture seule)
-  // Calcul du temps total (arrondi à la minute supérieure)
-  const totalSeconds = seance?.structure?.reduce((acc, etape) => acc + estimerDureeEtape(etape), 0) || 0;
-  const totalMinutes = Math.ceil(totalSeconds / 60);
   const hasPlayableStructure = Array.isArray(seance?.structure) && seance.structure.length > 0;
+
+  // Utiliser le temps total depuis la BDD, avec fallback vers le calcul si pas disponible
+  const totalSeconds = seance?.duree_estimee || 0;
+  const totalMinutes = Math.round(totalSeconds / 60);
 
 
   return (
@@ -473,7 +494,7 @@ export default function SeanceDetail() {
                     </div>
                   </div>
                 )}
-                <SeanceStructure structure={seance.structure} hideIcons />
+                <SeanceStructure structure={seance.structure} hideIcons tempsTotal={totalSeconds} />
                 {/* Affichage côte à côte de la structure brute et du déroulé généré (JSON) */}
                 {user?.is_admin && (<div className="flex flex-row gap-4 mt-8">
                   <div style={{width: '50%', height: '100vh'}}>
