@@ -177,9 +177,10 @@ export default function SeanceDetail() {
     try {
       const { categorie_id, type_id, niveau_id, ...rest } = form;
       
-      // Calculer le temps total de la séance
-      const tempsTotal = await calculerTempsTotalSeanceAmelioree(form.structure, exercices)
-        .catch(() => calculerTempsTotalSeance(form.structure, exercices));
+      // Calculer le temps total de la séance seulement si la structure n'est pas vide
+      const tempsTotal = form.structure && form.structure.length > 0 
+        ? calculerTempsTotalSeance(form.structure, exercices) 
+        : 0;
       
       const body = {
         ...rest,
