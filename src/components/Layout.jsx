@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
-import { Menu, ChevronLeft, MoreVertical } from "lucide-react";
+import { Menu, ChevronLeft, MoreVertical, Monitor } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePageTitle } from "../contexts/PageTitleContext";
+import { useWakeLock } from "../utils/useWakeLock";
+import { useUser } from "../contexts/UserContext";
 
 function ActionButton({ icon, label, onClick, className = "" }) {
   return (
@@ -48,6 +50,46 @@ function ActionsMenu({ actions, onClose }) {
   );
 }
 
+// Composant pour l'indicateur Wake Lock (visible uniquement pour les admins)
+function WakeLockIndicator() {
+  const { user } = useUser();
+  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  
+  // Détecter si on est sur une page d'exécution de séance
+  const isExecutionPage = window.location.pathname.includes('/execution');
+  
+  // Utiliser le hook Wake Lock pour détecter l'état
+  useWakeLock(isExecutionPage);
+  
+  // Détecter l'état du Wake Lock
+  useEffect(() => {
+    const checkWakeLockState = () => {
+      // Vérifier si on est sur une page d'exécution et si le Wake Lock est supporté
+      const isActive = isExecutionPage && 'wakeLock' in navigator;
+      setIsWakeLockActive(isActive);
+    };
+    
+    checkWakeLockState();
+    // Vérifier périodiquement
+    const interval = setInterval(checkWakeLockState, 2000);
+    
+    return () => clearInterval(interval);
+  }, [isExecutionPage]);
+  
+  // Ne pas afficher si l'utilisateur n'est pas admin
+  if (!user?.is_admin) return null;
+  
+  // Ne pas afficher si le Wake Lock n'est pas actif
+  if (!isWakeLockActive) return null;
+  
+  return (
+    <div className="flex items-center gap-1 px-2 py-1 bg-green-600/20 border border-green-500/30 rounded-full">
+      <Monitor size={14} className="text-green-400" />
+      <span className="text-xs text-green-400 font-medium">Wake Lock</span>
+    </div>
+  );
+}
+
 export function PageToolbar({ title, actions, leftAction, showMenuButton, onMenuClick, collapsed }) {
   // actions: tableau d'objets {icon, label, onClick, showOnMobile}
   const [menuOpen, setMenuOpen] = useState(false);
@@ -74,6 +116,9 @@ export function PageToolbar({ title, actions, leftAction, showMenuButton, onMenu
       <h1 className={`${leftAction ? 'md:pl-0' : 'md:pl-8'} text-lg font-semibold text-white truncate flex-1 select-none`}>{title}</h1>
       {/* Actions à droite */}
       <div className="flex items-center gap-2 pr-4 relative">
+        {/* Indicateur Wake Lock pour les admins */}
+        <WakeLockIndicator />
+        
         {/* Desktop: tous les boutons visibles, Mobile: menu si >1 action */}
         {visibleActions.length > 0 && (
           <>

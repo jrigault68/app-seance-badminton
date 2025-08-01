@@ -39,13 +39,6 @@ function IntroSeanceScreen({ nom, notes, onStart }) {
         >
           Démarrer la séance
         </button>
-        {/* Indicateur Wake Lock */}
-        <div className="mt-4 text-xs text-gray-400">
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            Écran maintenu allumé pendant l'exécution
-          </span>
-        </div>
       </div>
     </div>
   );
