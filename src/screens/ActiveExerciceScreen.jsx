@@ -90,6 +90,14 @@ export function ActiveExerciceScreen({
 			    {exo.repetitions ? "Passer à la suite" : "Passer"}
           </button>
         </div>
+        
+        {/* Indicateur Wake Lock discret */}
+        <div className="mt-2 text-xs text-gray-400">
+          <span className="inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+            Écran maintenu allumé
+          </span>
+        </div>
       </div>
     </div>
   );

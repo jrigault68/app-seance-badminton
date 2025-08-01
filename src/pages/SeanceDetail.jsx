@@ -27,7 +27,7 @@ export default function SeanceDetail() {
   const [exercices, setExercices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [form, setForm] = useState({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", structure: [] });
+  const [form, setForm] = useState({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] });
   const [niveaux, setNiveaux] = useState([]);
   const [categories, setCategories] = useState([]);
   const [types, setTypes] = useState([]);
@@ -58,8 +58,8 @@ export default function SeanceDetail() {
     if (isNew) {
       setLoading(false);
       setSeance(null);
-      setForm({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", structure: [] });
-      initialFormRef.current = { nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", structure: [] };
+      setForm({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] });
+      initialFormRef.current = { nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] };
       return;
     }
     setLoading(true);
@@ -72,6 +72,7 @@ export default function SeanceDetail() {
           niveau_id: data.niveau_id ? String(data.niveau_id) : "",
           type_id: data.type_id ? String(data.type_id) : "",
           categorie_id: data.categorie_id ? String(data.categorie_id) : "",
+          notes: data.notes || "",
           structure: data.structure || []
         });
         initialFormRef.current = {
@@ -80,6 +81,7 @@ export default function SeanceDetail() {
           niveau_id: data.niveau_id ? String(data.niveau_id) : "",
           type_id: data.type_id ? String(data.type_id) : "",
           categorie_id: data.categorie_id ? String(data.categorie_id) : "",
+          notes: data.notes || "",
           structure: data.structure || []
         };
         
@@ -153,6 +155,9 @@ export default function SeanceDetail() {
     } else {
       if (structureEditMode) {
         setStructureEditMode(false);
+      } else if (mode === "detail") {
+        // En mode détail, naviguer vers la liste des séances
+        navigate("/seances");
       } else {
         setMode("detail");
       }
@@ -201,12 +206,9 @@ export default function SeanceDetail() {
         if (!response.ok) throw new Error("Erreur lors de la création de la séance");
         seanceResp = await response.json();
         const newId = seanceResp.id || (seanceResp.seance && seanceResp.seance.id);
-        navigate(`/seances/${newId}`);
-        setMode("detail");
-        setSeance({ ...form, id: newId });
-        initialFormRef.current = form;
-        setSnackbarMessage("Séance créée avec succès !");
-        setSnackbarType("success");
+        
+        // Forcer la navigation vers la nouvelle URL avec rechargement complet
+        window.location.href = `/seances/${newId}`;
       }
     } catch (err) {
       setError(err.message);
@@ -244,6 +246,11 @@ export default function SeanceDetail() {
     setSaving(true);
     setError(null);
     try {
+      // Vérifier qu'on a un ID valide
+      if (!id || id === "new") {
+        throw new Error("ID de séance invalide. Veuillez sauvegarder la séance d'abord.");
+      }
+      
       const response = await fetch(`${apiUrl}/seances/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -301,6 +308,7 @@ export default function SeanceDetail() {
               {error && <div className="text-red-400 text-center mb-2">{error}</div>}
               <FloatingLabelInput label="Nom" name="nom" value={form.nom} onChange={handleChange} />
               <FloatingLabelInput label="Description" name="description" value={form.description} onChange={handleChange} as="textarea" rows={3} />
+              <FloatingLabelInput label="Focus ou état d'esprit" name="notes" value={form.notes} onChange={handleChange} as="textarea" rows={2} placeholder="Ex: Se concentrer sur la technique, respirer profondément, rester positif..." />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FloatingLabelInput label="Niveau" name="niveau_id" value={form.niveau_id} onChange={handleChange} as="select">
                   <option value="" className="bg-gray-700 text-gray-400">Sélectionner un niveau</option>
@@ -426,6 +434,14 @@ export default function SeanceDetail() {
           <p className="text-gray-300 italic mb-6 whitespace-pre-line">
             {seance.description || <span className="italic text-gray-500">Aucune description</span>}
           </p>
+          {seance.notes && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-orange-300 mb-2">Focus ou état d'esprit</h3>
+              <p className="text-gray-300 italic">
+                {seance.notes}
+              </p>
+            </div>
+          )}
           {/* Déroulé de la séance */}
           <div className="mt-10">
             <h3 className="text-lg font-semibold text-orange-300 mb-4 flex items-center gap-4">
@@ -508,7 +524,7 @@ export default function SeanceDetail() {
       )}
       
       {/* Bouton flottant pour lancer la séance */}
-      {hasPlayableStructure && (
+      {hasPlayableStructure && mode === "detail" && !structureEditMode && (
         <button
           className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold shadow-lg text-lg z-50"
           onClick={() => {

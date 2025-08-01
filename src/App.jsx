@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import Programmes from "@/pages/Programmes";
 import ConnexionInscription from "./pages/ConnexionInscription";
 import AuthSuccess from "./pages/AuthSuccess";
@@ -21,22 +20,6 @@ import SeanceDetail from './pages/SeanceDetail';
 import SeanceExecution from "./pages/SeanceExecution";
 
 export default function App() {
-  const wakeLockRef = useRef(null);
-
-  useEffect(() => {
-    if ('wakeLock' in navigator) {
-      const requestWakeLock = async () => {
-        try {
-          wakeLockRef.current = await navigator.wakeLock.request("screen");
-        } catch (err) {
-          console.warn("Wake lock error:", err);
-        }
-      };
-      requestWakeLock();
-      return () => {if (wakeLockRef.current) wakeLockRef.current.release();};
-    }
-  }, []);
-
   return (
     <PageTitleProvider>
       <DynamicTitle />

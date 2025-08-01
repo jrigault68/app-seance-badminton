@@ -10,6 +10,7 @@ import { pickRandom } from "@/utils/helpers";
 import { backgroundMainColor, blockStyle } from "@/styles/styles";
 import { HelpCircle } from 'lucide-react';
 import ExerciceHelpDialog from '../components/ui/ExerciceHelpDialog';
+import { useWakeLock } from "@/utils/useWakeLock";
 
 // Fonction pour obtenir le résumé d'un exercice
 function getExoResume(exo) {
@@ -21,6 +22,33 @@ function getExoResume(exo) {
   const reposSerie = exo.temps_repos_series ? `, ${exo.temps_repos_series}s repos entre séries` : '';
   //const reposExo = exo.temps_repos_exercice ? `, ${exo.temps_repos_exercice}s repos` : '';
   return '(' + main + reposSerie + ')';
+}
+
+// Composant pour l'intro de la séance
+function IntroSeanceScreen({ nom, notes, onStart }) {
+  return (
+    <div className={`h-[calc(100vh-56px)] w-full flex items-center justify-center flex-col gap-4 ${backgroundMainColor} text-white px-4`}>
+      <div className={"max-w-xl w-full " + blockStyle + " text-center"}>
+        <h1 className="text-3xl font-bold text-rose-400 mb-4">{nom || "Séance"}</h1>
+        {notes && (
+          <p className="text-orange-200 mb-6 text-lg">{notes}</p>
+        )}
+        <button
+          onClick={onStart}
+          className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full shadow text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105"
+        >
+          Démarrer la séance
+        </button>
+        {/* Indicateur Wake Lock */}
+        <div className="mt-4 text-xs text-gray-400">
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+            Écran maintenu allumé pendant l'exécution
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Composant pour l'intro de bloc
@@ -117,7 +145,7 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
 export default function MoteurExecution({ etapes, onFinish, resetToAccueil, intervalRef, currentSession, programmeId, onMarquerComplete }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [mode, setMode] = useState("transition"); // "transition", "exercice", "fini"
+  const [mode, setMode] = useState("intro_seance"); // "intro_seance", "transition", "exercice", "fini"
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
   const [currentFocus, setCurrentFocus] = useState(null);
@@ -129,6 +157,10 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   const spokenCountdownRef = useRef(null);
   const messagesQueueRef = useRef([]); // File de messages à lire/restants
   const skippedMessagesRef = useRef([]);
+  
+  // Activer le Wake Lock pendant l'exécution de la séance
+  const isExecutionActive = mode !== "intro_seance" && !finished;
+  const { requestWakeLock, releaseWakeLock } = useWakeLock(isExecutionActive);
   
   // Vérifier que etapes n'est pas vide
   if (!etapes || etapes.length === 0) {
@@ -174,7 +206,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 
   const dureeFinSec = Math.ceil(dureeFinMs / 1000);
 
-// === 1. Initialisation de l'étape courante ===
+  // === 1. Initialisation de l'étape courante ===
   useEffect(() => {
 	  clearInterval(intervalRef.current);
     setPaused(false);
@@ -200,6 +232,11 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     // car elles ont leur propre logique de lecture vocale
     if (current.type === "intro_bloc") {
       setMode("intro_bloc");
+      return;
+    }
+    
+    // Ne pas déclencher la lecture vocale si on est encore en mode intro_seance
+    if (mode === "intro_seance") {
       return;
     }
     
@@ -332,6 +369,29 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   }, [mode, current, stepIndex]);
 
   // === 5. Rendu selon l'état ===
+
+  // Gestion de l'intro de séance
+  if (mode === "intro_seance") {
+    return (
+      <IntroSeanceScreen
+        nom={currentSession?.nom}
+        notes={currentSession?.notes}
+        onStart={() => {
+          setMode("transition");
+          setStartTime(Date.now());
+          // Initialiser la première étape
+          if (etapes.length > 0) {
+            const firstStep = etapes[0];
+            setTimeLeft(firstStep.duree || 0);
+            // Déclencher la lecture vocale pour la première étape
+            if (firstStep.messages && firstStep.messages.length > 0) {
+              speak(firstStep.messages, firstStep, (firstStep.duree - 5) * 1000, 500, skippedMessagesRef);
+            }
+          }
+        }}
+      />
+    );
+  }
 
   if (finished || mode === "fini") {
     return (
