@@ -92,9 +92,7 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
                     <HelpCircle size={18} />
                   </button>
                 </div>
-                {exo.description && (
-                  <div className="text-xs text-orange-200 mt-1">{exo.description}</div>
-                )}
+                
               </li>
             ))}
           </ol>
@@ -184,7 +182,15 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     setTimeLeft(0);
     setFinMessagesSpoken(false);
 
-	  if (stepIndex >= etapes.length) { setFinished(true); return; }
+    // Nettoyer le timer si la séance est finie
+    if (stepIndex >= etapes.length) { 
+      setFinished(true); 
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      return; 
+    }
     if (!current || finished) return;
 	
     //console.log("🔁 Nouvelle étape", stepIndex, current.type);
@@ -216,6 +222,15 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 
   // === 2 & 3 & 4. Décompte vocal + chronomètre principal + gestion fin d'étape ===
   useEffect(() => {
+    // Arrêter complètement le timer si la séance est finie
+    if (finished) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
     //console.log("speechSynthesis.speaking : " + speechSynthesis.speaking + " " + speechSynthesis.paused + " " + paused);
 	  if (paused && speechSynthesis.speaking) {
       console.log("⏸️ vocal interrompu");
@@ -227,7 +242,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
       // Si on n'est pas en pause, rien n'est en cours, et il reste des messages, on relance la lecture
       // playNextMessage(); // This line is removed as per the new_code
     }
-    if (!current || paused || finished || timeLeft <= 0) return;
+    if (!current || paused || timeLeft <= 0) return;
 
     // Décompte vocal si <= 5 secondes
     if (current.duree > 5 && (current.duree > 30 ? timeLeft <= 5 : timeLeft <=3) && timeLeft >= 1) {
@@ -276,6 +291,11 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
           setFinished(true);
           setMode("fini");
           speak("seance.fin");
+          // Nettoyer le timer quand la séance est finie
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+          }
         } else {
           setStepIndex(prev => prev + 1);
         }
@@ -299,6 +319,11 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
         setFinished(true);
         setMode("fini");
         speak("seance.fin");
+        // Nettoyer le timer quand la séance est finie
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
       } else {
         setStepIndex(prev => prev + 1);
       }
@@ -337,7 +362,7 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   }
 
   if (mode === "transition" && current) {
-    console.log("current :", current);
+    //console.log("current :", current);
     return (
       <TransitionScreen
         current={current}

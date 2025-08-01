@@ -45,7 +45,7 @@ export function expandMessages(messages, current = {}, skippedMessagesRef) {
 
 export async function speak(messages, current = {}, tempsRestantMs, margeMs = 500, skippedMessagesRef) {
   const nonPrononces = [];
-  console.log("Messages d'entrée :", messages);
+  //console.log("Messages d'entrée :", messages);
   // 🛠️ Étape 1 — convertir en tableau standard de messages
   const messagesExpandes = expandMessages(messages, current, skippedMessagesRef);
 
@@ -60,7 +60,7 @@ export async function speak(messages, current = {}, tempsRestantMs, margeMs = 50
     const msg = messagesExpandes[i];
     const texte = typeof msg === "string" ? msg : msg?.texte || "";
     if (!texte) continue;
-    console.log("Messages :", messages);
+    //console.log("Messages :", messages);
     const elapsed = performance.now() - start;
     const reste = tempsRestantMs - elapsed;
 

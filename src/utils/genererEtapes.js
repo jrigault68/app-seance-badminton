@@ -50,7 +50,7 @@ export function genererEtapesDepuisStructure(
     
     // Préparer tous les exercices avec leurs données complètes
     const exercicesEnrichis = preparerTousLesExercices(structure, exoDict);
-    exercices = Object.values(exercicesEnrichis);
+    exercices = Object.values(exercicesEnrichis); // Convertir l'objet en array
   }
 
   // ===== TRAITEMENT DE CHAQUE ÉTAPE =====
@@ -74,22 +74,37 @@ export function genererEtapesDepuisStructure(
 function preparerTousLesExercices(structure, exoDict) {
   const exercicesEnrichis = {};
   
-  function preparerExerciceRecursif(step, path = []) {
+  function preparerExerciceRecursif(step) {
     if (step.type === "bloc") {
       // Pour un bloc, traiter récursivement son contenu
       const contenu = step.contenu || [];
-      contenu.forEach((item, index) => {
-        preparerExerciceRecursif(item, [...path, index]);
+      contenu.forEach((item) => {
+        preparerExerciceRecursif(item);
       });
     } else if (step.type === "exercice") {
       // Pour un exercice, l'enrichir avec toutes ses données
       const exoId = step.id;
       const exoData = exoDict[exoId] || {};
       
+      // Vérifier si l'exercice a des personnalisations
+      const hasPersonnalisations = (step.nom !== undefined && step.nom !== exoData.nom) || 
+                                  step.description !== undefined || 
+                                  step.position_depart !== undefined ||
+                                  step.focus_zone !== undefined ||
+                                  step.erreurs !== undefined ||
+                                  step.conseils !== undefined;
+      
+      // Déterminer l'identifiant à utiliser
+      let exerciceId = hasPersonnalisations ? step._uid : exoId;
+      //console.log("exerciceId :", exerciceId, step._uid, exoId)
       // Enrichir l'exercice avec toutes ses données (personnalisées + par défaut)
       const exerciceEnrichi = {
         ...exoData,           // Données de base de l'exercice
         ...step,              // Personnalisations de la structure
+        // Garder l'ID original pour la compatibilité
+        id: exoId,
+        // Utiliser l'identifiant approprié (UID si personnalisé, ID sinon)
+        exerciceId: exerciceId,
         // Priorité aux champs personnalisés, puis valeurs de la base
         nom: step.nom !== undefined ? step.nom : (exoData.nom || "Exercice"),
         
@@ -114,28 +129,28 @@ function preparerTousLesExercices(structure, exoDict) {
           : (exoData.conseils || []),
         
         // Propriétés de configuration (priorité aux personnalisations)
-        series: step.series !== undefined ? step.series : (exoData.series || 1),
-        repetitions: step.repetitions !== undefined ? step.repetitions : (exoData.repetitions || 0),
-        temps_series: step.temps_series !== undefined ? step.temps_series : (exoData.temps_series || 0),
-        temps_par_repetition: step.temps_par_repetition !== undefined ? step.temps_par_repetition : (exoData.temps_par_repetition || 3),
-        temps_repos_series: step.temps_repos_series !== undefined ? step.temps_repos_series : (exoData.temps_repos_series || 0),
-        temps_repos_exercice: step.temps_repos_exercice !== undefined ? step.temps_repos_exercice : (exoData.temps_repos_exercice || 0),
+        //series: step.series !== undefined ? step.series : (exoData.series || 1),
+        //repetitions: step.repetitions !== undefined ? step.repetitions : (exoData.repetitions || 0),
+        //temps_series: step.temps_series !== undefined ? step.temps_series : (exoData.temps_series || 0),
+        //temps_par_repetition: step.temps_par_repetition !== undefined ? step.temps_par_repetition : (exoData.temps_par_repetition || 3),
+        //temps_repos_series: step.temps_repos_series !== undefined ? step.temps_repos_series : (exoData.temps_repos_series || 0),
+        //temps_repos_exercice: step.temps_repos_exercice !== undefined ? step.temps_repos_exercice : (exoData.temps_repos_exercice || 0),
         
         // Type d'exercice
-        exerciceType: step.exerciceType || exoData.exerciceType || "repetitions",
+        //exerciceType: step.exerciceType || exoData.exerciceType || "repetitions",
         
         // Changement de côté
-        changement_cote: step.changement_cote !== undefined ? step.changement_cote : (exoData.changement_cote || false),
+        //changement_cote: step.changement_cote !== undefined ? step.changement_cote : (exoData.changement_cote || false),
       };
-      
-      // Stocker l'exercice enrichi avec son ID comme clé
-      exercicesEnrichis[exoId] = exerciceEnrichi;
+      //console.log("exerciceEnrichi :", exerciceEnrichi)
+      // Stocker l'exercice enrichi avec son identifiant approprié
+      exercicesEnrichis[exerciceId] = exerciceEnrichi;
     }
   }
   
   // Parcourir toute la structure pour préparer tous les exercices
-  structure.forEach((step, index) => {
-    preparerExerciceRecursif(step, [index]);
+  structure.forEach((step) => {
+    preparerExerciceRecursif(step);
   });
   
   return exercicesEnrichis;
@@ -168,7 +183,7 @@ function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, n
     etapes.push(
       ...genererEtapesDepuisStructure(
         contenu,
-        Object.values(exercicesEnrichis), // Convertir le dictionnaire en tableau
+        Object.values(exercicesEnrichis), // Convertir l'objet en array
         stepIndex,
         0, // stepInBlocIndex
         step.intro_bloc,//isBlocWithIntro
@@ -190,6 +205,7 @@ function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, n
       exercicesEnrichis,
       blocRepsIndex,
       999,
+      0, // nextStepRepsIndex
       infosDejaDiffusees
     );
     etapes.push(...reposEtapes);
@@ -205,10 +221,23 @@ function traiterExercice(step, structure, exercicesEnrichis, stepIndex, stepInBl
   const etapes = [];
   const exoId = step.id;
   
-  // Récupérer l'exercice enrichi (déjà préparé avec toutes ses données)
-  const exerciceEnrichi = exercicesEnrichis.find(e => e.id === exoId);
+  // Récupérer l'exercice enrichi en 2 étapes : UID puis ID de base
+  let exerciceEnrichi = null;
+  //console.log("step ids :", step.id, step._uid)
+  
+  // Étape 1 : Chercher par UID si disponible
+  if (step._uid) {
+    exerciceEnrichi = exercicesEnrichis.find(e => e.exerciceId === step._uid);
+  }
+  
+  // Étape 2 : Fallback sur l'ID de base si pas trouvé par UID
   if (!exerciceEnrichi) {
-    console.warn(`Exercice ${exoId} non trouvé dans les exercices enrichis`);
+    exerciceEnrichi = exercicesEnrichis.find(e => e.id === exoId);
+  }
+  
+  //console.log("exerciceEnrichi :", exerciceEnrichi)
+  if (!exerciceEnrichi) {
+    console.warn(`Exercice ${step._uid || exoId} non trouvé dans les exercices enrichis`);
     return etapes;
   }
 
@@ -357,7 +386,7 @@ function genererSeries(step, stepData, base, nbSeries, exoId, infosDejaDiffusees
 
     // Ajouter repos entre séries (sauf dernière série)
     if (s < nbSeries - 1 && !noRepos) {
-      etapes.push(genererReposEntreSeries(step, base, s, nbSeries));
+      etapes.push(genererReposEntreSeries(step, base, s, nbSeries, infosDejaDiffusees));
     }
   }
   return etapes;
@@ -459,7 +488,7 @@ function genererSerieNormale(step, stepData, base, serieIndex, nbSeries, duree, 
 /**
  * Génère un repos entre séries
  */
-function genererReposEntreSeries(step, base, serieIndex, nbSeries) {
+function genererReposEntreSeries(step, base, serieIndex, nbSeries, infosDejaDiffusees) {
   const isSerieReps = step.repetitions && step.series;
   const messages = isSerieReps
     ? nbSeries - serieIndex === 2
@@ -468,7 +497,12 @@ function genererReposEntreSeries(step, base, serieIndex, nbSeries) {
       ? "repos.derniere_serie"
       : "repos.serie_suivante"
     : "repos.serie_suivante";
+  
+  // Utiliser les données de base pour les messages vocaux
+  const stepData = base.exo;
+  const exoId = base.id;
   const messagesComplets = formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees);
+  
   return {
     ...base,
     type: "repos",
@@ -496,8 +530,20 @@ function genererReposApresEtape(duree, nextStep, exercicesEnrichis, blocRepsInde
     }
     
     // Récupérer l'exercice enrichi
-    const nextExo = nextStepToProcess ? exercicesEnrichis.find(e => e.id === nextStepToProcess.id) || {} : null;
-    console.log("nextExo :", nextExo)
+    // Chercher d'abord par UID, puis par ID de base
+    let nextExo = null;
+    if (nextStepToProcess) {
+      if (nextStepToProcess._uid) {
+        // Chercher par UID en priorité
+        nextExo = exercicesEnrichis.find(e => e.exerciceId === nextStepToProcess._uid);
+      }
+      
+      // Fallback sur l'ID de base si pas trouvé par UID
+      if (!nextExo) {
+        nextExo = exercicesEnrichis.find(e => e.id === nextStepToProcess.id) || {};
+      }
+    }
+    //console.log("nextExo :", nextExo)
     if (nextExo) {
       const nextExoData = {
         ...nextExo,

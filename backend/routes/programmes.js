@@ -649,6 +649,17 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Programme utilisateur non trouvé' });
     }
 
+    // Récupérer les informations du programme pour obtenir le type_programme
+    const { data: programme, error: programmeError } = await db
+      .from('programmes')
+      .select('type_programme, nb_jours, date_debut, date_fin')
+      .eq('id', id)
+      .single();
+    
+    if (programmeError || !programme) {
+      return res.status(404).json({ error: 'Programme non trouvé' });
+    }
+
     // Récupérer toutes les séances du programme (par jour)
     const { data: seancesProgramme, error: seancesError } = await db
       .from('programme_seances')
@@ -659,12 +670,11 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
     
     if (seancesError) throw seancesError;
 
-    // Récupérer les séances déjà complétées par l'utilisateur
+    // Récupérer les séances déjà complétées par l'utilisateur (programme + libres)
     const { data: sessionsCompletees, error: sessionsError } = await db
       .from('sessions_entrainement')
       .select('seance_id, jour_programme, date_fin, duree_totale, calories_brulees, satisfaction')
       .eq('utilisateur_id', req.user.id)
-      .eq('programme_id', parseInt(id))
       .eq('etat', 'terminee');
 
     if (sessionsError) throw sessionsError;
@@ -697,7 +707,7 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
           est_a_venir: dateSeance > new Date(),
           est_aujourd_hui: dateSeance.toDateString() === new Date().toDateString(),
           session_data: sessionCompletee ? {
-            date_completion: sessionCompletee.date_fin,
+            date_fin: sessionCompletee.date_fin,
             duree: sessionCompletee.duree_totale,
             calories: sessionCompletee.calories_brulees,
             satisfaction: sessionCompletee.satisfaction
@@ -716,6 +726,10 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
 
     res.json({
       date_debut: programmeUtilisateur.date_debut,
+      type_programme: programme.type_programme,
+      nb_jours: programme.nb_jours,
+      date_debut_programme: programme.date_debut,
+      date_fin_programme: programme.date_fin,
       seances: seancesAvecDates,
       progression: {
         total_seances: seancesAvecDates.length,
@@ -730,60 +744,53 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
   }
 });
 
-// Route pour marquer une séance comme complétée
+// Route pour marquer une séance comme complétée dans un programme
 router.post('/:id/seances/:seanceId/complete', verifyToken, async (req, res) => {
   const { id, seanceId } = req.params;
-  const { jour_programme, duree_totale, calories_brulees, niveau_effort, satisfaction, notes } = req.body;
+  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes } = req.body;
+  
+  console.log('Enregistrement séance programme - Paramètres reçus:', { id, seanceId, body: req.body, user: req.user.id });
   
   try {
-    // Vérifier que le programme appartient à l'utilisateur
-    const { data: programmeUtilisateur, error: programmeUtilisateurError } = await db
-      .from('utilisateur_programmes')
-      .select('*')
-      .eq('utilisateur_id', req.user.id)
-      .eq('programme_id', id)
-      .single();
-    
-    if (programmeUtilisateurError || !programmeUtilisateur) {
-      return res.status(404).json({ error: 'Programme utilisateur non trouvé' });
+    // Validation des paramètres
+    if (!id || !seanceId) {
+      return res.status(400).json({ error: 'ID du programme et ID de la séance requis' });
     }
 
-    // Vérifier que la séance appartient bien au programme
-    const { data: seanceProgramme, error: seanceProgrammeError } = await db
-      .from('programme_seances')
-      .select('*')
-      .eq('programme_id', id)
-      .eq('seance_id', seanceId)
-      .single();
+    // Préparer les données de session
+    const sessionData = {
+      utilisateur_id: req.user.id,
+      seance_id: seanceId,
+      programme_id: parseInt(id),
+      jour_programme: null,
+      nom_session: `Séance du programme`,
+      date_debut: new Date().toISOString(),
+      date_fin: new Date().toISOString(),
+      duree_totale: duree_totale || 0,
+      calories_brulees: calories_brulees || 0,
+      niveau_effort: niveau_effort || null,
+      satisfaction: satisfaction || null,
+      notes: notes || '',
+      etat: 'terminee'
+    };
 
-    if (seanceProgrammeError || !seanceProgramme) {
-      return res.status(404).json({ error: 'Séance non trouvée dans ce programme' });
-    }
+    console.log('Données de session à insérer:', sessionData);
 
     // Créer une session terminée
     const { data, error } = await db
       .from('sessions_entrainement')
-      .insert([{
-        utilisateur_id: req.user.id,
-        seance_id: seanceId,
-        programme_id: parseInt(id),
-        jour_programme: jour_programme || seanceProgramme.jour,
-        nom_session: `Séance ${jour_programme || seanceProgramme.jour}`,
-        date_debut: new Date().toISOString(),
-        date_fin: new Date().toISOString(),
-        duree_totale: duree_totale || 0,
-        calories_brulees: calories_brulees || 0,
-        niveau_effort: niveau_effort || null,
-        satisfaction: satisfaction || null,
-        notes: notes || '',
-        etat: 'terminee'
-      }])
+      .insert([sessionData])
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Erreur lors de l\'insertion de la session:', error);
+      throw error;
+    }
     
-    res.json({ 
+    console.log('Session créée avec succès:', data);
+    
+    res.json({
       message: 'Séance marquée comme complétée',
       session: data
     });
@@ -791,6 +798,75 @@ router.post('/:id/seances/:seanceId/complete', verifyToken, async (req, res) => 
   } catch (err) {
     console.error('Erreur lors de la complétion de la séance :', err);
     res.status(500).json({ error: 'Erreur lors de la complétion de la séance', details: err.message });
+  }
+});
+
+// Route pour rattacher une séance libre à un programme
+router.post('/:id/rattacher-seance-libre', verifyToken, async (req, res) => {
+  const { id } = req.params; // id du programme
+  const { seanceId, jourProgramme } = req.body;
+  
+  console.log('Rattachement séance libre - Paramètres reçus:', { id, seanceId, jourProgramme, user: req.user.id });
+  
+  try {
+    if (!seanceId || !jourProgramme) {
+      return res.status(400).json({ error: 'ID de la séance et jour du programme requis' });
+    }
+
+    // Vérifier que la séance existe dans le programme
+    const { data: seanceProgramme, error: seanceProgrammeError } = await db
+      .from('programme_seances')
+      .select('*')
+      .eq('programme_id', parseInt(id))
+      .eq('seance_id', seanceId)
+      .eq('jour', jourProgramme)
+      .single();
+
+    if (seanceProgrammeError || !seanceProgramme) {
+      return res.status(404).json({ error: 'Séance non trouvée dans ce programme pour ce jour' });
+    }
+
+    // Vérifier que l'utilisateur a fait cette séance en libre
+    const { data: sessionLibre, error: sessionLibreError } = await db
+      .from('sessions_entrainement')
+      .select('*')
+      .eq('utilisateur_id', req.user.id)
+      .eq('seance_id', seanceId)
+      .is('programme_id', null)
+      .eq('etat', 'terminee')
+      .single();
+
+    if (sessionLibreError || !sessionLibre) {
+      return res.status(404).json({ error: 'Séance libre non trouvée pour cet utilisateur' });
+    }
+
+    // Mettre à jour la session pour l'associer au programme
+    const { data: sessionUpdated, error: updateError } = await db
+      .from('sessions_entrainement')
+      .update({
+        programme_id: parseInt(id),
+        jour_programme: jourProgramme,
+        nom_session: `Séance du programme (rattachée)`
+      })
+      .eq('id', sessionLibre.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Erreur lors de la mise à jour de la session:', updateError);
+      throw updateError;
+    }
+
+    console.log('Session rattachée avec succès:', sessionUpdated);
+
+    res.json({
+      message: 'Séance libre rattachée au programme avec succès',
+      session: sessionUpdated
+    });
+
+  } catch (err) {
+    console.error('Erreur lors du rattachement de la séance libre :', err);
+    res.status(500).json({ error: 'Erreur lors du rattachement de la séance libre', details: err.message });
   }
 });
 

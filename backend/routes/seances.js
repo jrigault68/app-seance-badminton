@@ -480,4 +480,85 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+
+
+// Route pour enregistrer une séance terminée
+router.post('/:id/complete', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes } = req.body;
+  
+  console.log('Enregistrement séance - Paramètres reçus:', { id, body: req.body, user: req.user.id });
+  
+  try {
+    // Validation des paramètres
+    if (!id) {
+      return res.status(400).json({ error: 'ID de la séance requis' });
+    }
+
+    // Vérifier que la séance existe
+    const { data: seance, error: seanceError } = await supabase
+      .from('seances')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (seanceError) {
+      console.error('Erreur lors de la vérification de la séance:', seanceError);
+      return res.status(500).json({ error: 'Erreur lors de la vérification de la séance' });
+    }
+
+    if (!seance) {
+      console.log('Séance non trouvée:', { seance_id: id });
+      return res.status(404).json({ error: 'Séance non trouvée' });
+    }
+
+    // Permettre plusieurs sessions pour la même séance
+    // (suppression de la vérification de session existante)
+
+    // Préparer les données de session
+    const sessionData = {
+      utilisateur_id: req.user.id,
+      seance_id: id,
+      programme_id: null,
+      jour_programme: null,
+      nom_session: seance.nom,
+      date_debut: new Date().toISOString(),
+      date_fin: new Date().toISOString(),
+      duree_totale: duree_totale || 0,
+      calories_brulees: calories_brulees || 0,
+      niveau_effort: niveau_effort || null,
+      satisfaction: satisfaction || null,
+      notes: notes || '',
+      etat: 'terminee'
+    };
+
+    console.log('Données de session à insérer:', sessionData);
+
+    // Créer une session terminée
+    const { data: sessionCreated, error: sessionError } = await supabase
+      .from('sessions_entrainement')
+      .insert([sessionData])
+      .select()
+      .single();
+    
+    if (sessionError) {
+      console.error('Erreur lors de l\'insertion de la session:', sessionError);
+      throw sessionError;
+    }
+    
+    console.log('Session créée avec succès:', sessionCreated);
+    
+    res.json({ 
+      message: 'Séance enregistrée avec succès',
+      session: sessionCreated
+    });
+
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement de la séance :', err);
+    res.status(500).json({ error: 'Erreur lors de l\'enregistrement de la séance', details: err.message });
+  }
+});
+
+
+
 module.exports = router;

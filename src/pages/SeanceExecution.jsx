@@ -71,12 +71,14 @@ export default function SeanceExecution() {
     );
   }
 
-  const handleMarquerComplete = async (programmeId, seanceId, sessionData) => {
+  const handleMarquerComplete = async (seanceId, sessionData, isUpdate = false) => {
     try {
-      await programmeService.marquerSeanceComplete(programmeId, seanceId, sessionData);
-      console.log('Séance marquée comme terminée avec succès');
+      console.log('📤 Enregistrement de séance:', { seanceId, sessionData, isUpdate });
+      const result = await SeanceService.enregistrerSeance(seanceId, sessionData, isUpdate);
+      console.log('✅ Séance enregistrée:', result);
+      return result;
     } catch (error) {
-      console.error('Erreur lors de la marque comme terminée:', error);
+      console.error('❌ Erreur lors de l\'enregistrement:', error);
       throw error;
     }
   };

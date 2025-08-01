@@ -65,74 +65,34 @@ class SeanceService {
     }
   }
 
-  // Créer une nouvelle séance (nécessite authentification)
-  static async createSeance(seanceData, token) {
+  // Enregistrer une séance terminée
+  static async enregistrerSeance(seanceId, sessionData = {}, isUpdate = false) {
     try {
-      const response = await fetch(`${API_BASE_URL}/seances`, {
-        method: 'POST',
+      console.log('📤 Enregistrement de séance:', { seanceId, sessionData, isUpdate });
+      
+      const url = isUpdate 
+        ? `${API_BASE_URL}/sessions/${seanceId}/update`
+        : `${API_BASE_URL}/seances/${seanceId}/complete`;
+      
+      const response = await fetch(url, {
+        method: isUpdate ? 'PUT' : 'POST',
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(seanceData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Erreur lors de la création de la séance:', error);
-      throw error;
-    }
-  }
-
-  // Créer une séance personnalisée
-  static async createSeancePersonnalisee(seanceData, token) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/seances/personnalisees`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(seanceData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Erreur lors de la création de la séance personnalisée:', error);
-      throw error;
-    }
-  }
-
-  // Démarrer une session d'entraînement
-  static async startSession(sessionData, token) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sessions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(sessionData)
       });
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      return data;
+      const result = await response.json();
+      console.log('✅ Séance enregistrée avec succès:', result);
+      return result;
     } catch (error) {
-      console.error('Erreur lors du démarrage de la session:', error);
+      console.error('❌ Erreur lors de l\'enregistrement:', error);
       throw error;
     }
   }

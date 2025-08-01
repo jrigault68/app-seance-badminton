@@ -33,7 +33,7 @@ export default function ExerciceHelpDialog({ open, onClose, exercice, modifiedDa
   // Fonction pour fusionner les données modifiées avec les données de base
   const getDisplayData = () => {
     if (!details) return null;
-
+console.log("modifiedData :", modifiedData)
     // Si on a des données modifiées, on les fusionne avec les données de base
     if (modifiedData) {
       return {
@@ -43,20 +43,20 @@ export default function ExerciceHelpDialog({ open, onClose, exercice, modifiedDa
         nom: modifiedData.nom !== undefined 
           ? modifiedData.nom 
           : details.nom,
-        description: modifiedData.description && modifiedData.description.trim() !== "" 
+        description: modifiedData.description !== undefined 
           ? modifiedData.description 
           : details.description,
-        position_depart: modifiedData.position_depart && modifiedData.position_depart.trim() !== "" 
+        position_depart: modifiedData.position_depart !== undefined 
           ? modifiedData.position_depart 
           : details.position_depart,
 
-        conseils: modifiedData.conseils && modifiedData.conseils.length > 0 
+        conseils: modifiedData.conseils !== undefined 
           ? modifiedData.conseils 
           : details.conseils,
-        erreurs: modifiedData.erreurs && modifiedData.erreurs.length > 0 
+        erreurs: modifiedData.erreurs !== undefined 
           ? modifiedData.erreurs 
           : details.erreurs,
-        focus_zone: modifiedData.focus_zone && modifiedData.focus_zone.length > 0 
+        focus_zone: modifiedData.focus_zone !== undefined 
           ? modifiedData.focus_zone 
           : details.focus_zone,
       };

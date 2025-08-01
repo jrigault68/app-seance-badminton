@@ -12,6 +12,8 @@ export default function Accueil() {
   useEffect(() => {
     if (user) {
       navigate("/profil");
+    }else {
+      navigate("/login");
     }
   }, [user, navigate]);
 

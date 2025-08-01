@@ -246,6 +246,8 @@ class ProgrammeService {
   // Marquer une séance comme complétée
   static async marquerSeanceComplete(programmeId, seanceId, sessionData = {}) {
     try {
+      console.log('Tentative de marquage de séance:', { programmeId, seanceId, sessionData });
+      
       const response = await fetch(`${API_BASE_URL}/programmes/${programmeId}/seances/${seanceId}/complete`, {
         method: 'POST',
         credentials: "include", // pour envoyer le cookie HttpOnly
@@ -255,11 +257,17 @@ class ProgrammeService {
         body: JSON.stringify(sessionData)
       });
 
+      console.log('Réponse du serveur:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error('Erreur lors de la complétion de la séance');
+        const errorText = await response.text();
+        console.error('Erreur serveur:', errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('Séance marquée avec succès:', result);
+      return result;
     } catch (error) {
       console.error('Erreur ProgrammeService.marquerSeanceComplete:', error);
       throw error;
@@ -306,6 +314,31 @@ class ProgrammeService {
       return await response.json();
     } catch (error) {
       console.error('Erreur ProgrammeService.debugSessions:', error);
+      throw error;
+    }
+  }
+
+  // Rattacher une séance libre à un programme
+  static async rattacherSeanceLibre(programmeId, seanceId, jourProgramme) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/programmes/${programmeId}/rattacher-seance-libre`, {
+        method: 'POST',
+        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ seanceId, jourProgramme })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Erreur lors du rattachement de la séance libre:', error);
       throw error;
     }
   }
