@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { Home, Dumbbell, User, LogIn, Calendar, Menu, X, ChevronLeft, ChevronRight, LogOut, Activity } from "lucide-react";
+import { Home, Dumbbell, User, LogIn, Calendar, Menu, X, ChevronLeft, ChevronRight, LogOut, Activity, Users } from "lucide-react";
 
 // Palette principale
 const COLORS = {
@@ -166,19 +166,34 @@ export default function Sidebar({ logoZoneClass = 'py-4 select-none', logoSizeCl
         {user ? (
           <>
             {user.is_admin && (
-              <button
-                onClick={() => { navigate('/admin-exercices'); setOpen(false); }}
-                className={`flex items-center w-full mt-2 py-3 mb-1 rounded-l-full transition-all duration-200 text-base font-medium text-blue-400 hover:bg-blue-900/60 focus:outline-none pl-4 justify-start leading-none`}
-                title="Admin"
-              >
-                <span className="w-7 min-w-7 flex justify-center"><User size={22} /></span>
-                <span
-                  className={`transition-all duration-300 overflow-hidden whitespace-nowrap min-w-0 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[180px] opacity-100 ml-3'}`}
-                  style={{ display: 'inline-block' }}
+              <>
+                <button
+                  onClick={() => { navigate('/admin-exercices'); setOpen(false); }}
+                  className={`flex items-center w-full mt-2 py-3 mb-1 rounded-l-full transition-all duration-200 text-base font-medium text-blue-400 hover:bg-blue-900/60 focus:outline-none pl-4 justify-start leading-none`}
+                  title="Admin Exercices"
                 >
-                  Admin
-                </span>
-              </button>
+                  <span className="w-7 min-w-7 flex justify-center"><Activity size={22} /></span>
+                  <span
+                    className={`transition-all duration-300 overflow-hidden whitespace-nowrap min-w-0 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[180px] opacity-100 ml-3'}`}
+                    style={{ display: 'inline-block' }}
+                  >
+                    Admin Exercices
+                  </span>
+                </button>
+                <button
+                  onClick={() => { navigate('/admin-utilisateurs'); setOpen(false); }}
+                  className={`flex items-center w-full py-3 mb-1 rounded-l-full transition-all duration-200 text-base font-medium text-purple-400 hover:bg-purple-900/60 focus:outline-none pl-4 justify-start leading-none`}
+                  title="Admin Utilisateurs"
+                >
+                  <span className="w-7 min-w-7 flex justify-center"><Users size={22} /></span>
+                  <span
+                    className={`transition-all duration-300 overflow-hidden whitespace-nowrap min-w-0 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[180px] opacity-100 ml-3'}`}
+                    style={{ display: 'inline-block' }}
+                  >
+                    Admin Utilisateurs
+                  </span>
+                </button>
+              </>
             )}
             {/* Bouton Déconnexion comme item de menu en bas */}
             <button

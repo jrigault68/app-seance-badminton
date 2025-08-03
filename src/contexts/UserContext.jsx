@@ -17,6 +17,27 @@ export function UserProvider({ children }) {
       .finally(() => setReady(true));
   }, []);
 
+  // Mettre à jour last_connection périodiquement quand l'utilisateur est connecté
+  useEffect(() => {
+    if (!user) return;
+
+    const updateLastConnection = async () => {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/auth/profil`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+      } catch (error) {
+        console.warn('Erreur lors de la mise à jour de last_connection:', error);
+      }
+    };
+
+    // Mettre à jour toutes les 30 minutes
+    const interval = setInterval(updateLastConnection, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
   const logout = async () => {
     await apiLogout();
     setUser(null);

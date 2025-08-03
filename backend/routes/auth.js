@@ -48,6 +48,12 @@ router.get(
         .single();
       if (error || !user) throw new Error("Utilisateur Google non trouvé ou erreur Supabase");
 
+      // Mettre à jour la dernière connexion
+      await supabase
+        .from("utilisateurs")
+        .update({ last_connection: new Date().toISOString() })
+        .eq("id", user.id);
+
       const token = jwt.sign({ id: user.id, is_admin: user.is_admin }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
@@ -122,6 +128,12 @@ router.post("/login", async (req, res) => {
   const match = await bcrypt.compare(password, user.password_hash);
   if (!match) return res.status(401).json({ message: "Mot de passe invalide" });
 
+  // Mettre à jour la dernière connexion
+  await supabase
+    .from("utilisateurs")
+    .update({ last_connection: new Date().toISOString() })
+    .eq("id", user.id);
+
   const token = jwt.sign({ id: user.id, is_admin: user.is_admin }, process.env.JWT_SECRET, { expiresIn: "7d" }); // <-- inclure is_admin
   const redirectBase = decodeURIComponent(req.query.redirect || process.env.FRONTEND_URL || "https://coach.csbw.fr");
 
@@ -145,9 +157,16 @@ const verifyToken = require("../middleware/auth");
 router.get("/profil", verifyToken, async (req, res) => {
 	console.log("🍪 Cookies:", req.cookies);
 	console.log('profil', req.user?.id);
+  
+  // Mettre à jour la dernière connexion à chaque vérification de profil
+  await supabase
+    .from("utilisateurs")
+    .update({ last_connection: new Date().toISOString() })
+    .eq("id", req.user.id);
+
   const { data, error } = await supabase
     .from("utilisateurs")
-    .select("id, email, nom, is_admin, created_at")
+    .select("id, email, nom, is_admin, created_at, last_connection")
     .eq("id", req.user.id)
     .single();
 

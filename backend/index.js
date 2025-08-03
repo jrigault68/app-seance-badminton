@@ -107,6 +107,12 @@ app.use("/categories", require("./routes/categories"));
 app.use("/types", require("./routes/types"));
 
 // =====================================================
+// ROUTES D'ADMINISTRATION
+// =====================================================
+
+app.use("/admin", require("./routes/admin"));
+
+// =====================================================
 // ROUTES D'AUTHENTIFICATION
 // =====================================================
 

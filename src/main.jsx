@@ -14,6 +14,8 @@ import SeanceExecution from "./pages/SeanceExecution";
 import Programmes from "./pages/Programmes";
 import ProgrammeDetail from "./pages/ProgrammeDetail";
 import AdminExercices from "./pages/AdminExercices";
+import AdminUtilisateurs from "./pages/AdminUtilisateurs";
+import AdminUtilisateurDetail from "./pages/AdminUtilisateurDetail";
 import Exercices from "./pages/Exercices";
 import ExerciceDetail from "./pages/ExerciceDetail";
 import DynamicTitle from "./components/DynamicTitle";
@@ -88,6 +90,16 @@ const routes = [
   {
     path: "/admin-exercices",
     element: <AdminExercices />,
+    requireAuth: true,
+  },
+  {
+    path: "/admin-utilisateurs",
+    element: <AdminUtilisateurs />,
+    requireAuth: true,
+  },
+  {
+    path: "/admin-utilisateurs/:id",
+    element: <AdminUtilisateurDetail />,
     requireAuth: true,
   },
   {
