@@ -308,4 +308,90 @@ router.get("/utilisateurs/:id", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// Route pour récupérer les dernières séances avec notes et commentaires
+router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0, utilisateur_id } = req.query;
+
+    let query = supabase
+      .from("sessions_entrainement")
+      .select(`
+        id,
+        date_debut,
+        date_fin,
+        duree_totale,
+        calories_brulees,
+        niveau_effort,
+        satisfaction,
+        notes,
+        etat,
+        utilisateur_id,
+        seances!inner(
+          id,
+          nom,
+          description,
+          niveau_id,
+          categories!inner(nom, couleur)
+        ),
+        utilisateurs!inner(
+          id,
+          nom,
+          pseudo,
+          email
+        )
+      `)
+      .eq("etat", "terminee")
+      .not("notes", "is", null)
+      .order("date_fin", { ascending: false });
+
+    // Filtrer par utilisateur si spécifié
+    if (utilisateur_id) {
+      query = query.eq("utilisateur_id", utilisateur_id);
+    }
+
+    // Pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: sessions, error } = await query;
+
+    if (error) {
+      console.error("Erreur lors de la récupération des séances récentes:", error);
+      return res.status(500).json({ message: "Erreur lors de la récupération des séances récentes" });
+    }
+
+    // Formater les données pour l'affichage
+    const seancesFormatees = sessions.map(session => ({
+      id: session.id,
+      date_fin: session.date_fin,
+      duree_minutes: Math.round((session.duree_totale || 0) / 60),
+      calories: session.calories_brulees || 0,
+      niveau_effort: session.niveau_effort,
+      satisfaction: session.satisfaction,
+      notes: session.notes,
+      seance: {
+        nom: session.seances.nom,
+        description: session.seances.description,
+        categorie: session.seances.categories.nom,
+        couleur_categorie: session.seances.categories.couleur
+      },
+      utilisateur: {
+        nom: session.utilisateurs.nom || session.utilisateurs.pseudo || "Utilisateur",
+        email: session.utilisateurs.email
+      }
+    }));
+
+    res.json({
+      seances: seancesFormatees,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        total: seancesFormatees.length
+      }
+    });
+  } catch (error) {
+    console.error("Erreur dans /admin/seances-recentes:", error);
+    res.status(500).json({ message: "Erreur serveur interne" });
+  }
+});
+
 module.exports = router; 

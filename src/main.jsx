@@ -16,6 +16,7 @@ import ProgrammeDetail from "./pages/ProgrammeDetail";
 import AdminExercices from "./pages/AdminExercices";
 import AdminUtilisateurs from "./pages/AdminUtilisateurs";
 import AdminUtilisateurDetail from "./pages/AdminUtilisateurDetail";
+import AdminSeances from "./pages/AdminSeances";
 import Exercices from "./pages/Exercices";
 import ExerciceDetail from "./pages/ExerciceDetail";
 import DynamicTitle from "./components/DynamicTitle";
@@ -100,6 +101,11 @@ const routes = [
   {
     path: "/admin-utilisateurs/:id",
     element: <AdminUtilisateurDetail />,
+    requireAuth: true,
+  },
+  {
+    path: "/admin-seances",
+    element: <AdminSeances />,
     requireAuth: true,
   },
   {

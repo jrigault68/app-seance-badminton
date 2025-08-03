@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { Home, Dumbbell, User, LogIn, Calendar, Menu, X, ChevronLeft, ChevronRight, LogOut, Activity, Users } from "lucide-react";
+import { Home, Dumbbell, User, LogIn, Calendar, Menu, X, ChevronLeft, ChevronRight, LogOut, Activity, Users, MessageSquare } from "lucide-react";
 
 // Palette principale
 const COLORS = {
@@ -191,6 +191,19 @@ export default function Sidebar({ logoZoneClass = 'py-4 select-none', logoSizeCl
                     style={{ display: 'inline-block' }}
                   >
                     Admin Utilisateurs
+                  </span>
+                </button>
+                <button
+                  onClick={() => { navigate('/admin-seances'); setOpen(false); }}
+                  className={`flex items-center w-full py-3 mb-1 rounded-l-full transition-all duration-200 text-base font-medium text-green-400 hover:bg-green-900/60 focus:outline-none pl-4 justify-start leading-none`}
+                  title="Admin Séances"
+                >
+                  <span className="w-7 min-w-7 flex justify-center"><MessageSquare size={22} /></span>
+                  <span
+                    className={`transition-all duration-300 overflow-hidden whitespace-nowrap min-w-0 ${collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[180px] opacity-100 ml-3'}`}
+                    style={{ display: 'inline-block' }}
+                  >
+                    Admin Séances
                   </span>
                 </button>
               </>

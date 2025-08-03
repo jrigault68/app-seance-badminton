@@ -5,14 +5,7 @@ class AdminService {
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-      // Ajout d'un tri secondaire par défaut (ex: par nom si égalité sur sortBy)
-      if (sortBy) {
         params.append('sortBy', sortBy);
-        // Ajoute un tri secondaire par 'nom' si le tri principal n'est pas déjà 'nom'
-        if (sortBy !== 'last_session') {
-          params.append('sortBy', 'last_session');
-        }
-      }
       params.append('limit', limit);
       
       const response = await fetch(`${apiUrl}/admin/utilisateurs?${params.toString()}`, {
@@ -52,6 +45,33 @@ class AdminService {
       return await response.json();
     } catch (error) {
       console.error('Erreur AdminService.getUtilisateurDetails:', error);
+      throw error;
+    }
+  }
+
+  async getSeancesRecentes(limit = 20, offset = 0, utilisateur_id = null) {
+    try {
+      const params = new URLSearchParams();
+      params.append('limit', limit);
+      params.append('offset', offset);
+      if (utilisateur_id) {
+        params.append('utilisateur_id', utilisateur_id);
+      }
+      
+      const response = await fetch(`${apiUrl}/admin/seances-recentes?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Accès réservé aux administrateurs");
+        }
+        throw new Error("Erreur lors du chargement des séances récentes");
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur AdminService.getSeancesRecentes:', error);
       throw error;
     }
   }
