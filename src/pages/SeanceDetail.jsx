@@ -311,7 +311,7 @@ export default function SeanceDetail() {
   // Blocage navigation interne (optionnel, à ajouter si besoin)
 
   // UI
-  if (loading) return <Layout pageTitle="Détail de la séance"><div className="text-center text-gray-400 py-10">Chargement...</div></Layout>;
+  if (loading) return <Layout pageTitle="Détail de la séance"><div className="text-center text-gray-400 py-10" aria-label="Chargement en cours">...</div></Layout>;
   if (error) return <Layout pageTitle="Détail de la séance"><div className="text-center text-red-400 py-10">{error}</div></Layout>;
 
   // Mode édition ou création
