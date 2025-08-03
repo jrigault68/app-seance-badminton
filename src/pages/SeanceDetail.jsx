@@ -27,7 +27,7 @@ export default function SeanceDetail() {
   const [exercices, setExercices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [form, setForm] = useState({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] });
+  const [form, setForm] = useState({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [], type_seance: "exercice" });
   const [niveaux, setNiveaux] = useState([]);
   const [categories, setCategories] = useState([]);
   const [types, setTypes] = useState([]);
@@ -58,13 +58,14 @@ export default function SeanceDetail() {
     if (isNew) {
       setLoading(false);
       setSeance(null);
-      setForm({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] });
-      initialFormRef.current = { nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [] };
+      setForm({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [], type_seance: "exercice" });
+      initialFormRef.current = { nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [], type_seance: "exercice" };
       return;
     }
     setLoading(true);
     SeanceService.getSeanceById(id)
       .then(data => {
+        console.log("Données de la séance récupérées:", data);
         setSeance(data);
         setForm({
           nom: data.nom || "",
@@ -73,7 +74,8 @@ export default function SeanceDetail() {
           type_id: data.type_id ? String(data.type_id) : "",
           categorie_id: data.categorie_id ? String(data.categorie_id) : "",
           notes: data.notes || "",
-          structure: data.structure || []
+          structure: data.structure || [],
+          type_seance: data.type_seance || "exercice"
         });
         initialFormRef.current = {
           nom: data.nom || "",
@@ -82,7 +84,8 @@ export default function SeanceDetail() {
           type_id: data.type_id ? String(data.type_id) : "",
           categorie_id: data.categorie_id ? String(data.categorie_id) : "",
           notes: data.notes || "",
-          structure: data.structure || []
+          structure: data.structure || [],
+          type_seance: data.type_seance || "exercice"
         };
         
       })
@@ -327,9 +330,39 @@ export default function SeanceDetail() {
           <div className="w-full max-w-4xl space-y-8 mx-auto">
             <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="bg-black/40 rounded-2xl p-6 border border-gray-700 space-y-6 mt-8">
               {error && <div className="text-red-400 text-center mb-2">{error}</div>}
+              {/* Sélecteur de type de séance */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2 text-white">Type de séance</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type_seance"
+                      value="exercice"
+                      checked={form.type_seance === "exercice"}
+                      onChange={handleChange}
+                      className="mr-2"
+                    />
+                    <span className="text-white">Séance d'exercices</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type_seance"
+                      value="instruction"
+                      checked={form.type_seance === "instruction"}
+                      onChange={handleChange}
+                      className="mr-2"
+                    />
+                    <span className="text-white">Instruction simple</span>
+                  </label>
+                </div>
+              </div>
               <FloatingLabelInput label="Nom" name="nom" value={form.nom} onChange={handleChange} />
               <FloatingLabelInput label="Description" name="description" value={form.description} onChange={handleChange} as="textarea" rows={3} />
-              <FloatingLabelInput label="Focus ou état d'esprit" name="notes" value={form.notes} onChange={handleChange} as="textarea" rows={2} placeholder="Ex: Se concentrer sur la technique, respirer profondément, rester positif..." />
+              {form.type_seance === "exercice" && (
+                <FloatingLabelInput label="Focus ou état d'esprit" name="notes" value={form.notes} onChange={handleChange} as="textarea" rows={2} placeholder="Ex: Se concentrer sur la technique, respirer profondément, rester positif..." />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FloatingLabelInput label="Niveau" name="niveau_id" value={form.niveau_id} onChange={handleChange} as="select">
                   <option value="" className="bg-gray-700 text-gray-400">Sélectionner un niveau</option>
@@ -371,6 +404,8 @@ export default function SeanceDetail() {
 
   // Mode détail (lecture seule)
   const hasPlayableStructure = Array.isArray(seance?.structure) && seance.structure.length > 0;
+  const isInstruction = seance?.type_seance === "instruction";
+  console.log("Seance type_seance:", seance?.type_seance, "isInstruction:", isInstruction);
 
   // Utiliser le temps total depuis la BDD, avec fallback vers le calcul si pas disponible
   const totalSeconds = seance?.duree_estimee || 0;
@@ -384,7 +419,7 @@ export default function SeanceDetail() {
       backLabel="Retour à la liste des séances"
       onBackClick={handleBackClick}
       pageActions={[
-        hasPlayableStructure && {
+        hasPlayableStructure && !isInstruction && {
           icon: <Play size={20} className="text-green-400" />,
           label: 'Démarrer la séance',
           onClick: () => {
@@ -397,7 +432,7 @@ export default function SeanceDetail() {
           disabled: !seance
         },
         isCreatorOrAdmin && { icon: <Pencil size={20} className="text-white" />, label: 'Modifier', onClick: () => setMode('edit') },
-        isCreatorOrAdmin && { 
+        isCreatorOrAdmin && !isInstruction && { 
           icon: <Layers size={20} className="text-white" />, 
           label: structureEditMode ? 'Terminer l\'édition' : 'Éditer la structure', 
           onClick: () => setStructureEditMode(!structureEditMode) 
@@ -425,6 +460,14 @@ export default function SeanceDetail() {
             <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Type de la séance">
               <Layers size={14} className="inline-block text-gray-300 mr-1" />
               {types.find(t => t.id === Number(seance.type_id))?.nom || <span className="italic text-gray-500">Type inconnu</span>}
+            </span>
+            <span className={
+              "rounded-full px-4 py-1 text-xs font-semibold border flex items-center gap-1 " +
+              (seance.type_seance === "instruction"
+                ? "bg-orange-900/80 border-orange-700 text-orange-300"
+                : "bg-blue-900/80 border-blue-700 text-blue-300")
+            } title={seance.type_seance === "instruction" ? "Séance d'instruction" : "Séance d'exercices"}>
+              {seance.type_seance === "instruction" ? "Instruction" : "Exercices"}
             </span>
             <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Auteur de la séance">
               <User size={14} className="inline-block text-gray-300 mr-1" />
@@ -464,59 +507,63 @@ export default function SeanceDetail() {
               </p>
             </div>
           )}
-          {/* Déroulé de la séance */}
+          {/* Contenu de la séance */}
           <div className="mt-10">
-            <h3 className="text-lg font-semibold text-orange-300 mb-4 flex items-center gap-4">
-              Déroulé de la séance
-              <span className="text-xs text-gray-300 bg-black/40 px-3 py-1 rounded-lg border border-gray-700 font-normal">{totalMinutes} min</span>
-            </h3>
-            
-            {structureEditMode ? (
-              <div className="bg-black/40 rounded-2xl p-6 border border-gray-700">
-                <div className="text-center mb-4">
-                  <h4 className="text-lg font-semibold text-orange-300">Édition de la structure</h4>
-                  <p className="text-gray-400 text-sm">Modifiez la structure de votre séance en ajoutant, supprimant ou réorganisant les exercices et blocs</p>
-                </div>
-                <EditeurStructureSeance
-                  initialStructure={seance.structure || []}
-                  onSave={handleSaveStructure}
-                  mode="edit"
-                  isRoot={true}
-                  isSaving={saving}
-                />
-              </div>
-            ) : (
+            {!isInstruction && (
               <>
-                {isCreatorOrAdmin && (! seance.structure || seance.structure.length == 0) && (
-                  <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 text-blue-300">
-                      <Layers size={16} />
-                      <span className="text-sm font-medium">Vous pouvez éditer la structure de cette séance en cliquant sur "Éditer la structure" dans les actions de la page</span>
+                <h3 className="text-lg font-semibold text-orange-300 mb-4 flex items-center gap-4">
+                  Déroulé de la séance
+                  <span className="text-xs text-gray-300 bg-black/40 px-3 py-1 rounded-lg border border-gray-700 font-normal">{totalMinutes} min</span>
+                </h3>
+                
+                {structureEditMode ? (
+                  <div className="bg-black/40 rounded-2xl p-6 border border-gray-700">
+                    <div className="text-center mb-4">
+                      <h4 className="text-lg font-semibold text-orange-300">Édition de la structure</h4>
+                      <p className="text-gray-400 text-sm">Modifiez la structure de votre séance en ajoutant, supprimant ou réorganisant les exercices et blocs</p>
                     </div>
+                    <EditeurStructureSeance
+                      initialStructure={seance.structure || []}
+                      onSave={handleSaveStructure}
+                      mode="edit"
+                      isRoot={true}
+                      isSaving={saving}
+                    />
                   </div>
-                )}
-                <SeanceStructure structure={seance.structure} hideIcons tempsTotal={totalSeconds} />
-                {/* Affichage côte à côte de la structure brute et du déroulé généré (JSON) */}
-                {user?.is_admin && (<div className="flex flex-row gap-4 mt-8">
-                  <div style={{width: '50%', height: '100vh'}}>
-                    <h4 className="text-md font-semibold text-blue-300 mb-2">Structure brute (JSON)</h4>
-                    <pre
-                      style={{height: '100vh', width: '100%', overflow: 'auto'}}
-                      className="bg-black/60 text-xs text-yellow-200 rounded-lg p-4 border border-gray-700"
-                    >
-                      {JSON.stringify(seance.structure, null, 2)}
-                    </pre>
-                  </div>
-                  <div style={{width: '50%', height: '100vh'}}>
-                    <h4 className="text-md font-semibold text-green-300 mb-2">Déroulé généré (JSON)</h4>
-                    <pre
-                      style={{height: '100vh', width: '100%', overflow: 'auto'}}
-                      className="bg-black/60 text-xs text-green-200 rounded-lg p-4 border border-gray-700"
-                    >
-                      {JSON.stringify(genererEtapesDepuisStructure(seance.structure, exercices), null, 2)}
-                    </pre>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    {isCreatorOrAdmin && (! seance.structure || seance.structure.length == 0) && (
+                      <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 text-blue-300">
+                          <Layers size={16} />
+                          <span className="text-sm font-medium">Vous pouvez éditer la structure de cette séance en cliquant sur "Éditer la structure" dans les actions de la page</span>
+                        </div>
+                      </div>
+                    )}
+                    <SeanceStructure structure={seance.structure} hideIcons tempsTotal={totalSeconds} />
+                    {/* Affichage côte à côte de la structure brute et du déroulé généré (JSON) */}
+                    {user?.is_admin && (<div className="flex flex-row gap-4 mt-8">
+                      <div style={{width: '50%', height: '100vh'}}>
+                        <h4 className="text-md font-semibold text-blue-300 mb-2">Structure brute (JSON)</h4>
+                        <pre
+                          style={{height: '100vh', width: '100%', overflow: 'auto'}}
+                          className="bg-black/60 text-xs text-yellow-200 rounded-lg p-4 border border-gray-700"
+                        >
+                          {JSON.stringify(seance.structure, null, 2)}
+                        </pre>
+                      </div>
+                      <div style={{width: '50%', height: '100vh'}}>
+                        <h4 className="text-md font-semibold text-green-300 mb-2">Déroulé généré (JSON)</h4>
+                        <pre
+                          style={{height: '100vh', width: '100%', overflow: 'auto'}}
+                          className="bg-black/60 text-xs text-green-200 rounded-lg p-4 border border-gray-700"
+                        >
+                          {JSON.stringify(genererEtapesDepuisStructure(seance.structure, exercices), null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -546,7 +593,7 @@ export default function SeanceDetail() {
       )}
       
       {/* Bouton flottant pour lancer la séance */}
-      {hasPlayableStructure && mode === "detail" && !structureEditMode && (
+      {hasPlayableStructure && mode === "detail" && !structureEditMode && !isInstruction && (
         <button
           className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold shadow-lg text-lg z-50"
           onClick={() => {

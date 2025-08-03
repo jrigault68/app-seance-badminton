@@ -331,7 +331,12 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
           nom,
           description,
           niveau_id,
-          categories!inner(nom, couleur)
+          type_seance,
+          categorie_id,
+          categories(
+            nom,
+            couleur
+          )
         ),
         utilisateurs!inner(
           id,
@@ -340,9 +345,8 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
           email
         )
       `)
-      .eq("etat", "terminee")
-      .not("notes", "is", null)
-      .order("date_fin", { ascending: false });
+      .order("date_debut", { ascending: false })
+      .order("id", { ascending: false });
 
     // Filtrer par utilisateur si spécifié
     if (utilisateur_id) {
@@ -359,20 +363,52 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
       return res.status(500).json({ message: "Erreur lors de la récupération des séances récentes" });
     }
 
+    console.log(`Total des sessions récupérées: ${sessions.length}`);
+
+    // Debug: afficher les états des premières séances
+    console.log("États des séances récupérées:");
+    sessions.slice(0, 5).forEach((session, index) => {
+      console.log(`${index + 1}. Séance ${session.seances.nom}: etat = ${session.etat}, type = ${session.seances.type_seance}, categorie = ${session.seances.categories?.nom || 'Non catégorisée'}`);
+    });
+    
+    // Debug: compter les états
+    const etatsCount = sessions.reduce((acc, session) => {
+      acc[session.etat] = (acc[session.etat] || 0) + 1;
+      return acc;
+    }, {});
+    console.log("Comptage des états:", etatsCount);
+    
+    // Debug: afficher toutes les sessions skipped
+    const sessionsSkipped = sessions.filter(s => s.etat === 'skipped');
+    console.log(`Sessions skipped trouvées: ${sessionsSkipped.length}`);
+    sessionsSkipped.forEach((session, index) => {
+      console.log(`Skipped ${index + 1}: ${session.seances.nom} (ID: ${session.id}, type: ${session.seances.type_seance}, notes: ${session.notes ? 'oui' : 'non'})`);
+    });
+    
+    // Debug: afficher les types de séances
+    const typesSeances = sessions.reduce((acc, session) => {
+      acc[session.seances.type_seance] = (acc[session.seances.type_seance] || 0) + 1;
+      return acc;
+    }, {});
+    console.log("Types de séances:", typesSeances);
+
     // Formater les données pour l'affichage
     const seancesFormatees = sessions.map(session => ({
       id: session.id,
+      date_debut: session.date_debut,
       date_fin: session.date_fin,
       duree_minutes: Math.round((session.duree_totale || 0) / 60),
       calories: session.calories_brulees || 0,
       niveau_effort: session.niveau_effort,
       satisfaction: session.satisfaction,
       notes: session.notes,
+      etat: session.etat,
       seance: {
         nom: session.seances.nom,
         description: session.seances.description,
-        categorie: session.seances.categories.nom,
-        couleur_categorie: session.seances.categories.couleur
+        categorie: session.seances.categories?.nom || 'Non catégorisée',
+        couleur_categorie: session.seances.categories?.couleur || '#6B7280',
+        type_seance: session.seances.type_seance
       },
       utilisateur: {
         nom: session.utilisateurs.nom || session.utilisateurs.pseudo || "Utilisateur",

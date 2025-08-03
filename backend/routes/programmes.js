@@ -673,9 +673,9 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
     // Récupérer les séances déjà complétées par l'utilisateur (programme + libres)
     const { data: sessionsCompletees, error: sessionsError } = await db
       .from('sessions_entrainement')
-      .select('seance_id, jour_programme, date_fin, duree_totale, calories_brulees, satisfaction')
-      .eq('utilisateur_id', req.user.id)
-      .eq('etat', 'terminee');
+      .select('seance_id, jour_programme, date_fin, duree_totale, calories_brulees, satisfaction, etat')
+      .eq('utilisateur_id', req.user.id);
+      //.in('etat', ['terminee', 'skipped']);
 
     if (sessionsError) throw sessionsError;
 
@@ -694,8 +694,8 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
         dateSeance.setTime(dateSeance.getTime() + (joursAAjouter * 24 * 60 * 60 * 1000));
 
         // Vérifier si cette séance est déjà complétée
-        const estCompletee = seancesCompletees.includes(seance.seance_id);
         const sessionCompletee = sessionsCompletees.find(s => s.seance_id === seance.seance_id);
+        const estCompletee = !!sessionCompletee;
 
         const dateFormatted = dateSeance.toISOString().split('T')[0];
         
@@ -710,7 +710,8 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
             date_fin: sessionCompletee.date_fin,
             duree: sessionCompletee.duree_totale,
             calories: sessionCompletee.calories_brulees,
-            satisfaction: sessionCompletee.satisfaction
+            satisfaction: sessionCompletee.satisfaction,
+            etat: sessionCompletee.etat
           } : null
         });
       }

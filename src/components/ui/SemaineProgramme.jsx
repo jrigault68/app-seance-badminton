@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Play, CheckCircle, Clock, CalendarDays, ChevronDown, ChevronRight } from 'lucide-react';
+import { Play, CheckCircle, Clock, CalendarDays, ChevronDown, ChevronRight, CheckCircle2, XCircle, SkipForward } from 'lucide-react';
 import programmeService from '../../services/programmeService';
 import SeanceStructure from './SeanceStructure';
+import InstructionValidationDialog from './InstructionValidationDialog';
+import SeanceService from '../../services/seanceService';
 
 const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   const [seancesSemaine, setSeancesSemaine] = useState([]);
@@ -10,6 +12,9 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   const [programmeInfo, setProgrammeInfo] = useState(null);
   const [calendrierDataComplet, setCalendrierDataComplet] = useState(null);
   const [openSeances, setOpenSeances] = useState({});
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [selectedSeance, setSelectedSeance] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Charger les données étape par étape
   useEffect(() => {
@@ -218,8 +223,24 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   };
 
   const getStatusSeance = (seance) => {
-    if (seance.completed) return 'completed';
-    if (!seance.completed && seance.index_global === getProchaineSeanceIndex()) return 'next';
+    // Si la séance a une session (complétée), utiliser etat
+    if (seance.session_data) {
+      switch (seance.session_data.etat) {
+        case 'terminee':
+          return 'completed';
+        case 'skipped':
+          return 'skipped';
+        case 'en_cours':
+          return 'in_progress';
+        case 'interrompue':
+          return 'interrupted';
+        default:
+          return 'completed'; // Fallback pour les anciennes sessions
+      }
+    }
+    
+    // Si pas de session, vérifier si c'est la prochaine séance
+    if (seance.index_global === getProchaineSeanceIndex()) return 'next';
     return 'future';
   };
 
@@ -244,6 +265,64 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   const handleLancerSeance = (seance) => {
     if (seance && seance.id) {
       window.location.href = `/seances/${seance.id}/execution`;
+    }
+  };
+
+  const handleInstructionValidation = (seance) => {
+    setSelectedSeance(seance);
+    setShowValidationDialog(true);
+  };
+
+  const handleValidateInstruction = async (commentaire = '') => {
+    if (!selectedSeance) return;
+    
+    setIsValidating(true);
+    try {
+      const notes = commentaire || '';
+        
+      await SeanceService.enregistrerSeance(selectedSeance.id, {
+        etat: 'terminee',
+        date_debut: new Date().toISOString(),
+        date_fin: new Date().toISOString(),
+        duree: 0, // Pas de durée pour les instructions
+        notes: notes
+      });
+      
+      // Recharger les données
+      window.location.reload();
+    } catch (error) {
+      console.error('Erreur lors de la validation:', error);
+      alert('Erreur lors de la validation de l\'instruction');
+    } finally {
+      setIsValidating(false);
+      setShowValidationDialog(false);
+      setSelectedSeance(null);
+    }
+  };
+
+  const handleDeclineInstruction = async (commentaire = '') => {
+    if (!selectedSeance) return;
+    setIsValidating(true);
+    try {
+      const notes = commentaire || '';
+        
+      await SeanceService.enregistrerSeance(selectedSeance.id, {
+        etat: 'skipped',
+        date_debut: new Date().toISOString(),
+        date_fin: new Date().toISOString(),
+        duree: 0,
+        notes: notes
+      });
+      
+      // Recharger les données
+      window.location.reload();
+    } catch (error) {
+      console.error('Erreur lors du refus:', error);
+      alert('Erreur lors du refus de l\'instruction');
+    } finally {
+      setIsValidating(false);
+      setShowValidationDialog(false);
+      setSelectedSeance(null);
     }
   };
 
@@ -320,6 +399,7 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                 const status = getStatusSeance(seance);
                 const isProchaineSeance = !seance.completed && seance.index_global === getProchaineSeanceIndex();
                 const isOpen = openSeances[seance.id];
+                const isInstruction = seance.seance?.type_seance === "instruction";
                 
                 return (
                   <div
@@ -327,7 +407,7 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                     className={`rounded-lg border transition-all mb-3 ${
                       isProchaineSeance
                         ? 'bg-orange-500/20 border-orange-400/50'
-                        : status === 'completed' 
+                        : status === 'completed' || status === 'skipped'
                         ? 'bg-green-500/20 border-green-400/50' 
                         : status === 'next'
                         ? 'bg-blue-500/20 border-blue-400/50'
@@ -338,38 +418,48 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                     <div className="p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          {/* Bouton accordéon à gauche */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleSeance(seance.id);
-                            }}
-                            className={`p-1 ${isProchaineSeance ? 'hover:bg-orange-500/20' : 'hover:bg-gray-500/20'} rounded transition-colors`}
-                            title="Voir le contenu"
-                          >
-                            {isOpen ? (
-                              <ChevronDown className="w-4 h-4 text-white" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-white" />
-                            )}
-                          </button>
+                          {/* Bouton accordéon à gauche - seulement pour les exercices */}
+                          {!isInstruction && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSeance(seance.id);
+                              }}
+                              className={`p-1 ${isProchaineSeance ? 'hover:bg-orange-500/20' : 'hover:bg-gray-500/20'} rounded transition-colors`}
+                              title="Voir le contenu"
+                            >
+                              {isOpen ? (
+                                <ChevronDown className="w-4 h-4 text-white" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-white" />
+                              )}
+                            </button>
+                          )}
                           
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className={`text-sm font-medium text-white ${
-                                status === 'completed' ? 'line-through opacity-75' : ''
-                              }`}>
-                                {getJourLabel(jour.jour, jour.date_reelle)} : {seance.nom}
-                              </div>
-                              {status === 'completed' && (
-                                <div className="flex items-center gap-5">
-                                  <div className="flex items-center gap-1">
-                                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                                  <span className="text-xs text-green-400">
-                                    {seance.session_data.date_fin && (formatDate(seance.session_data.date_fin))}
-                                  </span>
+                                                          <div className="flex items-center gap-3 flex-wrap">
+                                <div className={`text-sm font-medium text-white ${
+                                  (status === 'completed' || status === 'skipped') ? 'line-through opacity-75' : ''
+                                }`}>
+                                  {getJourLabel(jour.jour, jour.date_reelle)} : {seance.nom}
+                                </div>
+                                {(status === 'completed' || status === 'skipped') && (
+                                  <div className="flex items-center gap-5">
+                                    <div className="flex items-center gap-1">
+                                      {status === 'skipped' ? (
+                                      <SkipForward className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                                    ) : (
+                                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                    )}
+                                    <span className={`text-xs ${
+                                      status === 'skipped' 
+                                        ? 'text-yellow-400' 
+                                        : 'text-green-400'
+                                    }`}>
+                                      {seance.session_data.date_fin && (formatDate(seance.session_data.date_fin))}
+                                    </span>
                                   </div>
-                                  {seance.session_data.duree && (
+                                  {!isInstruction && seance.session_data.duree && seance.session_data.duree > 0  && (
                                     <>
                                       <div className="flex items-center gap-1">
                                         <Clock className="w-4 h-4 text-green-400 flex-shrink-0" />
@@ -378,10 +468,10 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                                         </span>
                                       </div>
                                     </>
-                                    )}
+                                  )}
                                 </div>
                               )}
-                              {status !== 'completed' && (
+                              {status !== 'completed' && !isInstruction && (
                                 <div className="flex items-center space-x-1">
                                   <Clock className="w-4 h-4 text-gray-400" />
                                   <span className="text-xs text-gray-400">{seance.duree}</span>
@@ -393,6 +483,13 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                                   </span>
                                 )}
                             </div>
+                            
+                            {/* Description pour les instructions */}
+                            {isInstruction && seance.seance?.description && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                {seance.seance.description}
+                              </div>
+                            )}
                             
                             <div className="flex items-center space-x-3 text-xs text-gray-400">
                               
@@ -408,19 +505,40 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                         {/* Icône de statut (cliquable pour la prochaine séance) */}
                         <div className="flex items-center justify-center">
                           {isProchaineSeance ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLancerSeance(seance);
-                              }}
-                              className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center hover:bg-orange-500/30 transition-colors cursor-pointer"
-                              title="Lancer la séance"
-                            >
-                              <Play className="w-5 h-5 text-orange-400" />
-                            </button>
-                          ) : status === 'completed' ? (
-                            <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
-                              <CheckCircle className="w-5 h-5 text-green-400" />
+                            isInstruction ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInstructionValidation(seance);
+                                }}
+                                className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center hover:bg-orange-500/30 transition-colors cursor-pointer"
+                                title="Valider l'instruction"
+                              >
+                                <CheckCircle2 className="w-5 h-5 text-orange-400" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleLancerSeance(seance);
+                                }}
+                                className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center hover:bg-orange-500/30 transition-colors cursor-pointer"
+                                title="Lancer la séance"
+                              >
+                                <Play className="w-5 h-5 text-orange-400" />
+                              </button>
+                            )
+                          ) : status === 'completed' || status === 'skipped' ? (
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              status === 'skipped' 
+                                ? 'bg-yellow-500/20' 
+                                : 'bg-green-500/20'
+                            }`}>
+                              {status === 'skipped' ? (
+                                <SkipForward className="w-5 h-5 text-yellow-400" />
+                              ) : (
+                                <CheckCircle className="w-5 h-5 text-green-400" />
+                              )}
                             </div>
                           ) : status === 'next' ? (
                             <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
@@ -435,8 +553,8 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                       </div>
                     </div>
 
-                    {/* Contenu de la séance (accordéon) */}
-                    {isOpen && (
+                    {/* Contenu de la séance (accordéon) - seulement pour les exercices */}
+                    {isOpen && !isInstruction && (
                       <div className="px-3 pb-3">
                         {seance.seance?.structure ? (
                           <SeanceStructure structure={seance.seance.structure} />
@@ -464,6 +582,19 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
         ))}
         </div>
       )}
+
+      {/* Dialog de validation des instructions */}
+      <InstructionValidationDialog
+        isOpen={showValidationDialog}
+        onClose={() => {
+          setShowValidationDialog(false);
+          setSelectedSeance(null);
+        }}
+        seance={selectedSeance}
+        onValidate={handleValidateInstruction}
+        onDecline={handleDeclineInstruction}
+        isLoading={isValidating}
+      />
     </div>
   );
 };

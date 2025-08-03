@@ -196,6 +196,7 @@ router.post('/', verifyToken, async (req, res) => {
       niveau_id,
       type_id,
       categorie_id,
+      type_seance,
       created_by
     } = req.body;
 
@@ -213,6 +214,7 @@ router.post('/', verifyToken, async (req, res) => {
       niveau_id: niveau_id || null,
       type_id: type_id || null,
       categorie_id: categorie_id || null,
+      type_seance: type_seance || "exercice",
       created_by: req.user.id
     };
 
@@ -485,7 +487,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // Route pour enregistrer une séance terminée
 router.post('/:id/complete', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes } = req.body;
+  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes, etat } = req.body;
   
   console.log('Enregistrement séance - Paramètres reçus:', { id, body: req.body, user: req.user.id });
   
@@ -529,7 +531,7 @@ router.post('/:id/complete', verifyToken, async (req, res) => {
       niveau_effort: niveau_effort || null,
       satisfaction: satisfaction || null,
       notes: notes || '',
-      etat: 'terminee'
+      etat: etat || 'terminee'
     };
 
     console.log('Données de session à insérer:', sessionData);

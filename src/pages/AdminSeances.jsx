@@ -10,7 +10,12 @@ import {
   Calendar,
   Filter,
   Search,
-  TrendingUp
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  PlayCircle,
+  AlertCircle,
+  SkipForward
 } from 'lucide-react';
 import AdminService from "../services/adminService";
 
@@ -78,6 +83,61 @@ function EffortLevel({ niveau }) {
   );
 }
 
+// Fonction pour afficher l'état de la séance
+function SeanceStatus({ etat }) {
+  const getStatusConfig = (etat) => {
+    switch (etat) {
+      case 'terminee':
+        return {
+          icon: CheckCircle,
+          color: 'text-green-500',
+          bgColor: 'bg-green-500/10',
+          text: 'Terminée'
+        };
+      case 'skipped':
+        return {
+          icon: SkipForward,
+          color: 'text-yellow-500',
+          bgColor: 'bg-yellow-500/10',
+          text: 'Passée'
+        };
+      case 'en_cours':
+        return {
+          icon: PlayCircle,
+          color: 'text-blue-500',
+          bgColor: 'bg-blue-500/10',
+          text: 'En cours'
+        };
+      case 'interrompue':
+        return {
+          icon: AlertCircle,
+          color: 'text-orange-500',
+          bgColor: 'bg-orange-500/10',
+          text: 'Interrompue'
+        };
+      default:
+        return {
+          icon: AlertCircle,
+          color: 'text-gray-500',
+          bgColor: 'bg-gray-500/10',
+          text: etat || 'Inconnu'
+        };
+    }
+  };
+
+  const config = getStatusConfig(etat);
+  const IconComponent = config.icon;
+
+  return (
+    <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${config.bgColor}`}>
+      <IconComponent className={`w-4 h-4 ${config.color}`} />
+      <span className={`text-xs font-medium ${config.color}`}>
+        {config.text}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminSeances() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -102,6 +162,12 @@ export default function AdminSeances() {
         setError(null);
         const data = await AdminService.getSeancesRecentes(50, 0, filterUtilisateur || null);
         setSeances(data.seances || []);
+        
+        // Debug: afficher les états des premières séances
+        console.log("États reçus côté frontend:");
+        (data.seances || []).slice(0, 5).forEach((seance, index) => {
+          console.log(`${index + 1}. Séance ${seance.seance.nom}: etat = ${seance.etat}`);
+        });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -142,8 +208,8 @@ export default function AdminSeances() {
                  <Activity className="w-6 h-6 text-white" />
                </div>
                <div>
-                 <h1 className="text-3xl font-bold text-gray-100">Séances Récentes</h1>
-                 <p className="text-gray-400">Suivi des dernières séances avec notes et commentaires</p>
+                 <h1 className="text-3xl font-bold text-gray-100">Toutes les Séances</h1>
+                 <p className="text-gray-400">Suivi de toutes les séances avec leur état et commentaires</p>
                </div>
              </div>
 
@@ -245,7 +311,7 @@ export default function AdminSeances() {
             <div className="text-center py-12">
               <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-100 mb-2">Aucune séance trouvée</h3>
-              <p className="text-gray-400">Aucune séance récente avec des commentaires n'a été trouvée.</p>
+              <p className="text-gray-400">Aucune séance n'a été trouvée avec les critères de recherche actuels.</p>
             </div>
           ) : (
                          <div className="space-y-2">
@@ -263,39 +329,45 @@ export default function AdminSeances() {
                        </h3>
                      </div>
 
-                     {/* Statistiques rapides avec icônes */}
-                     <div className="flex items-center gap-4 text-sm">
-                       {/* Utilisateur */}
-                       <div className="flex items-center gap-1" title="Utilisateur">
-                         <User className="w-4 h-4 text-blue-500" />
-                         <span className="text-gray-300 text-xs">
-                           {seance.utilisateur.nom}
-                         </span>
-                       </div>
+                     {/* État de la séance */}
+                     <SeanceStatus etat={seance.etat} />
+                   </div>
 
-                       {/* Durée */}
-                       <div className="flex items-center gap-1" title="Durée">
-                         <Clock className="w-4 h-4 text-green-500" />
-                         <span className="text-gray-300 font-medium">
-                           {formatDuration(seance.duree_minutes)}
-                         </span>
-                       </div>
+                   {/* Ligne des statistiques */}
+                   <div className="flex items-center gap-4 text-sm mb-3">
+                     {/* Utilisateur */}
+                     <div className="flex items-center gap-1" title="Utilisateur">
+                       <User className="w-4 h-4 text-blue-500" />
+                       <span className="text-gray-300 text-xs">
+                         {seance.utilisateur.nom}
+                       </span>
+                     </div>
 
-                       {/* Niveau d'effort */}
-                       <div className="flex items-center gap-1" title="Niveau d'effort">
-                         <TrendingUp className="w-4 h-4 text-purple-500" />
-                         <span className="text-gray-300 text-xs">
-                           {seance.niveau_effort ? `${seance.niveau_effort}/10` : "N/A"}
-                         </span>
-                       </div>
+                     {/* Durée */}
+                     <div className="flex items-center gap-1" title="Durée">
+                       <Clock className="w-4 h-4 text-green-500" />
+                       <span className="text-gray-300 font-medium">
+                         {formatDuration(seance.duree_minutes)}
+                       </span>
+                     </div>
 
-                       {/* Date */}
-                       <div className="flex items-center gap-1" title="Date">
-                         <Calendar className="w-4 h-4 text-yellow-500" />
-                         <span className="text-gray-300 text-xs">
-                           {new Date(seance.date_fin).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                         </span>
-                       </div>
+                     {/* Niveau d'effort */}
+                     <div className="flex items-center gap-1" title="Niveau d'effort">
+                       <TrendingUp className="w-4 h-4 text-purple-500" />
+                       <span className="text-gray-300 text-xs">
+                         {seance.niveau_effort ? `${seance.niveau_effort}/10` : "N/A"}
+                       </span>
+                     </div>
+
+                     {/* Date */}
+                     <div className="flex items-center gap-1" title="Date">
+                       <Calendar className="w-4 h-4 text-yellow-500" />
+                       <span className="text-gray-300 text-xs">
+                         {seance.date_fin 
+                           ? new Date(seance.date_fin).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+                           : new Date(seance.date_debut).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+                         }
+                       </span>
                      </div>
                    </div>
 

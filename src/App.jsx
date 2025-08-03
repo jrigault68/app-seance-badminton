@@ -22,6 +22,7 @@ import Seances from './pages/Seances';
 import SeanceDetail from './pages/SeanceDetail';
 import SeanceExecution from "./pages/SeanceExecution";
 
+
 export default function App() {
   return (
     <PageTitleProvider>
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/seances" element={<Seances />} />
         <Route path="/seances/creer" element={<CreerSeance />} />
         <Route path="/seances/:id/execution" element={<SeanceExecution />} />
+
         <Route path="/seances/:id" element={<SeanceDetail />} />
         <Route path="/programmes" element={<Programmes />} />
         <Route path="/programmes/creer" element={<CreerProgramme />} />

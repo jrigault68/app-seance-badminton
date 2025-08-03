@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS seances (
     niveau_id INTEGER REFERENCES niveaux_difficulte(id),
     type_id INTEGER REFERENCES types(id),
     categorie_id INTEGER REFERENCES categories(id),
+    type_seance VARCHAR(20) DEFAULT 'exercice', -- 'exercice' ou 'instruction'
     objectifs JSONB DEFAULT '[]',
     duree_estimee INTEGER,
     calories_estimees INTEGER,

@@ -494,7 +494,8 @@ export default function ProgrammeDetail() {
 
   // Logique pour le bouton flottant de programme
   const getProgrammeButtonConfig = () => {
-    if (!user) return { show: false };
+    // Ne pas afficher le bouton de suivi en mode édition, création ou édition de structure
+    if (mode === "edit" || mode === "new" || editMode || !user) return { show: false };
     
     if (loadingProgrammeActuel) {
       return { show: true, type: 'suivre', disabled: true };
@@ -1001,40 +1002,73 @@ export default function ProgrammeDetail() {
                           <ul className="space-y-2">
                             {seances.map(seance => {
                               const isOpen = openSeanceAccordions.includes(seance.id);
+                              const isInstruction = seance.type_seance === "instruction";
+                              
                               return (
                                 <li key={seance.id} className="bg-gray-800/60 rounded-lg">
-                                  <button type="button" className="w-full flex items-center px-4 py-3 focus:outline-none" onClick={() => toggleSeanceAccordion(seance.id)}>
-                                    <svg className={`w-5 h-5 mr-3 transition-transform text-white ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                                    <div>
-                                      <span className="font-semibold text-white">{seance.nom}</span>
-                                      <span className="ml-2 text-xs text-gray-400">{seance.type_nom}</span>
-                                    </div>
-                                    {editMode && isCreator && (
-                                      <button
-                                        className="ml-auto text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
-                                        onClick={e => { e.stopPropagation(); handleRemoveSeance(date, seance.id); }}
-                                        type="button"
-                                      >
-                                        <Trash2 size={16} /> Retirer
-                                      </button>
-                                    )}
-                                  </button>
-                                  <div
-                                    className="p-4 pt-0 transition-all duration-300 ease-in-out overflow-hidden"
-                                    style={{
-                                      maxHeight: isOpen ? 600 : 0,
-                                      opacity: isOpen ? 1 : 0,
-                                      paddingTop: 0,
-                                      paddingBottom: isOpen ? 16 : 0
-                                    }}
-                                    aria-hidden={!isOpen}
-                                  >
-                                    {seance.structure && seance.structure.length > 0 && (
-                                      <div className="pl-4">
-                                        <SeanceStructure structure={seance.structure} />
+                                  {isInstruction ? (
+                                    // Affichage pour les instructions
+                                    <div className="px-4 py-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-white">{seance.nom}</span>
+                                            <span className="text-xs text-orange-300 bg-orange-900/60 px-2 py-1 rounded-full">Instruction</span>
+                                          </div>
+                                          {seance.description && (
+                                            <p className="text-gray-300 text-sm mt-1 line-clamp-2">
+                                              {seance.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                        {editMode && isCreator && (
+                                          <button
+                                            className="ml-2 text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
+                                            onClick={() => handleRemoveSeance(date, seance.id)}
+                                            type="button"
+                                          >
+                                            <Trash2 size={16} /> Retirer
+                                          </button>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
+                                    </div>
+                                  ) : (
+                                    // Affichage pour les séances d'exercices (comportement existant)
+                                    <>
+                                      <button type="button" className="w-full flex items-center px-4 py-3 focus:outline-none" onClick={() => toggleSeanceAccordion(seance.id)}>
+                                        <svg className={`w-5 h-5 mr-3 transition-transform text-white ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                        <div>
+                                          <span className="font-semibold text-white">{seance.nom}</span>
+                                          <span className="ml-2 text-xs text-gray-400">{seance.type_nom}</span>
+                                        </div>
+                                        {editMode && isCreator && (
+                                          <button
+                                            className="ml-auto text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
+                                            onClick={e => { e.stopPropagation(); handleRemoveSeance(date, seance.id); }}
+                                            type="button"
+                                          >
+                                            <Trash2 size={16} /> Retirer
+                                          </button>
+                                        )}
+                                      </button>
+                                      <div
+                                        className="p-4 pt-0 transition-all duration-300 ease-in-out overflow-hidden"
+                                        style={{
+                                          maxHeight: isOpen ? 600 : 0,
+                                          opacity: isOpen ? 1 : 0,
+                                          paddingTop: 0,
+                                          paddingBottom: isOpen ? 16 : 0
+                                        }}
+                                        aria-hidden={!isOpen}
+                                      >
+                                        {seance.structure && seance.structure.length > 0 && (
+                                          <div className="pl-4">
+                                            <SeanceStructure structure={seance.structure} />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
                                 </li>
                               );
                             })}
@@ -1085,40 +1119,73 @@ export default function ProgrammeDetail() {
                             <ul className="space-y-2">
                               {seances.map(seance => {
                                 const isOpen = openSeanceAccordions.includes(seance.id);
+                                const isInstruction = seance.type_seance === "instruction";
+                                
                                 return (
                                   <li key={seance.id} className="bg-gray-800/60 rounded-lg">
-                                    <button type="button" className="w-full flex items-center px-4 py-3 focus:outline-none" onClick={() => toggleSeanceAccordion(seance.id)}>
-                                      <svg className={`w-5 h-5 mr-3 transition-transform text-white ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                                      <div>
-                                        <span className="font-semibold text-white">{seance.nom}</span>
-                                        <span className="ml-2 text-xs text-gray-400">{seance.type_nom}</span>
-                                      </div>
-                                      {editMode && isCreator && (
-                                        <button
-                                          className="ml-auto text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
-                                          onClick={e => { e.stopPropagation(); handleRemoveSeance(jour, seance.id); }}
-                                          type="button"
-                                        >
-                                          <Trash2 size={16} /> Retirer
-                                        </button>
-                                      )}
-                                    </button>
-                                    <div
-                                      className="p-4 pt-0 transition-all duration-300 ease-in-out overflow-hidden"
-                                      style={{
-                                        maxHeight: isOpen ? 600 : 0,
-                                        opacity: isOpen ? 1 : 0,
-                                        paddingTop: 0,
-                                        paddingBottom: isOpen ? 16 : 0
-                                      }}
-                                      aria-hidden={!isOpen}
-                                    >
-                                      {seance.structure && seance.structure.length > 0 && (
-                                        <div className="pl-4">
-                                          <SeanceStructure structure={seance.structure} />
+                                    {isInstruction ? (
+                                      // Affichage pour les instructions
+                                      <div className="px-4 py-3">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-semibold text-white">{seance.nom}</span>
+                                              <span className="text-xs text-orange-300 bg-orange-900/60 px-2 py-1 rounded-full">Instruction</span>
+                                            </div>
+                                            {seance.description && (
+                                              <p className="text-gray-300 text-sm mt-1 line-clamp-2">
+                                                {seance.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                          {editMode && isCreator && (
+                                            <button
+                                              className="ml-2 text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
+                                              onClick={() => handleRemoveSeance(jour, seance.id)}
+                                              type="button"
+                                            >
+                                              <Trash2 size={16} /> Retirer
+                                            </button>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
+                                      </div>
+                                    ) : (
+                                      // Affichage pour les séances d'exercices (comportement existant)
+                                      <>
+                                        <button type="button" className="w-full flex items-center px-4 py-3 focus:outline-none" onClick={() => toggleSeanceAccordion(seance.id)}>
+                                          <svg className={`w-5 h-5 mr-3 transition-transform text-white ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                          <div>
+                                            <span className="font-semibold text-white">{seance.nom}</span>
+                                            <span className="ml-2 text-xs text-gray-400">{seance.type_nom}</span>
+                                          </div>
+                                          {editMode && isCreator && (
+                                            <button
+                                              className="ml-auto text-red-400 hover:text-red-600 text-sm px-2 py-1 flex items-center gap-1"
+                                              onClick={e => { e.stopPropagation(); handleRemoveSeance(jour, seance.id); }}
+                                              type="button"
+                                            >
+                                              <Trash2 size={16} /> Retirer
+                                            </button>
+                                          )}
+                                        </button>
+                                        <div
+                                          className="p-4 pt-0 transition-all duration-300 ease-in-out overflow-hidden"
+                                          style={{
+                                            maxHeight: isOpen ? 600 : 0,
+                                            opacity: isOpen ? 1 : 0,
+                                            paddingTop: 0,
+                                            paddingBottom: isOpen ? 16 : 0
+                                          }}
+                                          aria-hidden={!isOpen}
+                                        >
+                                          {seance.structure && seance.structure.length > 0 && (
+                                            <div className="pl-4">
+                                              <SeanceStructure structure={seance.structure} />
+                                            </div>
+                                          )}
+                                        </div>
+                                      </>
+                                    )}
                                   </li>
                                 );
                               })}
