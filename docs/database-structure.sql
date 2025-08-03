@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS sessions_entrainement (
     satisfaction DECIMAL(3,1), -- 1.0 à 5.0
     notes TEXT,
     etat VARCHAR(20) DEFAULT 'en_cours', -- 'en_cours', 'terminee', 'interrompue'
-    progression JSONB DEFAULT '{}', -- Suivi de la progression pendant la session
+    progression TEXT DEFAULT '{}', -- Suivi de la progression pendant la session (JSON en TEXT)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

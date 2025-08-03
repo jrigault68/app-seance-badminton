@@ -25,7 +25,7 @@ function getExoResume(exo) {
 }
 
 // Composant pour l'intro de la séance
-function IntroSeanceScreen({ nom, notes, onStart }) {
+function IntroSeanceScreen({ nom, notes, onStart, isResuming, sessionEnCours }) {
   return (
     <div className={`h-[calc(100vh-56px)] w-full flex items-center justify-center flex-col gap-4 ${backgroundMainColor} text-white px-4`}>
       <div className={"max-w-xl w-full " + blockStyle + " text-center"}>
@@ -33,12 +33,41 @@ function IntroSeanceScreen({ nom, notes, onStart }) {
         {notes && (
           <p className="text-orange-200 mb-6 text-lg">{notes}</p>
         )}
-        <button
-          onClick={onStart}
-          className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full shadow text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105"
-        >
-          Démarrer la séance
-        </button>
+        
+        {isResuming && sessionEnCours && (
+          <div className="mb-6 p-4 bg-blue-600/20 border border-blue-500 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-300 mb-2">
+              <span className="text-lg">🔄</span>
+              <span className="font-semibold">Séance en cours</span>
+            </div>
+            <p className="text-blue-200 text-sm">
+              Vous avez une séance en cours. Voulez-vous la reprendre ou recommencer ?
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => onStart(true)} // true pour reprendre
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium"
+              >
+                Reprendre
+              </button>
+              <button
+                onClick={() => onStart(false)} // false pour recommencer
+                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-medium"
+              >
+                Recommencer
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!isResuming && (
+          <button
+            onClick={() => onStart(false)}
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full shadow text-white font-semibold text-lg transition-all duration-200 transform hover:scale-105"
+          >
+            Démarrer la séance
+          </button>
+        )}
       </div>
     </div>
   );
@@ -135,7 +164,20 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
   );
 }
 
-export default function MoteurExecution({ etapes, onFinish, resetToAccueil, intervalRef, currentSession, programmeId, onMarquerComplete }) {
+export default function MoteurExecution({ 
+  etapes, 
+  onFinish, 
+  resetToAccueil, 
+  intervalRef, 
+  currentSession, 
+  programmeId, 
+  onMarquerComplete,
+  sessionId,
+  sessionEnCours,
+  isResuming,
+  onDemarrerSession,
+  onMettreAJourProgression
+}) {
   const [stepIndex, setStepIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [mode, setMode] = useState("intro_seance"); // "intro_seance", "transition", "exercice", "fini"
@@ -144,16 +186,100 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   const [currentFocus, setCurrentFocus] = useState(null);
   const [finMessagesSpoken, setFinMessagesSpoken] = useState(false);
   const [startTime, setStartTime] = useState(Date.now());
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   const timerRef = useRef(null);
   const spokenStepIndex = useRef(null);
   const spokenCountdownRef = useRef(null);
   const messagesQueueRef = useRef([]); // File de messages à lire/restants
   const skippedMessagesRef = useRef([]);
+  const progressionTimerRef = useRef(null);
+  
+  // Fonction pour arrêter forcément la synthèse vocale
+  const stopSpeechSynthesis = () => {
+    console.log('🔇 Arrêt forcé de la synthèse vocale');
+    
+    // 1. Arrêter la synthèse vocale
+    if (speechSynthesis.speaking || speechSynthesis.paused) {
+      speechSynthesis.cancel();
+    }
+    
+    // 2. Réinitialiser les refs pour éviter les lectures suivantes
+    // NE PAS réinitialiser spokenStepIndex.current pour permettre la lecture vocale
+    spokenCountdownRef.current = null;
+    //messagesQueueRef.current = [];
+    //skippedMessagesRef.current = [];
+    
+    // 3. Arrêter les timers en cours
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // 4. Forcer l'arrêt de tous les utterances en cours
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      // Attendre un peu puis recanceler pour être sûr
+      setTimeout(() => {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+      }, 100);
+    }
+  };
+
+  // Fonction wrapper pour setStepIndex qui arrête la synthèse vocale
+  const setStepIndexWithStopSpeech = (newIndex) => {
+    stopSpeechSynthesis();
+    setStepIndex(newIndex);
+  };
   
   // Activer le Wake Lock pendant l'exécution de la séance
   const isExecutionActive = mode !== "intro_seance" && !finished;
   const { requestWakeLock, releaseWakeLock } = useWakeLock(isExecutionActive);
+
+  // Initialiser la reprise de session si nécessaire
+  useEffect(() => {
+    if (isResuming && sessionEnCours && sessionEnCours.progression) {
+      const progression = sessionEnCours.progression;
+      
+      // Vérifier que le nombre d'étapes est cohérent
+      if (progression.nombre_total_etapes && progression.nombre_total_etapes !== etapes.length) {
+        console.log('⚠️ Nombre d\'étapes différent:', {
+          sauvegarde: progression.nombre_total_etapes,
+          actuel: etapes.length
+        });
+        // Reprendre depuis le début si la structure a changé
+        setStepIndexWithStopSpeech(0);
+        setSessionStarted(true);
+        return;
+      }
+      
+      if (progression.etape_actuelle && progression.etape_actuelle > 0) {
+        console.log('🔄 Reprise de session à l\'étape:', progression.etape_actuelle);
+        setStepIndexWithStopSpeech(progression.etape_actuelle);
+        
+        // Calculer le temps écoulé depuis le début
+        if (sessionEnCours.date_debut) {
+          const debut = new Date(sessionEnCours.date_debut);
+          const maintenant = new Date();
+          const tempsEcoule = Math.floor((maintenant - debut) / 1000);
+          setStartTime(maintenant.getTime() - (tempsEcoule * 1000));
+        }
+        
+        // Marquer la session comme démarrée
+        setSessionStarted(true);
+      }
+    }
+  }, [isResuming, sessionEnCours, etapes.length]);
+
+  // Démarrer la session dès qu'on a un sessionId
+  useEffect(() => {
+    if (sessionId && !sessionStarted) {
+      console.log('🚀 Session démarrée avec ID:', sessionId);
+      setSessionStarted(true);
+    }
+  }, [sessionId, sessionStarted]);
   
   // Vérifier que etapes n'est pas vide
   if (!etapes || etapes.length === 0) {
@@ -198,6 +324,45 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   }, [expandedMessagesFin]);
 
   const dureeFinSec = Math.ceil(dureeFinMs / 1000);
+
+  // Mettre à jour la progression périodiquement
+  useEffect(() => {
+    console.log('🔄 Vérification mise à jour progression:', { sessionStarted, onMettreAJourProgression, stepIndex });
+    
+    if (sessionStarted && onMettreAJourProgression) {
+      const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
+      
+      console.log('📊 Mise à jour progression pour étape:', stepIndex, 'temps écoulé:', tempsEcoule);
+      
+      // Mettre à jour la progression à chaque changement d'étape (sans temps d'étape)
+      onMettreAJourProgression(stepIndex, tempsEcoule, 0);
+      
+      // Mettre à jour aussi périodiquement (toutes les 30 secondes) pour les longues étapes
+      if (progressionTimerRef.current) {
+        clearTimeout(progressionTimerRef.current);
+      }
+      
+      progressionTimerRef.current = setTimeout(() => {
+        console.log('⏰ Mise à jour périodique de la progression');
+        onMettreAJourProgression(stepIndex, tempsEcoule, 0);
+      }, 30000); // 30 secondes
+    }
+
+    return () => {
+      if (progressionTimerRef.current) {
+        clearTimeout(progressionTimerRef.current);
+      }
+    };
+  }, [stepIndex, sessionStarted, onMettreAJourProgression, startTime]);
+
+  // Mettre à jour la progression quand sessionStarted devient true
+  useEffect(() => {
+    if (sessionStarted && sessionId && onMettreAJourProgression) {
+      console.log('🚀 Session démarrée, mise à jour initiale de la progression');
+      const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
+      onMettreAJourProgression(stepIndex, tempsEcoule, 0);
+    }
+  }, [sessionStarted, sessionId, onMettreAJourProgression, stepIndex, startTime]);
 
   // === 1. Initialisation de l'étape courante ===
   useEffect(() => {
@@ -317,6 +482,14 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
     if (timeLeft === 1) {
       setTimeout(() => {
         setCurrentFocus(null);
+        
+        // Calculer le temps passé sur cette étape et l'envoyer
+        if (current && current.duree && onMettreAJourProgression) {
+          const tempsEtapeActuelle = current.duree; // L'étape est terminée, donc on a passé toute la durée
+          console.log(`📊 Fin d'étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s`);
+          onMettreAJourProgression(stepIndex, Math.floor((Date.now() - startTime) / 1000), tempsEtapeActuelle);
+        }
+        
         if (stepIndex + 1 >= etapes.length) {
           setFinished(true);
           setMode("fini");
@@ -345,6 +518,13 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   // Enchaînement automatique des transitions à durée 0
   useEffect(() => {
     if (mode === "transition" && current && current.duree === 0) {
+      // Pour les transitions à durée 0, calculer le temps passé (qui sera 0)
+      if (current && onMettreAJourProgression) {
+        const tempsEtapeActuelle = 0; // Durée 0
+        console.log(`📊 Transition à durée 0, étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s`);
+        onMettreAJourProgression(stepIndex, Math.floor((Date.now() - startTime) / 1000), tempsEtapeActuelle);
+      }
+      
       if (stepIndex + 1 >= etapes.length) {
         setFinished(true);
         setMode("fini");
@@ -369,7 +549,20 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
       <IntroSeanceScreen
         nom={currentSession?.nom}
         notes={currentSession?.notes}
-        onStart={() => {
+        isResuming={isResuming}
+        sessionEnCours={sessionEnCours}
+        onStart={async (resume) => {
+          if (resume && sessionEnCours) {
+            // Reprendre la session existante
+            console.log('🔄 Reprise de session existante');
+            setSessionStarted(true);
+          } else {
+            // Démarrer une nouvelle session
+            await onDemarrerSession();
+            setSessionStarted(true);
+            console.log('🚀 Nouvelle session démarrée');
+          }
+          
           setMode("transition");
           setStartTime(Date.now());
           // Initialiser la première étape
@@ -389,11 +582,15 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
   if (finished || mode === "fini") {
     return (
       <FinishedScreen 
-        resetToAccueil={resetToAccueil}
+        resetToAccueil={() => {
+          stopSpeechSynthesis();
+          resetToAccueil();
+        }}
         startTime={startTime}
         seanceId={currentSession?.id}
         programmeId={programmeId}
         onMarquerComplete={onMarquerComplete}
+        sessionId={sessionId}
       />
     );
   }
@@ -461,3 +658,4 @@ export default function MoteurExecution({ etapes, onFinish, resetToAccueil, inte
 
   return null;
 }
+

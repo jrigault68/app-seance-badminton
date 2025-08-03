@@ -10,7 +10,7 @@ import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
-import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings } from "lucide-react";
+import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings, RotateCcw } from "lucide-react";
 import { estimerDureeEtape, calculerTempsTotalSeance } from "../utils/helpers";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
 import { JsonViewer } from "json-viewer-react";
@@ -41,6 +41,8 @@ export default function SeanceDetail() {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const isCreatorOrAdmin = user && seance && (user.id === seance.created_by || user.is_admin);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [sessionEnCours, setSessionEnCours] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(false);
 
   // États pour les snackbars
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -94,6 +96,23 @@ export default function SeanceDetail() {
 
       SeanceService.getExercicesSeance(id).then(data => setExercices(data || []));
   }, [id, isNew]);
+
+  // Vérifier s'il y a une session en cours pour cette séance
+  useEffect(() => {
+    if (!isNew && seance) {
+      setLoadingSession(true);
+      SeanceService.getSessionEnCours(seance.id)
+        .then(session => {
+          setSessionEnCours(session);
+          console.log('Session en cours trouvée:', session);
+        })
+        .catch(error => {
+          console.log('Aucune session en cours ou erreur:', error);
+          setSessionEnCours(null);
+        })
+        .finally(() => setLoadingSession(false));
+    }
+  }, [isNew, seance]);
 
   // Navigation blocker pour les modifications non sauvegardées
   const hasChanged = (() => {
@@ -411,6 +430,42 @@ export default function SeanceDetail() {
   const totalSeconds = seance?.duree_estimee || 0;
   const totalMinutes = Math.round(totalSeconds / 60);
 
+  // Déterminer l'action principale selon s'il y a une session en cours
+  const getMainAction = () => {
+    if (!hasPlayableStructure || isInstruction) return null;
+    
+    if (sessionEnCours) {
+      const progression = sessionEnCours.progression;
+      const etapeActuelle = progression?.etape_actuelle || 0;
+      const nombreTotal = progression?.nombre_total_etapes || 0;
+      
+      return {
+        icon: <RotateCcw size={20} className="text-orange-400" />,
+        label: `Reprendre (étape ${etapeActuelle + 1}/${nombreTotal})`,
+        onClick: () => {
+          if (seance) {
+            navigate(`/seances/${seance.id}/execution`);
+          }
+        },
+        disabled: !seance || loadingSession
+      };
+    } else {
+      return {
+        icon: <Play size={20} className="text-green-400" />,
+        label: 'Démarrer la séance',
+        onClick: () => {
+          if (seance) {
+            navigate(`/seances/${seance.id}/execution`);
+          } else {
+            console.warn("Séance non chargée !");
+          }
+        },
+        disabled: !seance || loadingSession
+      };
+    }
+  };
+
+  const mainAction = getMainAction();
 
   return (
     <Layout
@@ -419,18 +474,7 @@ export default function SeanceDetail() {
       backLabel="Retour à la liste des séances"
       onBackClick={handleBackClick}
       pageActions={[
-        hasPlayableStructure && !isInstruction && {
-          icon: <Play size={20} className="text-green-400" />,
-          label: 'Démarrer la séance',
-          onClick: () => {
-            if (seance) {
-              navigate(`/seances/${seance.id}/execution`);
-            } else {
-              console.warn("Séance non chargée !");
-            }
-          },
-          disabled: !seance
-        },
+        mainAction,
         isCreatorOrAdmin && { icon: <Pencil size={20} className="text-white" />, label: 'Modifier', onClick: () => setMode('edit') },
         isCreatorOrAdmin && !isInstruction && { 
           icon: <Layers size={20} className="text-white" />, 
@@ -595,15 +639,19 @@ export default function SeanceDetail() {
       {/* Bouton flottant pour lancer la séance */}
       {hasPlayableStructure && mode === "detail" && !structureEditMode && !isInstruction && (
         <button
-          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold shadow-lg text-lg z-50"
+          className={`fixed bottom-8 right-8 flex items-center gap-2 px-6 py-3 rounded-full font-bold shadow-lg text-lg z-50 ${
+            sessionEnCours 
+              ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+              : 'bg-green-500 hover:bg-green-600 text-white'
+          }`}
           onClick={() => {
             if (seance) {
               navigate(`/seances/${seance.id}/execution`);
             }
           }}
         >
-          <Play size={20} className="" />
-          Lancer la séance
+          {sessionEnCours ? <RotateCcw size={20} /> : <Play size={20} />}
+          {sessionEnCours ? 'Reprendre la séance' : 'Lancer la séance'}
         </button>
       )}
       

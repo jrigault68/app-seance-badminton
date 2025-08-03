@@ -136,6 +136,7 @@ export default function Seances() {
       { icon: <Plus size={20} />, label: 'Créer une séance', onClick: () => navigate('/seances/new') }
     ]}>
       <div className="w-full flex flex-col items-center bg-[#18191a] min-h-screen relative">
+        
         {/* Barre sticky de recherche/filtres */}
         <div
           className="flex flex-row justify-between items-center gap-4 px-4 bg-[#222] border-b border-[#232526] shadow-sm overflow-x-auto"

@@ -65,6 +65,91 @@ class SeanceService {
     }
   }
 
+  // Démarrer une nouvelle session d'entraînement
+  static async demarrerSession(seanceId, programmeId = null, jourProgramme = null, nomSession = null) {
+    try {
+      console.log('🚀 Démarrage de session:', { seanceId, programmeId, jourProgramme, nomSession });
+      
+      const response = await fetch(`${API_BASE_URL}/sessions`, {
+        method: 'POST',
+        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          seance_id: seanceId,
+          programme_id: programmeId,
+          jour_programme: jourProgramme,
+          nom_session: nomSession
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Session démarrée avec succès:', result);
+      return result.session;
+    } catch (error) {
+      console.error('❌ Erreur lors du démarrage de session:', error);
+      throw error;
+    }
+  }
+
+  // Mettre à jour la progression d'une session
+  static async mettreAJourProgression(sessionId, progression) {
+    try {
+      console.log('📊 Mise à jour progression:', { sessionId, progression });
+      
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/progression`, {
+        method: 'PUT',
+        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(progression)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Progression mise à jour:', result);
+      return result.session;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de progression:', error);
+      throw error;
+    }
+  }
+
+  // Récupérer une session en cours pour une séance
+  static async getSessionEnCours(seanceId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/en-cours/${seanceId}`, {
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Pas de session en cours, c'est normal
+          return null;
+        }
+        // Pour les autres erreurs, on ne log pas pour éviter le spam
+        return null;
+      }
+
+      const data = await response.json();
+      return data.session;
+    } catch (error) {
+      // Erreur réseau ou autre, on ne log pas pour éviter le spam
+      return null;
+    }
+  }
+
   // Enregistrer une séance terminée
   static async enregistrerSeance(seanceId, sessionData = {}, isUpdate = false) {
     try {
@@ -93,6 +178,37 @@ class SeanceService {
       return result;
     } catch (error) {
       console.error('❌ Erreur lors de l\'enregistrement:', error);
+      throw error;
+    }
+  }
+
+  // Terminer une session
+  static async terminerSession(sessionId, sessionData = {}) {
+    try {
+      console.log('🏁 Terminaison de session:', { sessionId, sessionData });
+      
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
+        method: 'PUT',
+        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...sessionData,
+          etat: 'terminee'
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Session terminée avec succès:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur lors de la terminaison de session:', error);
       throw error;
     }
   }

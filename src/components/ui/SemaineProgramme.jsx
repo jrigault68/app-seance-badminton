@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, CheckCircle, Clock, CalendarDays, ChevronDown, ChevronRight, CheckCircle2, XCircle, SkipForward } from 'lucide-react';
+import { Play, CheckCircle, Clock, CalendarDays, ChevronDown, ChevronRight, CheckCircle2, XCircle, SkipForward, RotateCcw } from 'lucide-react';
 import programmeService from '../../services/programmeService';
 import SeanceStructure from './SeanceStructure';
 import InstructionValidationDialog from './InstructionValidationDialog';
@@ -15,6 +15,8 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [selectedSeance, setSelectedSeance] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [sessionsEnCours, setSessionsEnCours] = useState({});
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Charger les données étape par étape
   useEffect(() => {
@@ -61,6 +63,42 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
 
     chargerDonnees();
   }, [programmeId]);
+
+  // Charger les sessions en cours pour toutes les séances
+  useEffect(() => {
+    const chargerSessionsEnCours = async () => {
+      if (!seancesSemaine.length) return;
+      
+      setLoadingSessions(true);
+      const sessions = {};
+      
+      try {
+        // Récupérer toutes les sessions en cours pour les séances de cette semaine
+        const seancesIds = seancesSemaine.flatMap(jour => 
+          jour.seances.map(seance => seance.id)
+        );
+        
+        for (const seanceId of seancesIds) {
+          try {
+            const session = await SeanceService.getSessionEnCours(seanceId);
+            if (session) {
+              sessions[seanceId] = session;
+            }
+          } catch (error) {
+            console.log(`Pas de session en cours pour la séance ${seanceId}:`, error);
+          }
+        }
+        
+        setSessionsEnCours(sessions);
+      } catch (error) {
+        console.error('Erreur lors du chargement des sessions en cours:', error);
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+
+    chargerSessionsEnCours();
+  }, [seancesSemaine]);
 
   // Fonction pour organiser les séances par jour
   const organiserSeancesParJour = (seancesData, typeProgramme) => {
@@ -223,6 +261,12 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   };
 
   const getStatusSeance = (seance) => {
+    // Vérifier d'abord s'il y a une session en cours
+    const sessionEnCours = sessionsEnCours[seance.id];
+    if (sessionEnCours) {
+      return 'in_progress';
+    }
+    
     // Si la séance a une session (complétée), utiliser etat
     if (seance.session_data) {
       switch (seance.session_data.etat) {
@@ -477,6 +521,14 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                                   <span className="text-xs text-gray-400">{seance.duree}</span>
                                 </div>
                               )}
+                              {status === 'in_progress' && sessionsEnCours[seance.id] && (
+                                <div className="flex items-center space-x-1">
+                                  <Clock className="w-4 h-4 text-orange-400" />
+                                  <span className="text-xs text-orange-400">
+                                    Dernière activité: {formatDate(sessionsEnCours[seance.id].date_fin)}
+                                  </span>
+                                </div>
+                              )}
                               {isProchaineSeance && (
                                   <span className="ml-2 text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
                                     Prochaine
@@ -528,6 +580,17 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
                                 <Play className="w-5 h-5 text-orange-400" />
                               </button>
                             )
+                          ) : status === 'in_progress' ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLancerSeance(seance);
+                              }}
+                              className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center hover:bg-orange-500/30 transition-colors cursor-pointer"
+                              title="Reprendre la séance"
+                            >
+                              <RotateCcw className="w-5 h-5 text-orange-400" />
+                            </button>
                           ) : status === 'completed' || status === 'skipped' ? (
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                               status === 'skipped' 

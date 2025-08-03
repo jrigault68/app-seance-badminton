@@ -1,15 +1,18 @@
 import React from "react";
 
-export default function NavigationPromptDialog({ open, onConfirm, onCancel, onSaveAndQuit, savingAndQuit }) {
+export default function NavigationPromptDialog({ open, onConfirm, onCancel, onSaveAndQuit, savingAndQuit, title, message }) {
   if (!open) return null;
+  
+  const defaultTitle = title || "Modifications non sauvegardées";
+  const defaultMessage = message || "Des changements ont été effectués sans être enregistrés.<br/>Voulez-vous vraiment quitter la page ?";
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+      <div className="text-center bg-gray-900 border border-gray-700 rounded-xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
         <div className="text-orange-300 font-semibold mb-4">
-          Modifications non sauvegardées
+          {defaultTitle}
         </div>
-        <div className="text-white mb-6">
-          Des changements ont été effectués sans être enregistrés.<br/>Voulez-vous vraiment quitter la page ?
+        <div className="text-white mb-6" dangerouslySetInnerHTML={{ __html: defaultMessage }}>
         </div>
         <div className="flex justify-end gap-2">
           <button

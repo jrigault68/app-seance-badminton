@@ -90,6 +90,25 @@ class SessionService {
       throw error;
     }
   }
+
+  // Récupérer une session par ID (sans token, pour usage interne)
+  static async getSessionByIdInternal(sessionId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.session;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la session:', error);
+      throw error;
+    }
+  }
 }
 
 export default SessionService; 

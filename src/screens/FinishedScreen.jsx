@@ -1,43 +1,80 @@
 import { useEffect, useState } from "react";
 import { backgroundMainColor, blockStyle } from "@/styles/styles";
 import { CheckCircle, Clock, Flame, MessageCircle, Star, ThumbsUp, ThumbsDown } from "lucide-react";
+import SessionService from "../services/sessionService";
 
-export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeId, onMarquerComplete }) {
+export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeId, onMarquerComplete, sessionId: propSessionId }) {
   const [isMarking, setIsMarking] = useState(false);
   const [isMarked, setIsMarked] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(propSessionId);
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [comment, setComment] = useState("");
   const [difficulty, setDifficulty] = useState(null);
   const [error, setError] = useState(null);
+  const [tempsTotalCumule, setTempsTotalCumule] = useState(null);
   
-  // Calculer le temps écoulé une seule fois au début
+  // Calculer le temps écoulé une seule fois au début (fallback)
   const [finalElapsed] = useState(() => Math.round((Date.now() - startTime) / 1000));
   const [finalMinutes] = useState(() => Math.floor(finalElapsed / 60));
   const [finalSeconds] = useState(() => finalElapsed % 60);
+
+  // Récupérer le temps total cumulé depuis la session si disponible
+  useEffect(() => {
+    const recupererTempsCumule = async () => {
+      if (!sessionId) return;
+      
+      try {
+        const session = await SessionService.getSessionByIdInternal(sessionId);
+        if (session && session.progression) {
+          const progression = typeof session.progression === 'string' 
+            ? JSON.parse(session.progression) 
+            : session.progression;
+          
+          if (progression.temps_total_cumule) {
+            setTempsTotalCumule(progression.temps_total_cumule);
+            console.log('📊 Temps total cumulé récupéré:', progression.temps_total_cumule);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la récupération du temps cumulé:', error);
+      }
+    };
+
+    recupererTempsCumule();
+  }, [sessionId]);
+
+  // Utiliser le temps cumulé s'il est disponible, sinon le temps écoulé
+  const tempsFinal = tempsTotalCumule !== null ? tempsTotalCumule : finalElapsed;
+  const minutesFinales = Math.floor(tempsFinal / 60);
+  const secondesFinales = tempsFinal % 60;
 
   // Enregistrer automatiquement la séance au chargement (une seule fois)
   useEffect(() => {
     // Ne s'exécuter qu'une seule fois au montage du composant
     if (!seanceId || isMarking) return;
     
-          const enregistrerSeance = async () => {
-        if (isMarking) return;
-      
+    const enregistrerSeance = async () => {
+      if (isMarking) return;
+    
       setIsMarking(true);
       setError(null);
       
       try {
         const sessionData = {
-          duree_totale: finalElapsed,
-          calories_brulees: Math.round(finalElapsed * 0.1),
+          duree_totale: tempsFinal, // Utiliser tempsFinal ici
+          calories_brulees: Math.round(tempsFinal * 0.1),
           niveau_effort: null,
           satisfaction: null,
-          notes: `Séance terminée en ${finalMinutes}min ${finalSeconds}s`
+          notes: `Séance terminée en ${minutesFinales}min ${secondesFinales}s`
         };
 
         const result = await onMarquerComplete(seanceId, sessionData);
-        setSessionId(result.session.id);
+        
+        // Extraire l'ID de session du résultat
+        if (result && result.session) {
+          setSessionId(result.session.id);
+        }
+        
         setIsMarked(true);
         
         // Afficher le formulaire de commentaire après un délai
@@ -85,8 +122,8 @@ export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeI
       } else {
         // Si pas de sessionId, créer une nouvelle session avec les commentaires
         const sessionData = {
-          duree_totale: finalElapsed,
-          calories_brulees: Math.round(finalElapsed * 0.1),
+          duree_totale: tempsFinal, // Utiliser tempsFinal ici
+          calories_brulees: Math.round(tempsFinal * 0.1),
           niveau_effort: niveauEffort,
           notes: notes
         };
@@ -124,11 +161,11 @@ export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeI
         <div className="flex items-center justify-center gap-4 my-4 text-sm text-gray-300">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4 text-blue-400" />
-            <span>{finalMinutes}min {finalSeconds}s</span>
+            <span>{minutesFinales}min {secondesFinales}s</span>
           </div>
           <div className="flex items-center gap-1">
             <Flame className="w-4 h-4 text-orange-400" />
-            <span>~{Math.round(finalElapsed * 0.1)} cal</span>
+            <span>~{Math.round(tempsFinal * 0.1)} cal</span>
           </div>
         </div>
 
@@ -138,12 +175,12 @@ export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeI
           </div>
         )}
 
-          <div className="mb-4 p-3 bg-gray-600/20 border border-gray-500 rounded-lg">
-            <div className="flex items-center gap-2 text-gray-300">
-              <CheckCircle className="w-4 h-4" />
-              <span>Séance terminée avec succès !</span>
-            </div>
+        <div className="mb-4 p-3 bg-gray-600/20 border border-gray-500 rounded-lg">
+          <div className="flex items-center gap-2 text-gray-300">
+            <CheckCircle className="w-4 h-4" />
+            <span>Séance terminée avec succès !</span>
           </div>
+        </div>
 
         {/* Formulaire de commentaire */}
         {showCommentForm && (
