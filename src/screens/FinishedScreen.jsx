@@ -15,8 +15,6 @@ export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeI
   
   // Calculer le temps écoulé une seule fois au début (fallback)
   const [finalElapsed] = useState(() => Math.round((Date.now() - startTime) / 1000));
-  const [finalMinutes] = useState(() => Math.floor(finalElapsed / 60));
-  const [finalSeconds] = useState(() => finalElapsed % 60);
 
   // Récupérer le temps total cumulé depuis la session si disponible
   useEffect(() => {
@@ -30,9 +28,9 @@ export function FinishedScreen({ startTime, resetToAccueil, seanceId, programmeI
             ? JSON.parse(session.progression) 
             : session.progression;
           
-          if (progression.temps_total_cumule) {
-            setTempsTotalCumule(progression.temps_total_cumule);
-            console.log('📊 Temps total cumulé récupéré:', progression.temps_total_cumule);
+          if (progression.temps_ecoule) {
+            setTempsTotalCumule(progression.temps_ecoule);
+            console.log('📊 Temps total cumulé récupéré:', progression.temps_ecoule);
           }
         }
       } catch (error) {

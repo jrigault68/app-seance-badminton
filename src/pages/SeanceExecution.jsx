@@ -231,25 +231,25 @@ export default function SeanceExecution() {
     }
   };
 
-  const handleMettreAJourProgression = async (etapeActuelle, tempsEcoule, tempsEtapeActuelle) => {
+  const handleMettreAJourProgression = async (etapeActuelle, tempsEcoule) => {
     if (!sessionId) {
       console.log('❌ Pas de sessionId pour mettre à jour la progression');
       return;
     }
     
     try {
-      console.log('📊 Mise à jour progression:', { etapeActuelle, tempsEcoule, tempsEtapeActuelle, sessionId });
+      console.log('📊 Mise à jour progression:', { etapeActuelle, tempsEcoule, sessionId });
       
       const progression = {
         etape_actuelle: etapeActuelle,
         nombre_total_etapes: etapes.length,
         temps_ecoule: tempsEcoule,
-        temps_etape_actuelle: tempsEtapeActuelle
       };
 
       console.log('📋 Progression à envoyer:', progression);
       await SeanceService.mettreAJourProgression(sessionId, progression);
       console.log('✅ Progression mise à jour avec succès');
+      setSessionActive(true);
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour de progression:', error);
     }

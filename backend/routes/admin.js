@@ -325,6 +325,7 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
         satisfaction,
         notes,
         etat,
+        progression,
         utilisateur_id,
         seances!inner(
           id,
@@ -393,28 +394,47 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
     console.log("Types de séances:", typesSeances);
 
     // Formater les données pour l'affichage
-    const seancesFormatees = sessions.map(session => ({
-      id: session.id,
-      date_debut: session.date_debut,
-      date_fin: session.date_fin,
-      duree_minutes: Math.round((session.duree_totale || 0) / 60),
-      calories: session.calories_brulees || 0,
-      niveau_effort: session.niveau_effort,
-      satisfaction: session.satisfaction,
-      notes: session.notes,
-      etat: session.etat,
-      seance: {
-        nom: session.seances.nom,
-        description: session.seances.description,
-        categorie: session.seances.categories?.nom || 'Non catégorisée',
-        couleur_categorie: session.seances.categories?.couleur || '#6B7280',
-        type_seance: session.seances.type_seance
-      },
-      utilisateur: {
-        nom: session.utilisateurs.nom || session.utilisateurs.pseudo || "Utilisateur",
-        email: session.utilisateurs.email
+    const seancesFormatees = sessions.map(session => {
+      // Parser la progression pour les séances en cours
+      let progressionInfo = null;
+      if (session.etat === 'en_cours' && session.progression) {
+        try {
+          const progression = JSON.parse(session.progression);
+          progressionInfo = {
+            etape_actuelle: progression.etape_actuelle || 0,
+            nombre_total_etapes: progression.nombre_total_etapes || 0,
+            temps_ecoule: progression.temps_ecoule || 0,
+            temps_etape_actuelle: progression.temps_etape_actuelle || 0
+          };
+        } catch (error) {
+          console.error('Erreur parsing progression:', error);
+        }
       }
-    }));
+
+      return {
+        id: session.id,
+        date_debut: session.date_debut,
+        date_fin: session.date_fin,
+        duree_minutes: Math.round((session.duree_totale || 0) / 60),
+        calories: session.calories_brulees || 0,
+        niveau_effort: session.niveau_effort,
+        satisfaction: session.satisfaction,
+        notes: session.notes,
+        etat: session.etat,
+        progression: progressionInfo,
+        seance: {
+          nom: session.seances.nom,
+          description: session.seances.description,
+          categorie: session.seances.categories?.nom || 'Non catégorisée',
+          couleur_categorie: session.seances.categories?.couleur || '#6B7280',
+          type_seance: session.seances.type_seance
+        },
+        utilisateur: {
+          nom: session.utilisateurs.nom || session.utilisateurs.pseudo || "Utilisateur",
+          email: session.utilisateurs.email
+        }
+      };
+    });
 
     res.json({
       seances: seancesFormatees,

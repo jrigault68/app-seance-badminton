@@ -259,8 +259,16 @@ export default function MoteurExecution({
         console.log('🔄 Reprise de session à l\'étape:', progression.etape_actuelle);
         setStepIndexWithStopSpeech(progression.etape_actuelle);
         
-        // Calculer le temps écoulé depuis le début
-        if (sessionEnCours.date_debut) {
+        // Pour la reprise, utiliser le temps cumulé de la progression
+        // plutôt que de recalculer depuis le début de la session
+        if (progression.temps_ecoule) {
+          console.log('📊 Utilisation du temps cumulé pour la reprise:', progression.temps_ecoule);
+          // Calculer le startTime en fonction du temps cumulé
+          const maintenant = Date.now();
+          const tempsCumuleMs = progression.temps_ecoule * 1000;
+          setStartTime(maintenant - tempsCumuleMs);
+        } else if (sessionEnCours.date_debut) {
+          // Fallback : calculer le temps écoulé depuis le début
           const debut = new Date(sessionEnCours.date_debut);
           const maintenant = new Date();
           const tempsEcoule = Math.floor((maintenant - debut) / 1000);
@@ -342,10 +350,7 @@ export default function MoteurExecution({
         clearTimeout(progressionTimerRef.current);
       }
       
-      progressionTimerRef.current = setTimeout(() => {
-        console.log('⏰ Mise à jour périodique de la progression');
-        onMettreAJourProgression(stepIndex, tempsEcoule, 0);
-      }, 30000); // 30 secondes
+      
     }
 
     return () => {
@@ -360,6 +365,7 @@ export default function MoteurExecution({
     if (sessionStarted && sessionId && onMettreAJourProgression) {
       console.log('🚀 Session démarrée, mise à jour initiale de la progression');
       const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
+      console.log('📊 Mise à jour initiale - temps écoulé:', tempsEcoule, 'étape:', stepIndex);
       onMettreAJourProgression(stepIndex, tempsEcoule, 0);
     }
   }, [sessionStarted, sessionId, onMettreAJourProgression, stepIndex, startTime]);
@@ -486,8 +492,9 @@ export default function MoteurExecution({
         // Calculer le temps passé sur cette étape et l'envoyer
         if (current && current.duree && onMettreAJourProgression) {
           const tempsEtapeActuelle = current.duree; // L'étape est terminée, donc on a passé toute la durée
-          console.log(`📊 Fin d'étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s`);
-          onMettreAJourProgression(stepIndex, Math.floor((Date.now() - startTime) / 1000), tempsEtapeActuelle);
+          const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
+          console.log(`📊 Fin d'étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s, temps écoulé total: ${tempsEcoule}s`);
+          onMettreAJourProgression(stepIndex, tempsEcoule, tempsEtapeActuelle);
         }
         
         if (stepIndex + 1 >= etapes.length) {
@@ -521,8 +528,9 @@ export default function MoteurExecution({
       // Pour les transitions à durée 0, calculer le temps passé (qui sera 0)
       if (current && onMettreAJourProgression) {
         const tempsEtapeActuelle = 0; // Durée 0
-        console.log(`📊 Transition à durée 0, étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s`);
-        onMettreAJourProgression(stepIndex, Math.floor((Date.now() - startTime) / 1000), tempsEtapeActuelle);
+        const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
+        console.log(`📊 Transition à durée 0, étape ${stepIndex}, temps passé: ${tempsEtapeActuelle}s, temps écoulé total: ${tempsEcoule}s`);
+        onMettreAJourProgression(stepIndex, tempsEcoule, tempsEtapeActuelle);
       }
       
       if (stepIndex + 1 >= etapes.length) {

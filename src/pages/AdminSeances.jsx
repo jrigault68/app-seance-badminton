@@ -45,11 +45,24 @@ function formatDate(dateString) {
 function formatDuration(minutes) {
   if (!minutes || minutes === 0) return "0 min";
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.floor(minutes % 60);
   if (hours > 0) {
     return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
   }
   return `${mins}min`;
+}
+
+// Fonction pour formater la durée en secondes
+function formatDurationSeconds(seconds) {
+  if (!seconds || seconds === 0) return "0 min";
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h${mins > 0 ? ` ${mins}min` : ''}`;
+  }
+  return `${minutes}min${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ''}`;
 }
 
 
@@ -134,6 +147,64 @@ function SeanceStatus({ etat }) {
       <span className={`text-xs font-medium ${config.color}`}>
         {config.text}
       </span>
+    </div>
+  );
+}
+
+// Fonction pour afficher les informations de progression pour les séances en cours
+function ProgressionInfo({ progression, dateDebut }) {
+  if (!progression) return null;
+
+  const pourcentageProgression = progression.nombre_total_etapes > 0 
+    ? Math.round((progression.etape_actuelle / progression.nombre_total_etapes) * 100)
+    : 0;
+
+  return (
+    <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <PlayCircle className="w-4 h-4 text-blue-500" />
+        <span className="text-sm font-medium text-blue-400">Progression en cours</span>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <span className="text-gray-400">Début:</span>
+          <div className="text-blue-300 font-medium">
+            {formatDate(dateDebut)}
+          </div>
+        </div>
+        
+        <div>
+          <span className="text-gray-400">Durée écoulée:</span>
+          <div className="text-blue-300 font-medium">
+            {formatDurationSeconds(progression.temps_ecoule)}
+          </div>
+        </div>
+        
+        <div>
+          <span className="text-gray-400">Étape actuelle:</span>
+          <div className="text-blue-300 font-medium">
+            {progression.etape_actuelle} / {progression.nombre_total_etapes}
+          </div>
+        </div>
+        
+        <div>
+          <span className="text-gray-400">Progression:</span>
+          <div className="text-blue-300 font-medium">
+            {pourcentageProgression}%
+          </div>
+        </div>
+      </div>
+      
+      {/* Barre de progression */}
+      <div className="mt-2">
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div 
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${pourcentageProgression}%` }}
+          ></div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -347,7 +418,7 @@ export default function AdminSeances() {
                      <div className="flex items-center gap-1" title="Durée">
                        <Clock className="w-4 h-4 text-green-500" />
                        <span className="text-gray-300 font-medium">
-                         {formatDuration(seance.duree_minutes)}
+                         {formatDuration(seance.etat === 'en_cours' && seance.progression ? seance.progression.temps_ecoule/60 : seance.duree_minutes)}
                        </span>
                      </div>
 
@@ -370,6 +441,14 @@ export default function AdminSeances() {
                        </span>
                      </div>
                    </div>
+
+                   {/* Informations de progression pour les séances en cours */}
+                   {seance.etat === 'en_cours' && seance.progression && (
+                     <ProgressionInfo 
+                       progression={seance.progression} 
+                       dateDebut={seance.date_debut} 
+                     />
+                   )}
 
                    {/* Commentaire directement affiché */}
                    {seance.notes && (

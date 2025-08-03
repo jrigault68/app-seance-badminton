@@ -70,7 +70,7 @@ router.get('/en-cours/:seanceId', verifyToken, async (req, res) => {
         data.progression = {
           etape_actuelle: 0,
           nombre_total_etapes: 0,
-          structure_etapes: [],
+          temps_ecoule: 0,
           derniere_mise_a_jour: new Date().toISOString()
         };
       }
@@ -120,7 +120,7 @@ router.get('/:id', verifyToken, async (req, res) => {
         data.progression = {
           etape_actuelle: 0,
           nombre_total_etapes: 0,
-          temps_total_cumule: 0,
+          temps_ecoule: 0,
           derniere_mise_a_jour: new Date().toISOString()
         };
       }
@@ -179,7 +179,7 @@ router.post('/', verifyToken, async (req, res) => {
       progression: JSON.stringify({
         etape_actuelle: 0,
         nombre_total_etapes: 0, // Sera mis à jour par le frontend
-        temps_total_cumule: 0, // Initialiser le temps cumulé
+        temps_ecoule: 0, // Initialiser le temps écoulé
         derniere_mise_a_jour: new Date().toISOString()
       })
     };
@@ -223,14 +223,13 @@ router.post('/', verifyToken, async (req, res) => {
 router.put('/:id/progression', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { etape_actuelle, temps_ecoule, nombre_total_etapes, temps_etape_actuelle } = req.body;
+    const { etape_actuelle, temps_ecoule, nombre_total_etapes } = req.body;
 
     console.log('📥 Mise à jour progression reçue:', {
       sessionId: id,
       etape_actuelle,
       temps_ecoule,
       nombre_total_etapes,
-      temps_etape_actuelle,
       body: req.body
     });
 
@@ -261,19 +260,10 @@ router.put('/:id/progression', verifyToken, async (req, res) => {
         progressionExistante = {
           etape_actuelle: 0,
           nombre_total_etapes: 0,
-          temps_total_cumule: 0,
+          temps_ecoule: 0,
           derniere_mise_a_jour: new Date().toISOString()
         };
       }
-    }
-
-    // Calculer le temps total cumulé
-    let tempsTotalCumule = progressionExistante.temps_total_cumule || 0;
-    
-    // Si on a un temps pour l'étape actuelle, l'ajouter au cumul
-    if (temps_etape_actuelle && temps_etape_actuelle > 0) {
-      tempsTotalCumule += temps_etape_actuelle;
-      console.log(`📊 Ajout de ${temps_etape_actuelle}s au temps cumulé. Nouveau total: ${tempsTotalCumule}s`);
     }
 
     // Préparer les données de progression
@@ -282,11 +272,16 @@ router.put('/:id/progression', verifyToken, async (req, res) => {
         etape_actuelle: etape_actuelle || 0,
         nombre_total_etapes: nombre_total_etapes || 0,
         temps_ecoule: temps_ecoule || 0,
-        temps_total_cumule: tempsTotalCumule,
         derniere_mise_a_jour: new Date().toISOString()
       }),
       date_fin: new Date().toISOString() // Mettre à jour la date de fin à chaque progression
     };
+
+    console.log('📋 Progression finale à sauvegarder:', {
+      etape_actuelle: etape_actuelle || 0,
+      nombre_total_etapes: nombre_total_etapes || 0,
+      temps_ecoule: temps_ecoule || 0
+    });
 
     console.log('📋 Données de progression à sauvegarder:', progressionData);
 
