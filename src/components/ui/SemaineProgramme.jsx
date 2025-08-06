@@ -164,9 +164,11 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
     // Limiter à 7 jours ou au total du programme si plus court
     const joursAAfficher = Math.min(7, totalJours);
     
+    let indexProchaineSeance = getProchaineSeanceIndex(seancesOrganisees);
+    let firstDay = indexProchaineSeance > 0 ? indexProchaineSeance -3 : 1;
     // Créer un tableau des jours à afficher
     const joursAffiches = [];
-    for (let jour = 1; jour <= joursAAfficher; jour++) {
+    for (let jour = firstDay; jour <= joursAAfficher + firstDay; jour++) {
       const groupeExistant = seancesOrganisees.find(g => g.jour === jour);
       
       if (groupeExistant) {
@@ -186,8 +188,8 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   };
 
   // Fonction pour obtenir l'index de la prochaine séance
-  const getProchaineSeanceIndex = () => {
-    const toutesSeances = seancesSemaine.flatMap(groupe => groupe.seances);
+  const getProchaineSeanceIndex = (seancesOrganisees) => {
+    const toutesSeances = seancesOrganisees.flatMap(groupe => groupe.seances);
     const premiereSeanceNonCompletee = toutesSeances.find(s => !s.completed);
     return premiereSeanceNonCompletee ? premiereSeanceNonCompletee.index_global : -1;
   };
@@ -284,7 +286,7 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
     }
     
     // Si pas de session, vérifier si c'est la prochaine séance
-    if (seance.index_global === getProchaineSeanceIndex()) return 'next';
+    if (seance.index_global === getProchaineSeanceIndex(seancesSemaine)) return 'next';
     return 'future';
   };
 
@@ -441,7 +443,7 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
             {jour.seances.length > 0 ? (
               jour.seances.map((seance) => {
                 const status = getStatusSeance(seance);
-                const isProchaineSeance = !seance.completed && seance.index_global === getProchaineSeanceIndex();
+                const isProchaineSeance = !seance.completed && seance.index_global === getProchaineSeanceIndex(seancesSemaine);
                 const isOpen = openSeances[seance.id];
                 const isInstruction = seance.seance?.type_seance === "instruction";
                 
