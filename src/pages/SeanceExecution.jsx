@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import MoteurExecution from '../screens/MoteurExecution';
 import SeanceService from '../services/seanceService';
@@ -10,6 +10,7 @@ import NavigationPromptDialog from '../components/ui/NavigationPromptDialog';
 
 export default function SeanceExecution() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [started, setStarted] = useState(false);
   const [etapes, setEtapes] = useState([]);
@@ -42,14 +43,21 @@ export default function SeanceExecution() {
           
           // Vérifier si l'utilisateur suit un programme actif
           let programmeActuel = null;
+          let progId = null;
           try {
             programmeActuel = await programmeService.getProgrammeActuel();
-            if (programmeActuel && programmeActuel.programme_id) {
-              setProgrammeId(programmeActuel.programme_id);
+            // L'API renvoie l'objet programme (avec champ id). Compat: fallback programme_id
+            progId = programmeActuel?.id ?? programmeActuel?.programme_id ?? null;
+            if (progId) {
+              setProgrammeId(progId);
             }
           } catch (error) {
             console.log('Aucun programme actif ou erreur:', error);
           }
+
+          // Extraire le jour de programme s'il est passé dans l'URL
+          const searchParams = new URLSearchParams(location.search);
+          const jourProgrammeParam = searchParams.get('jour');
 
           // Vérifier s'il y a une session en cours pour cette séance
           try {
@@ -62,7 +70,12 @@ export default function SeanceExecution() {
             } else {
               // Démarrer automatiquement une nouvelle session si aucune n'est en cours
               console.log('🚀 Aucune session en cours, démarrage automatique...');
-              const nouvelleSession = await SeanceService.demarrerSession(id, programmeActuel?.programme_id, null, seance.nom);
+              const nouvelleSession = await SeanceService.demarrerSession(
+                id,
+                progId,
+                jourProgrammeParam ? Number(jourProgrammeParam) : null,
+                seance.nom
+              );
               setSessionId(nouvelleSession.id);
               console.log('✅ Nouvelle session démarrée automatiquement:', nouvelleSession.id);
             }
@@ -70,7 +83,12 @@ export default function SeanceExecution() {
             console.log('Erreur lors de la vérification des sessions en cours:', error);
             // En cas d'erreur, essayer de démarrer une nouvelle session
             try {
-              const nouvelleSession = await SeanceService.demarrerSession(id, programmeActuel?.programme_id, null, seance.nom);
+              const nouvelleSession = await SeanceService.demarrerSession(
+                id,
+                progId,
+                jourProgrammeParam ? Number(jourProgrammeParam) : null,
+                seance.nom
+              );
               setSessionId(nouvelleSession.id);
               console.log('✅ Nouvelle session démarrée après erreur:', nouvelleSession.id);
             } catch (startError) {
@@ -201,12 +219,30 @@ export default function SeanceExecution() {
       console.log('📤 Enregistrement de séance:', { seanceId, sessionData, isUpdate });
       
       let result;
-      if (sessionId && !isUpdate) {
+      if (isUpdate) {
+        // Ici, le premier paramètre est en réalité le sessionId
+        result = await SeanceService.terminerSession(seanceId, sessionData);
+      } else if (sessionId) {
         // Terminer la session existante
         result = await SeanceService.terminerSession(sessionId, sessionData);
       } else {
-        // Utiliser l'ancienne méthode pour compatibilité
-        result = await SeanceService.enregistrerSeance(seanceId, sessionData, isUpdate);
+        // Si dans un programme, utiliser la route programme pour conserver nom/jour
+        if (programmeId) {
+          // Renseigner un nom par défaut si absent
+          const nomSession = currentSession?.nom || 'Séance du programme';
+          // Transmettre le jour si présent dans l'URL
+          const searchParams = new URLSearchParams(location.search);
+          const jourProgrammeParam = searchParams.get('jour');
+          const payload = {
+            ...sessionData,
+            nom_session: nomSession,
+            jour_programme: jourProgrammeParam ? Number(jourProgrammeParam) : null,
+          };
+          result = await programmeService.marquerSeanceComplete(programmeId, seanceId, payload);
+        } else {
+          // Utiliser la route séance libre
+          result = await SeanceService.enregistrerSeance(seanceId, sessionData, isUpdate);
+        }
       }
       
       console.log('✅ Séance enregistrée:', result);

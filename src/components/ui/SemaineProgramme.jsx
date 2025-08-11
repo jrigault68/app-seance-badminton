@@ -165,7 +165,7 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
     const joursAAfficher = Math.min(7, totalJours);
     
     let indexProchaineSeance = getProchaineSeanceIndex(seancesOrganisees);
-    let firstDay = indexProchaineSeance > 0 ? indexProchaineSeance -3 : 1;
+    let firstDay = Math.max(1, indexProchaineSeance - 3);
     // Créer un tableau des jours à afficher
     const joursAffiches = [];
     for (let jour = firstDay; jour <= joursAAfficher + firstDay; jour++) {
@@ -190,8 +190,36 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
   // Fonction pour obtenir l'index de la prochaine séance
   const getProchaineSeanceIndex = (seancesOrganisees) => {
     const toutesSeances = seancesOrganisees.flatMap(groupe => groupe.seances);
+
+    // Chercher la première séance non complétée
     const premiereSeanceNonCompletee = toutesSeances.find(s => !s.completed);
-    return premiereSeanceNonCompletee ? premiereSeanceNonCompletee.index_global : -1;
+    if (premiereSeanceNonCompletee) {
+      return premiereSeanceNonCompletee.index_global;
+    }
+
+    // Si toutes les séances sont complétées ou aucune séance, prendre le jour après la dernière séance complétée
+    if (toutesSeances.length === 0) {
+      return -1;
+    }
+
+    // Trouver la dernière séance complétée
+    const dernierIndexComplete = (() => {
+      // On cherche le dernier index_global d'une séance complétée
+      const seancesCompletees = toutesSeances.filter(s => s.completed);
+      if (seancesCompletees.length === 0) {
+        // Si aucune séance n'est complétée, retourner le premier jour
+        return toutesSeances[0].index_global;
+      }
+      // Sinon, retourner l'index_global de la dernière séance complétée + 1 (prochain jour)
+      const maxIndex = Math.max(...seancesCompletees.map(s => s.index_global));
+      // Si on dépasse le nombre de séances, retourner le dernier jour
+      if (maxIndex + 1 >= toutesSeances.length) {
+        return toutesSeances[toutesSeances.length - 1].index_global;
+      }
+      return maxIndex + 1;
+    })();
+
+    return dernierIndexComplete;
   };
 
   // Fonction pour calculer la progression en jours
@@ -310,7 +338,8 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
 
   const handleLancerSeance = (seance) => {
     if (seance && seance.id) {
-      window.location.href = `/seances/${seance.id}/execution`;
+      const jour = seance.jour_programme ? `?jour=${encodeURIComponent(seance.jour_programme)}` : '';
+      window.location.href = `/seances/${seance.id}/execution${jour}`;
     }
   };
 
@@ -325,14 +354,23 @@ const SemaineProgramme = ({ programmeId, onSeanceClick }) => {
     setIsValidating(true);
     try {
       const notes = commentaire || '';
-        
-      await SeanceService.enregistrerSeance(selectedSeance.id, {
-        etat: 'terminee',
-        date_debut: new Date().toISOString(),
-        date_fin: new Date().toISOString(),
-        duree: 0, // Pas de durée pour les instructions
-        notes: notes
-      });
+      
+      // Si on est dans le contexte d'un programme, marquer via l'API programme pour conserver programme_id/jour
+      if (programmeId) {
+        await programmeService.marquerSeanceComplete(programmeId, selectedSeance.id, {
+          jour_programme: selectedSeance.jour_programme,
+          duree_totale: 0,
+          notes: notes
+        });
+      } else {
+        await SeanceService.enregistrerSeance(selectedSeance.id, {
+          etat: 'terminee',
+          date_debut: new Date().toISOString(),
+          date_fin: new Date().toISOString(),
+          duree: 0,
+          notes: notes
+        });
+      }
       
       // Recharger les données
       window.location.reload();

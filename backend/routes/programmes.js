@@ -670,12 +670,13 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
     
     if (seancesError) throw seancesError;
 
-    // Récupérer les séances déjà complétées par l'utilisateur (programme + libres)
+    // Récupérer les séances déjà complétées par l'utilisateur pour ce programme
     const { data: sessionsCompletees, error: sessionsError } = await db
       .from('sessions_entrainement')
       .select('seance_id, jour_programme, date_fin, duree_totale, calories_brulees, satisfaction, etat')
-      .eq('utilisateur_id', req.user.id);
-      //.in('etat', ['terminee', 'skipped']);
+      .eq('utilisateur_id', req.user.id)
+      .eq('programme_id', id)
+      .in('etat', ['terminee', 'skipped']);
 
     if (sessionsError) throw sessionsError;
 
@@ -693,11 +694,16 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
         const joursAAjouter = seance.jour - 1;
         dateSeance.setTime(dateSeance.getTime() + (joursAAjouter * 24 * 60 * 60 * 1000));
 
-        // Vérifier si cette séance est déjà complétée
-        const sessionCompletee = sessionsCompletees.find(s => s.seance_id === seance.seance_id);
-        const estCompletee = !!sessionCompletee;
-
+        // Vérifier si cette séance est déjà complétée pour CE JOUR du programme
         const dateFormatted = dateSeance.toISOString().split('T')[0];
+        const sessionCompletee = sessionsCompletees.find(s => 
+          s.seance_id === seance.seance_id && (
+            s.jour_programme === seance.jour ||
+            (s.date_fin && new Date(s.date_fin) >= dateSeance)
+          )
+        );
+        const estCompletee = !!sessionCompletee;
+        
         
         seancesAvecDates.push({
           jour: seance.jour,
@@ -748,7 +754,7 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
 // Route pour marquer une séance comme complétée dans un programme
 router.post('/:id/seances/:seanceId/complete', verifyToken, async (req, res) => {
   const { id, seanceId } = req.params;
-  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes } = req.body;
+  const { duree_totale, calories_brulees, niveau_effort, satisfaction, notes, jour_programme, nom_session } = req.body;
   
   console.log('Enregistrement séance programme - Paramètres reçus:', { id, seanceId, body: req.body, user: req.user.id });
   
@@ -758,13 +764,28 @@ router.post('/:id/seances/:seanceId/complete', verifyToken, async (req, res) => 
       return res.status(400).json({ error: 'ID du programme et ID de la séance requis' });
     }
 
+    // Récupérer le nom de la séance si non fourni
+    let seanceNom = nom_session;
+    if (!seanceNom) {
+      const { data: seanceRow, error: seanceErr } = await db
+        .from('seances')
+        .select('nom')
+        .eq('id', seanceId)
+        .single();
+      if (seanceErr) {
+        console.warn('Impossible de récupérer le nom de la séance, fallback générique:', seanceErr);
+      } else if (seanceRow && seanceRow.nom) {
+        seanceNom = seanceRow.nom;
+      }
+    }
+
     // Préparer les données de session
     const sessionData = {
       utilisateur_id: req.user.id,
       seance_id: seanceId,
       programme_id: parseInt(id),
-      jour_programme: null,
-      nom_session: `Séance du programme`,
+      jour_programme: jour_programme || null,
+      nom_session: seanceNom || `Séance du programme`,
       date_debut: new Date().toISOString(),
       date_fin: new Date().toISOString(),
       duree_totale: duree_totale || 0,
