@@ -1,0 +1,104 @@
+{
+  "nom": "Séance d'échauffement complet",
+  "description": "Séance d'échauffement progressive pour préparer le corps à l'effort",
+  "niveau_id": 1,
+  "type_id": 1,
+  "categorie_id": 1,
+  "type_seance": "exercice",
+  "notes": "Se concentrer sur la respiration et la fluidité des mouvements",
+  "structure": [
+    {
+      "type": "bloc",
+      "nom": "Échauffement articulaire",
+      "description": "Mobilisation douce des articulations principales",
+      "nbTours": 1,
+      "temps_repos_bloc": 30,
+      "temps_repos_exercice": 15,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "course_sur_place",
+          "series": 1,
+          "repetitions": 0,
+          "temps_series": 60,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "rotation_des_epaules",
+          "series": 1,
+          "repetitions": 10,
+          "temps_series": 0,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "rotation_des_hanches",
+          "series": 1,
+          "repetitions": 8,
+          "temps_series": 0,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        }
+      ]
+    },
+    {
+      "type": "bloc",
+      "nom": "Renforcement léger",
+      "description": "Exercices de renforcement musculaire progressif",
+      "nbTours": 2,
+      "temps_repos_bloc": 60,
+      "temps_repos_exercice": 30,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "pompes_genoux",
+          "series": 2,
+          "repetitions": 8,
+          "temps_series": 0,
+          "temps_repos_series": 45,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "squats_poids_corps",
+          "series": 2,
+          "repetitions": 12,
+          "temps_series": 0,
+          "temps_repos_series": 45,
+          "temps_repos_exercice": 0
+        }
+      ]
+    },
+    {
+      "type": "bloc",
+      "nom": "Étirements",
+      "description": "Étirements doux pour récupération",
+      "nbTours": 1,
+      "temps_repos_bloc": 0,
+      "temps_repos_exercice": 10,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "etirement_triceps",
+          "series": 1,
+          "repetitions": 0,
+          "temps_series": 30,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "etirement_pectoraux",
+          "series": 1,
+          "repetitions": 0,
+          "temps_series": 30,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        }
+      ]
+    }
+  ]
+}

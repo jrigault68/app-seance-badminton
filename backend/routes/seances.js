@@ -22,7 +22,8 @@ router.get('/', async (req, res) => {
 
     let query = supabase
       .from('v_seances_completes')
-      .select('*');
+      .select('*')
+      .order('updated_at', { ascending: false }); // Tri par date de dernière modification, plus récent en premier
 
     // Filtres
     if (niveau) {
@@ -197,6 +198,9 @@ router.post('/', verifyToken, async (req, res) => {
       type_id,
       categorie_id,
       type_seance,
+      structure,
+      notes,
+      duree_estimee,
       created_by
     } = req.body;
 
@@ -215,6 +219,9 @@ router.post('/', verifyToken, async (req, res) => {
       type_id: type_id || null,
       categorie_id: categorie_id || null,
       type_seance: type_seance || "exercice",
+      structure: structure || null,
+      notes: notes || null,
+      duree_estimee: duree_estimee || null,
       created_by: req.user.id
     };
 

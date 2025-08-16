@@ -418,11 +418,11 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers pour updated_at
---CREATE TRIGGER update_utilisateurs_updated_at BEFORE UPDATE ON utilisateurs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_exercices_updated_at BEFORE UPDATE ON exercices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_seances_updated_at BEFORE UPDATE ON seances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_programmes_updated_at BEFORE UPDATE ON programmes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_sessions_entrainement_updated_at BEFORE UPDATE ON sessions_entrainement FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_utilisateurs_updated_at BEFORE UPDATE ON utilisateurs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_exercices_updated_at BEFORE UPDATE ON exercices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_seances_updated_at BEFORE UPDATE ON seances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_programmes_updated_at BEFORE UPDATE ON programmes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_sessions_entrainement_updated_at BEFORE UPDATE ON sessions_entrainement FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 --CREATE TRIGGER update_statistiques_utilisateur_updated_at BEFORE UPDATE ON statistiques_utilisateur FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 --CREATE TRIGGER update_objectifs_utilisateur_updated_at BEFORE UPDATE ON objectifs_utilisateur FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

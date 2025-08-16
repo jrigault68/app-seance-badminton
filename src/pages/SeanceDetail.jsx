@@ -10,17 +10,123 @@ import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
-import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings, RotateCcw } from "lucide-react";
+import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings, RotateCcw, Upload, HelpCircle, Copy, X } from "lucide-react";
 import { estimerDureeEtape, calculerTempsTotalSeance } from "../utils/helpers";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
 import { JsonViewer } from "json-viewer-react";
+import { getActiveAIService, AI_PROVIDER, AI_CONFIG } from "../config/aiConfig";
+
+// Composant pour sélectionner une séance à copier
+function SeanceCopySelector({ onSelect, onCancel }) {
+  const [seances, setSeances] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  useEffect(() => {
+    fetch(`${apiUrl}/seances?limit=100`)
+      .then(res => res.json())
+      .then(data => {
+        setSeances(data.seances || data || []);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Erreur lors du chargement des séances:', error);
+        setLoading(false);
+      });
+  }, [apiUrl]);
+
+  const filteredSeances = seances.filter(seance =>
+    seance.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    seance.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <input
+          type="text"
+          placeholder="Rechercher une séance..."
+          className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      
+      <div className="max-h-96 overflow-y-auto space-y-2">
+        {filteredSeances.length === 0 ? (
+          <div className="text-gray-400 text-center py-8">
+            {searchTerm ? 'Aucune séance trouvée' : 'Aucune séance disponible'}
+          </div>
+        ) : (
+          filteredSeances.map(seance => (
+            <div
+              key={seance.id}
+              className="p-3 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 cursor-pointer"
+              onClick={() => onSelect(seance)}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white">{seance.nom}</h3>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {seance.description || 'Aucune description'}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded">
+                      {seance.type_seance === 'instruction' ? 'Instruction' : 'Exercices'}
+                    </span>
+                    {seance.structure && (
+                      <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded">
+                        {seance.structure.length} bloc(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="ml-2 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(seance);
+                  }}
+                >
+                  Copier
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      
+      <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+        <button
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
+          onClick={onCancel}
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SeanceDetail() {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUser();
-  const isNew = location.pathname.endsWith("/new") || !id;
+  const isNew = !id || id === "new";
+  
+
+  
   const [mode, setMode] = useState(isNew ? "new" : "detail"); // 'detail' | 'edit' | 'new'
   const [structureEditMode, setStructureEditMode] = useState(false); // Nouveau mode pour l'édition de structure
   const [seance, setSeance] = useState(null);
@@ -38,7 +144,6 @@ export default function SeanceDetail() {
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const initialFormRef = useRef(form);
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const isCreatorOrAdmin = user && seance && (user.id === seance.created_by || user.is_admin);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [sessionEnCours, setSessionEnCours] = useState(null);
@@ -48,11 +153,363 @@ export default function SeanceDetail() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarType, setSnackbarType] = useState("success");
 
+  // États pour l'import de séances
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [hasImportedData, setHasImportedData] = useState(false);
+  
+
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [importError, setImportError] = useState('');
+  const [copied, setCopied] = useState({ json: false, prompt: false });
+  
+  // États pour l'IA
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestedExercices, setSuggestedExercices] = useState([]);
+
+  // Exemple JSON et prompt IA pour les séances
+  const exempleJsonSeance = `{
+  "nom": "Séance d'échauffement complet",
+  "description": "Séance d'échauffement progressive pour préparer le corps à l'effort",
+  "niveau_id": 1,
+  "type_id": 1,
+  "categorie_id": 1,
+  "type_seance": "exercice",
+  "notes": "Se concentrer sur la respiration et la fluidité des mouvements",
+  "structure": [
+    {
+      "type": "bloc",
+      "nom": "Échauffement articulaire",
+      "description": "Mobilisation douce des articulations principales",
+      "nbTours": 1,
+      "temps_repos_bloc": 30,
+      "temps_repos_exercice": 15,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "course_sur_place",
+          "series": 1,
+          "repetitions": 0,
+          "temps_series": 60,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "rotations_epaules",
+          "series": 1,
+          "repetitions": 10,
+          "temps_series": 0,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        }
+      ]
+    },
+    {
+      "type": "bloc",
+      "nom": "Renforcement léger",
+      "description": "Exercices de renforcement musculaire progressif",
+      "nbTours": 2,
+      "temps_repos_bloc": 60,
+      "temps_repos_exercice": 30,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "pompes_genoux",
+          "series": 2,
+          "repetitions": 8,
+          "temps_series": 0,
+          "temps_repos_series": 45,
+          "temps_repos_exercice": 0
+        },
+        {
+          "type": "exercice",
+          "id": "squats_air",
+          "series": 2,
+          "repetitions": 12,
+          "temps_series": 0,
+          "temps_repos_series": 45,
+          "temps_repos_exercice": 0
+        }
+      ]
+    }
+  ]
+}`;
+
+  const directivesSeance = [
+    "Utilise le format JSON strict avec guillemets doubles.",
+    "La structure doit être un tableau d'objets de type 'bloc' ou 'exercice'.",
+    "Les blocs contiennent un tableau 'contenu' avec des exercices ou sous-blocs.",
+    "Les exercices doivent utiliser les IDs exacts des exercices existants dans la base.",
+    "Les champs de configuration (series, repetitions, temps_series, etc.) sont optionnels.",
+    "Les temps sont exprimés en secondes.",
+    "Le champ 'type_seance' peut être 'exercice' ou 'instruction'.",
+    "Respecte la hiérarchie : structure > blocs > exercices."
+  ];
+
+  const promptIASeance = `Génère un objet JSON pour une séance d'entraînement. Respecte strictement ce format et ces consignes :
+- Utilise uniquement les exercices existants dans la base de données
+- Structure hiérarchique : blocs contenant des exercices
+- Configuration des exercices : series, repetitions, temps_series, temps_repos_series, temps_repos_exercice
+- Temps exprimés en secondes
+- Remplis tous les champs pertinents
+- Réponds uniquement avec le JSON, sans explication
+{
+  "nom": "<NOM_SEANCE>",
+  "description": "",
+  "niveau_id": 1,
+  "type_id": 1,
+  "categorie_id": 1,
+  "type_seance": "exercice",
+  "notes": "",
+  "structure": [
+    {
+      "type": "bloc",
+      "nom": "",
+      "description": "",
+      "nbTours": 1,
+      "temps_repos_bloc": 0,
+      "temps_repos_exercice": 0,
+      "contenu": [
+        {
+          "type": "exercice",
+          "id": "<ID_EXERCICE_EXISTANT>",
+          "series": 1,
+          "repetitions": 0,
+          "temps_series": 0,
+          "temps_repos_series": 0,
+          "temps_repos_exercice": 0
+        }
+      ]
+    }
+  ]
+}`;
+
+  // Fonctions pour l'import
+  const handleCopy = async (text, type) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(prev => ({ ...prev, [type]: true }));
+      setTimeout(() => setCopied(prev => ({ ...prev, [type]: false })), 2000);
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+    }
+  };
+
+  const handleImportJson = () => {
+    try {
+      const data = JSON.parse(importJsonText);
+      
+      // Validation des exercices existants
+      const validationResult = validateExercicesInStructure(data.structure, exercices);
+      
+      if (validationResult.hasErrors) {
+        setImportError(`Erreurs de validation : ${validationResult.errors.join(', ')}`);
+        return;
+      }
+      
+      // Remplir directement le formulaire
+      const newForm = {
+        nom: data.nom || '',
+        description: data.description || '',
+        niveau_id: data.niveau_id ? String(data.niveau_id) : '',
+        type_id: data.type_id ? String(data.type_id) : '',
+        categorie_id: data.categorie_id ? String(data.categorie_id) : '',
+        notes: data.notes || '',
+        structure: data.structure || [],
+        type_seance: data.type_seance || 'exercice'
+      };
+      
+      setForm(newForm);
+      initialFormRef.current = newForm;
+      setHasImportedData(true);
+      
+      setShowImportDialog(false);
+      setImportError('');
+      setSnackbarMessage("Séance importée ! Modifiez les champs selon vos besoins puis sauvegardez.");
+      setSnackbarType("success");
+    } catch (error) {
+      setImportError('Erreur de format JSON. Vérifiez la syntaxe.');
+    }
+  };
+
+  // Fonction pour valider les exercices dans la structure
+  const validateExercicesInStructure = (structure, availableExercices) => {
+    const errors = [];
+    const exerciceIds = new Set(availableExercices.map(exo => exo.id));
+    
+    const validateStructure = (items) => {
+      items.forEach(item => {
+        if (item.type === 'bloc' && item.contenu) {
+          validateStructure(item.contenu);
+        } else if (item.type === 'exercice') {
+          if (!item.id) {
+            errors.push(`Exercice sans ID trouvé`);
+          } else if (!exerciceIds.has(item.id)) {
+            errors.push(`Exercice "${item.id}" n'existe pas dans la base de données`);
+          }
+        }
+      });
+    };
+    
+    if (Array.isArray(structure)) {
+      validateStructure(structure);
+    }
+    
+    return {
+      hasErrors: errors.length > 0,
+      errors
+    };
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImportJsonText(event.target.result);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Fonction pour copier une séance existante
+  const handleCopySeance = (seanceToCopy = null) => {
+    const seanceSource = seanceToCopy || seance;
+    
+    if (!seanceSource) {
+      setSnackbarMessage("Aucune séance à copier");
+      setSnackbarType("error");
+      return;
+    }
+    
+    // S'assurer qu'on est bien en mode création
+    if (mode !== "new") {
+      console.warn("Tentative de copie en mode non-création:", mode);
+      return;
+    }
+    
+    // Remplir directement le formulaire avec les données copiées
+    const newForm = {
+      nom: `${seanceSource.nom} (copie)`,
+      description: seanceSource.description || '',
+      niveau_id: seanceSource.niveau_id ? String(seanceSource.niveau_id) : '',
+      type_id: seanceSource.type_id ? String(seanceSource.type_id) : '',
+      categorie_id: seanceSource.categorie_id ? String(seanceSource.categorie_id) : '',
+      notes: seanceSource.notes || '',
+      structure: seanceSource.structure ? JSON.parse(JSON.stringify(seanceSource.structure)) : [],
+      type_seance: seanceSource.type_seance || 'exercice'
+    };
+    
+    setForm(newForm);
+    initialFormRef.current = newForm;
+    setHasImportedData(true);
+    
+    // Fermer le dialog de sélection
+    setShowCopyDialog(false);
+    
+    setSnackbarMessage("Séance copiée ! Modifiez les champs selon vos besoins puis sauvegardez.");
+    setSnackbarType("success");
+  };
+
+  // Fonctions pour l'IA
+  const handleAIGenerate = async () => {
+    if (!aiPrompt.trim()) {
+      setAiError('Veuillez saisir une description de séance');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError('');
+    setAiResponse('');
+
+    try {
+      // Obtenir le service IA actif
+      const aiService = await getActiveAIService();
+      
+      // Utiliser le service IA
+      const response = await aiService.generateSeance(aiPrompt, exercices, promptIASeance);
+      
+      setAiResponse(response);
+      setImportJsonText(response);
+      
+      // Appliquer directement la séance générée au formulaire
+      try {
+        const data = JSON.parse(response);
+        
+        // Validation des exercices existants
+        const validationResult = validateExercicesInStructure(data.structure, exercices);
+        
+        if (validationResult.hasErrors) {
+          setAiError(`Erreurs de validation : ${validationResult.errors.join(', ')}`);
+          return;
+        }
+        
+        setForm({
+          nom: data.nom || '',
+          description: data.description || '',
+          niveau_id: data.niveau_id ? String(data.niveau_id) : '',
+          type_id: data.type_id ? String(data.type_id) : '',
+          categorie_id: data.categorie_id ? String(data.categorie_id) : '',
+          notes: data.notes || '',
+          structure: data.structure || [],
+          type_seance: data.type_seance || 'exercice'
+        });
+        
+        setSnackbarMessage("Séance générée et appliquée avec succès !");
+        setSnackbarType("success");
+        
+      } catch (parseError) {
+        setAiError('Erreur lors du parsing de la réponse IA : ' + parseError.message);
+      }
+      
+    } catch (error) {
+      setAiError('Erreur lors de la génération : ' + error.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Fonction pour suggérer des exercices similaires
+  const suggestSimilarExercices = async (searchTerm) => {
+    if (!searchTerm.trim()) {
+      setSuggestedExercices([]);
+      return;
+    }
+
+    try {
+      const aiService = await getActiveAIService();
+      const suggestions = await aiService.suggestExercices(searchTerm, exercices);
+      setSuggestedExercices(suggestions);
+    } catch (error) {
+      console.warn('Erreur suggestion IA:', error);
+      // Fallback vers recherche simple
+      const suggestions = exercices
+        .filter(exo => 
+          exo.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          exo.categorie_nom?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .slice(0, 5);
+      setSuggestedExercices(suggestions);
+    }
+  };
+
   // Récupère les listes de référence
   useEffect(() => {
     fetch(`${apiUrl}/niveaux`).then(res => res.json()).then(setNiveaux);
     fetch(`${apiUrl}/categories`).then(res => res.json()).then(setCategories);
     fetch(`${apiUrl}/types`).then(res => res.json()).then(setTypes);
+    fetch(`${apiUrl}/exercices?limit=1000`).then(res => res.json()).then(data => {
+      const exercicesData = data.exercices || data || [];
+      console.log('Exercices chargés:', exercicesData.length);
+      setExercices(exercicesData);
+    });
   }, [apiUrl]);
 
   // Charge la séance si mode detail/edit
@@ -60,14 +517,26 @@ export default function SeanceDetail() {
     if (isNew) {
       setLoading(false);
       setSeance(null);
+      
+      // Pas de logique de navigation avec state nécessaire
+      
+      // Formulaire vide par défaut
       setForm({ nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [], type_seance: "exercice" });
       initialFormRef.current = { nom: "", description: "", niveau_id: "", type_id: "", categorie_id: "", notes: "", structure: [], type_seance: "exercice" };
+      setHasImportedData(false);
       return;
     }
+    
+    // Vérifier que l'ID n'est pas "new" ou invalide
+    if (!id || id === "new") {
+      setError("ID de séance invalide");
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     SeanceService.getSeanceById(id)
       .then(data => {
-        console.log("Données de la séance récupérées:", data);
         setSeance(data);
         setForm({
           nom: data.nom || "",
@@ -89,6 +558,7 @@ export default function SeanceDetail() {
           structure: data.structure || [],
           type_seance: data.type_seance || "exercice"
         };
+        setHasImportedData(false);
         
       })
       .catch(err => setError(err.message))
@@ -99,7 +569,7 @@ export default function SeanceDetail() {
 
   // Vérifier s'il y a une session en cours pour cette séance
   useEffect(() => {
-    if (!isNew && seance) {
+    if (!isNew && seance && seance.id && seance.id !== "new") {
       setLoadingSession(true);
       SeanceService.getSessionEnCours(seance.id)
         .then(session => {
@@ -177,8 +647,8 @@ export default function SeanceDetail() {
     } else {
       if (structureEditMode) {
         setStructureEditMode(false);
-      } else if (mode === "detail") {
-        // En mode détail, naviguer vers la liste des séances
+      } else if (mode === "detail" || isNew) {
+        // En mode détail ou nouvelle séance, naviguer vers la liste des séances
         navigate("/seances");
       } else {
         setMode("detail");
@@ -277,7 +747,8 @@ export default function SeanceDetail() {
     try {
       // Vérifier qu'on a un ID valide
       if (!id || id === "new") {
-        throw new Error("ID de séance invalide. Veuillez sauvegarder la séance d'abord.");
+        console.warn("Tentative de sauvegarde structure avec ID invalide:", id);
+        throw new Error("Impossible de sauvegarder la structure. Veuillez d'abord sauvegarder la séance.");
       }
       
       // Calculer le temps total de la séance avec la nouvelle structure
@@ -344,11 +815,22 @@ export default function SeanceDetail() {
         backTo="/seances" 
         backLabel="Retour à la liste des séances"
         onBackClick={handleBackClick}
+        pageActions={mode === "new" ? [
+          {
+            icon: <Copy size={20} className="text-green-400" />,
+            label: 'Copier une séance',
+            onClick: () => setShowCopyDialog(true)
+          }
+        ] : []}
       >
         <div className="w-full flex items-center justify-center px-4 text-white">
           <div className="w-full max-w-4xl space-y-8 mx-auto">
             <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="bg-black/40 rounded-2xl p-6 border border-gray-700 space-y-6 mt-8">
               {error && <div className="text-red-400 text-center mb-2">{error}</div>}
+              
+              
+
+              
               {/* Sélecteur de type de séance */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2 text-white">Type de séance</label>
@@ -396,10 +878,22 @@ export default function SeanceDetail() {
                   {types.map(t => (<option key={t.id} value={t.id} className="bg-gray-700 text-white">{t.nom}</option>))}
                 </FloatingLabelInput>
               </div>
-              {/* Structure de la séance à compléter selon besoins */}
+              {mode === "new" && form.structure && form.structure.length > 0 && (
+                <div className="bg-blue-900/50 border border-blue-700 rounded p-3 text-blue-300">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📋</span>
+                    <div>
+                      <strong>Structure prête :</strong> {form.structure.length} bloc(s) avec {form.structure.reduce((total, bloc) => total + (bloc.contenu?.length || 0), 0)} exercice(s)
+                      <div className="text-xs text-blue-400 mt-1">
+                        La structure sera sauvegardée avec la séance
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
             <FloatingSaveButton
-              show={hasChanged}
+              show={hasChanged || hasImportedData}
               onClick={handleSave}
               loading={saving}
               label={mode === "edit" ? "Enregistrer les modifications" : "Créer la séance"}
@@ -407,6 +901,238 @@ export default function SeanceDetail() {
             />
           </div>
         </div>
+        
+        {/* Dialogs pour l'import et l'IA */}
+        {showImportDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+            onClick={e => {
+              if (e.target === e.currentTarget) {
+                setShowImportDialog(false); setImportError('');
+              }
+            }}
+          >
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-lg border border-gray-700 relative" onClick={e => e.stopPropagation()}>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                onClick={() => { setShowImportDialog(false); setImportError(''); }}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+              <h2 className="text-lg font-bold text-white mb-4">Importer une séance au format JSON</h2>
+              <textarea
+                className="w-full h-32 p-2 bg-gray-800 border border-gray-600 rounded mb-2 text-white"
+                placeholder="Collez ici le texte JSON..."
+                value={importJsonText}
+                onChange={e => setImportJsonText(e.target.value)}
+              />
+              <div className="flex items-center gap-2 mb-2">
+                <input type="file" accept="application/json,.json,.txt" onChange={handleImportFile} className="text-white" />
+                <span className="text-xs text-gray-400">ou choisir un fichier</span>
+              </div>
+              {importError && <div className="text-red-400 mb-2">{importError}</div>}
+              <div className="flex justify-between gap-2 mt-2">
+                <div className="flex gap-2">
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    onClick={() => setShowHelpDialog(true)}
+                    type="button"
+                  >
+                    <HelpCircle size={18} /> Aide modèle JSON
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white"
+                    onClick={() => setShowAIDialog(true)}
+                    type="button"
+                  >
+                    <Settings size={18} /> Générer avec IA
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    onClick={() => { setShowImportDialog(false); setImportError(''); }}
+                  >Annuler</button>
+                  <button
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold"
+                    onClick={handleImportJson}
+                  >Importer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showHelpDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+            onClick={e => {
+              if (e.target === e.currentTarget) setShowHelpDialog(false);
+            }}
+          >
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                onClick={() => setShowHelpDialog(false)}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+              <h2 className="text-lg font-bold text-white mb-4">Modèle JSON & Directives</h2>
+              <div className="mb-4 relative">
+                <h3 className="text-md font-semibold text-orange-300 mb-2">Exemple de modèle JSON</h3>
+                <button
+                  className="absolute top-0 right-0 flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
+                  onClick={() => handleCopy(exempleJsonSeance, 'json')}
+                  type="button"
+                >
+                  <Copy size={14} /> {copied.json ? 'Copié !' : 'Copier'}
+                </button>
+                <pre className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto mt-6">
+                  {exempleJsonSeance}
+                </pre>
+              </div>
+              <div>
+                <h3 className="text-md font-semibold text-orange-300 mb-2">Directives importantes</h3>
+                <ul className="list-disc pl-6 text-gray-200 text-sm space-y-1">
+                  {directivesSeance.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showAIDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+            onClick={e => {
+              if (e.target === e.currentTarget) setShowAIDialog(false);
+            }}
+          >
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative" onClick={e => e.stopPropagation()}>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                onClick={() => setShowAIDialog(false)}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+              <h2 className="text-lg font-bold text-white mb-4">Générer une séance avec l'IA</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-white">Description de la séance souhaitée</label>
+                  <textarea
+                    className="w-full h-32 p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="Décrivez la séance que vous souhaitez générer..."
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                  />
+                </div>
+                {aiError && <div className="text-red-400">{aiError}</div>}
+                {aiResponse && (
+                  <div>
+                    <h3 className="text-md font-semibold text-orange-300 mb-2">Séance générée</h3>
+                    <div className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto max-h-60">
+                      {(() => {
+                        try {
+                          const data = JSON.parse(aiResponse);
+                          return (
+                            <div className="space-y-2">
+                              <div><strong>Nom:</strong> {data.nom}</div>
+                              <div><strong>Description:</strong> {data.description}</div>
+                              <div><strong>Type:</strong> {data.type_seance}</div>
+                              <div><strong>Structure:</strong> {data.structure?.length || 0} bloc(s)</div>
+                              {data.structure?.map((bloc, index) => (
+                                <div key={index} className="ml-4 border-l-2 border-gray-600 pl-2">
+                                  <div><strong>Bloc {index + 1}:</strong> {bloc.nom}</div>
+                                  <div className="text-gray-400">{bloc.contenu?.length || 0} exercice(s)</div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        } catch (e) {
+                          return <pre>{aiResponse}</pre>;
+                        }
+                      })()}
+                    </div>
+                    <div className="flex justify-center mt-4">
+                      <button
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white font-semibold"
+                        onClick={() => {
+                          try {
+                            const data = JSON.parse(aiResponse);
+                            setForm({
+                              nom: data.nom || '',
+                              description: data.description || '',
+                              niveau_id: data.niveau_id ? String(data.niveau_id) : '',
+                              type_id: data.type_id ? String(data.type_id) : '',
+                              categorie_id: data.categorie_id ? String(data.categorie_id) : '',
+                              notes: data.notes || '',
+                              structure: data.structure || [],
+                              type_seance: data.type_seance || 'exercice'
+                            });
+                            setShowAIDialog(false);
+                            setSnackbarMessage("Séance appliquée avec succès !");
+                            setSnackbarType("success");
+                          } catch (e) {
+                            setAiError('Erreur lors de l\'application : ' + e.message);
+                          }
+                        }}
+                      >
+                        Appliquer cette séance
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <button
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    onClick={() => setShowAIDialog(false)}
+                  >Annuler</button>
+                  <button
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white font-semibold"
+                    onClick={handleAIGenerate}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? 'Génération...' : 'Générer'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dialog de sélection de séance à copier */}
+        {showCopyDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+            onClick={e => {
+              if (e.target === e.currentTarget) setShowCopyDialog(false);
+            }}
+          >
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-4xl border border-gray-700 relative overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                onClick={() => setShowCopyDialog(false)}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+              <h2 className="text-lg font-bold text-white mb-4">Sélectionner une séance à copier</h2>
+              <SeanceCopySelector 
+                onSelect={(seance) => {
+                  handleCopySeance(seance);
+                  setShowCopyDialog(false);
+                }}
+                onCancel={() => setShowCopyDialog(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {(blocker || showNavigationDialog) && (
         <NavigationPromptDialog
           open={blocker?.state === "blocked" || showNavigationDialog}
@@ -481,6 +1207,7 @@ export default function SeanceDetail() {
           label: structureEditMode ? 'Terminer l\'édition' : 'Éditer la structure', 
           onClick: () => setStructureEditMode(!structureEditMode) 
         },
+
         isCreatorOrAdmin && {
           icon: <Trash2 size={20} className="text-red-400" />,
           label: 'Supprimer',
@@ -654,7 +1381,7 @@ export default function SeanceDetail() {
           {sessionEnCours ? 'Reprendre la séance' : 'Lancer la séance'}
         </button>
       )}
-      
+
     </Layout>
   );
 } 
