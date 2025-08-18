@@ -11,6 +11,7 @@ import AdminExercices from "./pages/AdminExercices";
 import AdminUtilisateurs from "./pages/AdminUtilisateurs";
 import AdminUtilisateurDetail from "./pages/AdminUtilisateurDetail";
 import AdminSeances from "./pages/AdminSeances";
+import AdminZones from "./pages/AdminZones";
 import Exercices from "./pages/Exercices";
 import ExerciceDetail from "./pages/ExerciceDetail";
 import CreerProgramme from "./pages/CreerProgramme";
@@ -69,6 +70,11 @@ export default function App() {
         <Route path="/admin-seances" element={
           <PrivateRoute>
             <AdminSeances />
+          </PrivateRoute>
+        } />
+        <Route path="/admin-zones" element={
+          <PrivateRoute>
+            <AdminZones />
           </PrivateRoute>
         } />
         <Route path="/seances/:id/modifier" element={

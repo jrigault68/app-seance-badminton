@@ -6,10 +6,9 @@
 **nom :** [Nom de l'exercice]  
 **description :** [Description complète en phrases parlées pour l'audio - TUTOIEMENT]  
 **position_depart :** [Position de départ en phrases parlées - TUTOIEMENT]  
-**categorie_id :** [ID de la catégorie - voir liste ci-dessous]  
-**groupe_musculaire_id :** [ID du groupe musculaire - voir liste ci-dessous]  
-**niveau_id :** [ID du niveau - voir liste ci-dessous]  
-**type_id :** [ID du type - voir liste ci-dessous]  
+**famille_id :** [ID de la famille d'exercices - voir liste ci-dessous]  
+**sous_categories_ids :** [Array d'UUIDs des sous-catégories - voir liste ci-dessous]  
+**zones_specifiques_ids :** [Array d'UUIDs des zones spécifiques - voir liste ci-dessous]  
 **materiel :** [Array JSON des matériaux nécessaires]  
 **erreurs :** [Array JSON des erreurs communes à éviter]  
 **focus_zone :** [Array JSON des zones à surveiller]  
@@ -19,178 +18,140 @@
 **calories_estimees :** [Calories estimées pour 1 répétition]  
 **muscles_sollicites :** [Array JSON des muscles sollicités]  
 **variantes :** [Objet JSON avec plus_faciles et plus_difficiles]  
-**conseils :** [Array JSON des conseils d'exécution]  
+**conseils :** [Array JSON des conseils d'exécution]
+
+## Notes de difficulté (0-20 pour chaque aspect)
+
+**note_force :** [Note de difficulté force (0-20) : intensité musculaire et charge de travail]  
+**note_cardio :** [Note de difficulté cardio (0-20) : effort cardiovasculaire et respiratoire]  
+**note_technique :** [Note de difficulté technique (0-20) : complexité d'exécution et précision]  
+**note_mobilite :** [Note de difficulté mobilité (0-20) : amplitude articulaire et flexibilité]  
+**note_impact :** [Note de difficulté impact (0-20) : stress mécanique sur les articulations]  
+**note_mentale :** [Note de difficulté mentale (0-20) : concentration et endurance mentale]
 
 ## Références des IDs
 
-### Catégories (categories_exercices)
-- 1: échauffement
-- 2: mobilité  
-- 3: renforcement
-- 4: étirement
-- 5: cardio
-- 6: gainage
-- 7: récupération_active
-- 8: ancrage
+### Zones du corps et zones spécifiques (zones_corps + zones_specifiques)
 
-### Groupes musculaires (groupes_musculaires)
-- 1: corps entier
-- 2: jambes
-- 3: fessiers
-- 4: cuisses
-- 5: mollets
-- 6: abdominaux
-- 7: dos
-- 8: pectoraux
-- 9: épaules
-- 10: bras
-- 11: triceps
-- 12: biceps
-- 13: avant-bras
-- 14: tronc
-- 15: colonne vertébrale
-- 16: hanches
-- 17: cheville
+#### Muscles bas du corps
+- quadriceps
+- ischio_jambiers
+- fessiers
+- mollets
+- adducteurs
 
-### Niveaux (niveaux_difficulte)
-- 1: facile
-- 2: intermédiaire
-- 3: difficile
-- 4: expert
+#### Muscles haut du corps
+- pectoraux
+- dorsaux
+- deltoides
+- biceps
+- triceps
+- abdominaux
+- avant_bras
+- trapezes
 
-### Types (types_exercices)
-- 1: temps
-- 2: repetitions
-- 3: mouvement
-- 4: mobilité
-- 5: respiration
-- 6: gainage
-- 7: cardio
-- 8: etirement
+#### Articulations
+- genoux
+- chevilles
+- hanches
+- epaules
+- coudes
+- poignets
+- colonne_vertebrale
 
-## Exemple de remplissage
+#### Tendons et ligaments
+- tendons_achille
+- ligaments_genoux
 
-### Informations de base
-**id :** marche_active_sur_place  
-**nom :** Marche active sur place  
-**description :** "Lève alternativement tes genoux vers ta poitrine en gardant le dos droit."  
-**position_depart :** "Debout, les pieds écartés de la largeur des hanches, les bras le long du corps."  
-**categorie_id :** 1  
-**groupe_musculaire_id :** 1  
-**niveau_id :** 1  
-**type_id :** 1  
-**materiel :** []  
-**erreurs :** ["Ne bloque pas ta respiration", "Ne courbe pas ton dos", "Ne lève pas tes genoux trop haut"]  
-**focus_zone :** ["Tu devrais sentir ton cardio monter progressivement", "Concentre-toi sur ta coordination bras-jambes", "Sens tes jambes s'échauffer"]  
-**image_url :** null  
-**video_url :** null  
-**duree_estimee :** 3  
-**calories_estimees :** 0.5  
-**muscles_sollicites :** ["Quadriceps", "Fessiers", "Mollets", "Abdominaux"]  
-**variantes :** [Objet JSON avec plus_faciles et plus_difficiles]  
-**conseils :** ["Concentre-toi sur ta respiration régulière", "Garde ton dos bien droit", "Maintiens un rythme constant"]  
+#### Système cardiovasculaire
+- coeur
+- poumons
 
-## Instructions pour la rédaction
+#### Système nerveux
+- coordination
+- proprioception
 
-### Position de départ
-- **Format :** Une phrase claire et concise
-- **Style :** Descriptif et précis (TUTOIEMENT)
-- **Exemple :** "Debout, les jambes écartées de la largeur des hanches..."
-- **Objectif :** Permettre à l'utilisateur de se positionner correctement
+### Familles d'exercices (familles_exercices)
+- UUID: [UUID de la famille d'exercices]
+- Voir la liste complète dans l'application
 
-### Description
-- **Format :** Phrases complètes et naturelles
-- **Style :** Direct et instructif (TUTOIEMENT)
-- **Important :** Ne pas reprendre les informations de la position de départ
-- **Important :** Ne pas inclure de conseils (respiration, posture, etc.) qui sont déjà dans les champs dédiés
-- **Longueur :** 1-2 phrases maximum, très concises
-- **Objectif :** Être lu à haute voix par l'application
-- **Exemple :** "Tourne ton tronc vers la droite puis vers la gauche en gardant tes hanches fixes." (au lieu de "Tourne ton tronc vers la droite puis vers la gauche en gardant tes hanches fixes. Garde ton dos droit et respire régulièrement.")
+### Sous-catégories (sous_categories)
+Les sous-catégories sont organisées par catégories principales :
 
-### Erreurs communes
-- **Format :** Array de phrases complètes
-- **Style :** Direct et positif (utiliser "Ne bloque pas..." au lieu de "Ne pas bloquer...")
-- **Exemple :** ["Ne bloque pas ta respiration", "Ne courbe pas ton dos"]
+#### Renforcement
+- pliométrie
+- force_pure
+- endurance_musculaire
+- isométrique
+- dynamique
 
-### Focus zones
-- **Format :** Array de phrases complètes
-- **Style :** Descriptif et encourageant (TUTOIEMENT)
-- **Exemple :** ["Tu devrais sentir le cardio monter", "Concentre-toi sur la coordination"]
+#### Cardio
+- haute_intensité
+- endurance
+- intervalle
+- continu
 
-### Conseils
-- **Format :** Array de phrases complètes
-- **Style :** Positif et encourageant (TUTOIEMENT)
-- **Exemple :** ["Concentre-toi sur ta respiration", "Va à ton rythme"]
+#### Mobilité
+- étirement_dynamique
+- étirement_statique
+- mobilité_articulaire
+- flexibilité
 
-### Variantes
-- **Format :** Objet JSON avec deux propriétés
-- **Structure :** `{ "plus_faciles": [...], "plus_difficiles": [...] }`
-- **Style :** Conditionnel et suggestif (TUTOIEMENT)
-- **Exemple :** 
-  ```json
-  {
-    "plus_faciles": ["Si c'est trop difficile, tu peux plier les genoux", "Si tu veux moins d'intensité, réduis l'amplitude"],
-    "plus_difficiles": ["Si c'est trop facile, tu peux ajouter un saut", "Si tu veux plus d'intensité, ralentis la descente"]
-  }
-  ```
+#### Stabilisation
+- gainage
+- équilibre
+- proprioception
+- renforcement_profond
 
-### Durée estimée
-- **Format :** Durée en secondes pour 1 répétition
-- **Exemple :** Une pompe = 2-3 secondes
-- **Objectif :** Permettre le calcul du temps total selon le nombre de répétitions
+#### Récupération
+- récupération_active
+- respiration
+- relaxation
+- étirement_doux
 
-### Calories estimées
-- **Format :** Calories pour 1 répétition
-- **Exemple :** 0.5 calorie par répétition
-- **Objectif :** Permettre le calcul des calories totales selon le nombre de répétitions
+## Exemple de structure JSON
 
-## Génération SQL
-
-```sql
-INSERT INTO exercices (
-    id, nom, description, position_depart, 
-    categorie_id, groupe_musculaire_id, niveau_id, type_id,
-    materiel, erreurs, focus_zone, image_url, video_url,
-    duree_estimee, calories_estimees, muscles_sollicites, variantes, conseils,
-    created_by, is_validated, created_at, updated_at
-) VALUES (
-    'marche_active_sur_place',
-    'Marche active sur place',
-    'Lève alternativement tes genoux vers ta poitrine en gardant le dos droit.',
-    'Debout, les pieds écartés de la largeur des hanches, les bras le long du corps.',
-    1, 1, 1, 1,
-    '[]',
-    '["Ne bloque pas ta respiration", "Ne courbe pas ton dos", "Ne lève pas tes genoux trop haut"]',
-    '["Tu devrais sentir ton cardio monter progressivement", "Concentre-toi sur ta coordination bras-jambes", "Sens tes jambes s''échauffer"]',
-    null,
-    null,
-    3,
-    0.5,
-    '["Quadriceps", "Fessiers", "Mollets", "Abdominaux"]',
-    '{"plus_faciles": ["Si c''est trop difficile, tu peux plier les genoux", "Si tu veux moins d''intensité, réduis l''amplitude"], "plus_difficiles": ["Si c''est trop facile, tu peux ajouter un saut", "Si tu veux plus d''intensité, ralentis la descente"]}',
-    '["Concentre-toi sur ta respiration régulière", "Garde ton dos bien droit", "Maintiens un rythme constant"]',
-    null,
-    false,
-    NOW(),
-    NOW()
-);
+```json
+{
+  "id": "pompes_renforcement",
+  "nom": "Pompes",
+  "description": "Tu te mets en position de planche, les mains au sol légèrement plus écartées que tes épaules. Tu descends ton corps en pliant les coudes, puis tu remontes en poussant sur tes bras.",
+  "position_depart": "Tu commences en position de planche, le corps aligné de la tête aux pieds.",
+  "zones_specifiques_ids": ["uuid-pectoraux", "uuid-triceps"],
+  "famille_id": "uuid-de-la-famille-pompes",
+  "sous_categories_ids": ["uuid-renforcement", "uuid-dynamique"],
+  "note_force": 12,
+  "note_cardio": 8,
+  "note_technique": 6,
+  "note_mobilite": 4,
+  "note_impact": 3,
+  "note_mentale": 5,
+  "duree_estimee": 60,
+  "calories_estimees": 5,
+  "materiel": [],
+  "erreurs": [
+    "Ne pas garder le corps aligné",
+    "Laisser les hanches s'affaisser",
+    "Ne pas descendre suffisamment"
+  ],
+  "focus_zone": [
+    "Maintenir l'alignement du corps",
+    "Contrôler la descente",
+    "Engager les abdominaux"
+  ],
+  "muscles_sollicites": ["pectoraux", "triceps", "épaules"],
+  "conseils": [
+    "Garde ton corps bien aligné",
+    "Descends lentement et de manière contrôlée",
+    "Engage tes abdominaux pour maintenir la position"
+  ]
+}
 ```
 
 ## Notes importantes
 
-1. **Type flexible :** Le type peut être modifié selon l'utilisation dans la séance
-2. **Audio-friendly :** Toutes les descriptions doivent être écrites pour être lues à haute voix
-3. **Tutoiement :** Utilise le tutoiement dans toutes les descriptions et conseils
-4. **Simplicité :** Évite les termes techniques complexes
-5. **Clarté :** Instructions précises et faciles à suivre
-6. **Sécurité :** Inclus toujours les erreurs communes à éviter
-7. **Durée unitaire :** La durée estimée est pour 1 répétition, pas pour l'exercice complet
-8. **Calories unitaires :** Les calories estimées sont pour 1 répétition, pas pour l'exercice complet
-9. **Description concise :** La description doit être très concise et ne pas répéter les conseils déjà présents dans les champs dédiés
-
----
-
-**Date de création :** 2024-12-19  
-**Créé par :** Assistant IA  
-**Dernière modification :** 2024-12-19  
-**Version :** 2.1 
+- Les **sous-catégories** remplacent les anciens champs `categorie_id`, `type_id`, et `niveau_id`
+- Un exercice peut avoir **plusieurs sous-catégories** (ex: pliométrie + haute_intensité)
+- Les **notes de difficulté** sont sur une échelle de 0 à 20 pour chaque aspect
+- Les **UUIDs** sont générés automatiquement par la base de données
+- Les **arrays JSON** doivent être des tableaux valides même s'ils sont vides 

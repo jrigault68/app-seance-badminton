@@ -11,9 +11,8 @@ const verifyToken = require('../middleware/auth');
 router.get('/', async (req, res) => {
   try {
     const {
-      niveau,
-      type_seance,
       categorie,
+      sous_categorie,
       search,
       limit = 20,
       offset = 0,
@@ -26,14 +25,11 @@ router.get('/', async (req, res) => {
       .order('updated_at', { ascending: false }); // Tri par date de dernière modification, plus récent en premier
 
     // Filtres
-    if (niveau) {
-      query = query.eq('niveau_nom', niveau);
-    }
-    if (type_seance) {
-      query = query.eq('type_seance', type_seance);
-    }
     if (categorie) {
-      query = query.contains('categories', [categorie]);
+      query = query.contains('categories_noms', [categorie]);
+    }
+    if (sous_categorie) {
+      query = query.contains('sous_categories_noms', [sous_categorie]);
     }
     if (search) {
       query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
@@ -78,7 +74,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data: seance, error } = await supabase
       .from('v_seances_completes')
       .select('*')
       .eq('id', id)
@@ -98,7 +94,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    res.json({ seance: data });
+    res.json({ seance });
 
   } catch (error) {
     console.error('❌ Erreur serveur:', error);
@@ -194,14 +190,11 @@ router.post('/', verifyToken, async (req, res) => {
     const {
       nom,
       description,
-      niveau_id,
-      type_id,
-      categorie_id,
       type_seance,
       structure,
       notes,
       duree_estimee,
-      created_by
+      sous_categories_ids
     } = req.body;
 
     // Validation des champs obligatoires
@@ -215,9 +208,6 @@ router.post('/', verifyToken, async (req, res) => {
     const seanceData = {
       nom,
       description,
-      niveau_id: niveau_id || null,
-      type_id: type_id || null,
-      categorie_id: categorie_id || null,
       type_seance: type_seance || "exercice",
       structure: structure || null,
       notes: notes || null,
@@ -237,6 +227,23 @@ router.post('/', verifyToken, async (req, res) => {
         error: 'Erreur lors de la création de la séance',
         details: error.message
       });
+    }
+
+    // Ajouter les sous-catégories si fournies
+    if (sous_categories_ids && Array.isArray(sous_categories_ids) && sous_categories_ids.length > 0) {
+      const sousCategoriesData = sous_categories_ids.map(sous_categorie_id => ({
+        seance_id: data.id,
+        sous_categorie_id
+      }));
+
+      const { error: sousCategoriesError } = await supabase
+        .from('seances_sous_categories')
+        .insert(sousCategoriesData);
+
+      if (sousCategoriesError) {
+        console.error('❌ Erreur lors de l\'ajout des sous-catégories:', sousCategoriesError);
+        // On ne fait pas échouer la création de la séance pour ça
+      }
     }
 
     res.status(201).json({
@@ -259,17 +266,11 @@ router.post('/personnalisees', verifyToken, async (req, res) => {
     const {
       nom,
       description,
-      niveau_id,
       type_seance,
-      categories,
-      objectifs,
-      duree_estimee,
-      calories_estimees,
-      materiel_requis,
       structure,
       notes,
-      tags,
-      est_publique = false
+      duree_estimee,
+      sous_categories_ids
     } = req.body;
 
     // Validation des champs obligatoires
@@ -281,24 +282,17 @@ router.post('/personnalisees', verifyToken, async (req, res) => {
     }
 
     const seanceData = {
-      utilisateur_id: req.user.id,
       nom,
-      description,
-      niveau_id: niveau_id || null,
-      type_seance,
-      categories: categories || [],
-      objectifs: objectifs || [],
-      duree_estimee,
-      calories_estimees,
-      materiel_requis: materiel_requis || [],
+      description: description || null,
+      type_seance: type_seance || "exercice",
       structure,
-      notes,
-      tags: tags || [],
-      est_publique
+      notes: notes || null,
+      duree_estimee: duree_estimee || null,
+      created_by: req.user.id
     };
 
     const { data, error } = await supabase
-      .from('seances_personnalisees')
+      .from('seances')
       .insert([seanceData])
       .select()
       .single();
@@ -309,6 +303,22 @@ router.post('/personnalisees', verifyToken, async (req, res) => {
         error: 'Erreur lors de la création de la séance personnalisée',
         details: error.message
       });
+    }
+
+    // Ajouter les sous-catégories si fournies
+    if (sous_categories_ids && Array.isArray(sous_categories_ids) && sous_categories_ids.length > 0) {
+      const sousCategoriesData = sous_categories_ids.map(sous_categorie_id => ({
+        seance_id: data.id,
+        sous_categorie_id
+      }));
+
+      const { error: sousCategoriesError } = await supabase
+        .from('seances_sous_categories')
+        .insert(sousCategoriesData);
+
+      if (sousCategoriesError) {
+        console.error('❌ Erreur lors de l\'ajout des sous-catégories:', sousCategoriesError);
+      }
     }
 
     res.status(201).json({
@@ -366,66 +376,112 @@ router.get('/personnalisees', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/seances/:id - Mettre à jour une séance (auteur ou admin seulement)
+// PUT /api/seances/:id - Mettre à jour une séance
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
-    const userId = req.user.id;
-    const isAdmin = req.user.isAdmin;
-    // Vérifier les permissions
-    const { data: seance, error: fetchError } = await supabase
+    const {
+      nom,
+      description,
+      type_seance,
+      structure,
+      notes,
+      duree_estimee,
+      sous_categories_ids
+    } = req.body;
+
+    // Vérifier que la séance existe et appartient à l'utilisateur
+    const { data: existingSeance, error: checkError } = await supabase
       .from('seances')
       .select('created_by')
       .eq('id', id)
       .single();
 
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
         return res.status(404).json({
           error: 'Séance non trouvée',
           details: `Aucune séance trouvée avec l'ID: ${id}`
         });
       }
+      console.error('❌ Erreur lors de la vérification de la séance:', checkError);
       return res.status(500).json({
-        error: 'Erreur lors de la vérification des permissions',
-        details: fetchError.message
+        error: 'Erreur lors de la vérification de la séance',
+        details: checkError.message
       });
     }
 
-    if (seance.created_by !== userId && !isAdmin) {
+    if (existingSeance.created_by !== req.user.id) {
       return res.status(403).json({
         error: 'Accès refusé',
-        details: 'Vous ne pouvez modifier que vos propres séances'
+        details: 'Vous n\'êtes pas autorisé à modifier cette séance'
       });
     }
 
-    // Supprimer les champs qui ne doivent pas être modifiés
-    delete updateData.id;
-    delete updateData.created_at;
-    delete updateData.updated_at;
-    delete updateData.auteur_id;
-    delete updateData.created_by;
+    // Mettre à jour la séance
+    const seanceData = {
+      nom,
+      description,
+      type_seance,
+      structure,
+      notes,
+      duree_estimee
+    };
+
+    // Supprimer les valeurs null/undefined
+    Object.keys(seanceData).forEach(key => {
+      if (seanceData[key] === null || seanceData[key] === undefined) {
+        delete seanceData[key];
+      }
+    });
 
     const { data, error } = await supabase
       .from('seances')
-      .update(updateData)
+      .update(seanceData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
+      console.error('❌ Erreur lors de la mise à jour de la séance:', error);
       return res.status(500).json({
         error: 'Erreur lors de la mise à jour de la séance',
         details: error.message
       });
     }
 
+    // Mettre à jour les sous-catégories si fournies
+    if (sous_categories_ids !== undefined) {
+      // Supprimer les anciennes associations
+      await supabase
+        .from('seances_sous_categories')
+        .delete()
+        .eq('seance_id', id);
+
+      // Ajouter les nouvelles associations
+      if (Array.isArray(sous_categories_ids) && sous_categories_ids.length > 0) {
+        const sousCategoriesData = sous_categories_ids.map(sous_categorie_id => ({
+          seance_id: id,
+          sous_categorie_id
+        }));
+
+        const { error: sousCategoriesError } = await supabase
+          .from('seances_sous_categories')
+          .insert(sousCategoriesData);
+
+        if (sousCategoriesError) {
+          console.error('❌ Erreur lors de la mise à jour des sous-catégories:', sousCategoriesError);
+        }
+      }
+    }
+
     res.json({
       message: 'Séance mise à jour avec succès',
       seance: data
     });
+
   } catch (error) {
+    console.error('❌ Erreur serveur:', error);
     res.status(500).json({
       error: 'Erreur serveur interne',
       details: error.message
@@ -433,36 +489,36 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/seances/:id - Supprimer une séance (auteur ou admin seulement)
+// DELETE /api/seances/:id - Supprimer une séance
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const isAdmin = req.user.isAdmin;
-    // Vérifier les permissions
-    const { data: seance, error: fetchError } = await supabase
+
+    // Vérifier que la séance existe et appartient à l'utilisateur
+    const { data: existingSeance, error: checkError } = await supabase
       .from('seances')
       .select('created_by')
       .eq('id', id)
       .single();
 
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
         return res.status(404).json({
           error: 'Séance non trouvée',
           details: `Aucune séance trouvée avec l'ID: ${id}`
         });
       }
+      console.error('❌ Erreur lors de la vérification de la séance:', checkError);
       return res.status(500).json({
-        error: 'Erreur lors de la vérification des permissions',
-        details: fetchError.message
+        error: 'Erreur lors de la vérification de la séance',
+        details: checkError.message
       });
     }
 
-    if (seance.created_by !== userId && !isAdmin) {
+    if (existingSeance.created_by !== req.user.id) {
       return res.status(403).json({
         error: 'Accès refusé',
-        details: 'Vous ne pouvez supprimer que vos propres séances'
+        details: 'Vous n\'êtes pas autorisé à supprimer cette séance'
       });
     }
 
@@ -472,6 +528,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       .eq('id', id);
 
     if (error) {
+      console.error('❌ Erreur lors de la suppression de la séance:', error);
       return res.status(500).json({
         error: 'Erreur lors de la suppression de la séance',
         details: error.message
@@ -481,7 +538,9 @@ router.delete('/:id', verifyToken, async (req, res) => {
     res.json({
       message: 'Séance supprimée avec succès'
     });
+
   } catch (error) {
+    console.error('❌ Erreur serveur:', error);
     res.status(500).json({
       error: 'Erreur serveur interne',
       details: error.message

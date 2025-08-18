@@ -11,6 +11,7 @@ const requireAdmin = async (req, res, next) => {
     }
     next();
   } catch (error) {
+    console.error('Erreur dans requireAdmin:', error);
     res.status(500).json({ message: "Erreur de vérification des droits" });
   }
 };
@@ -160,24 +161,15 @@ router.get("/utilisateurs", verifyToken, requireAdmin, async (req, res) => {
         utilisateur.last_connection = null;
       }
     });
-    console.log(`Sort by : ${sortBy}`);
+    
     // Extraire le premier critère de tri (avant la virgule)
     const sortByStr = String(sortBy);
     const primarySort = sortByStr.split(',')[0];
-    console.log(`Primary sort: ${primarySort}`);
     
     // Tri côté serveur simple
     if (primarySort === "last_connection" || primarySort === "last_session" || primarySort === "program_start" || primarySort === "nb_sessions") {
-             console.log(`Tri côté serveur par: ${primarySort}`);
-      
-      // Debug: afficher quelques valeurs avant tri
-      console.log("Avant tri - 3 premiers:");
-      utilisateursAvecStats.slice(0, 3).forEach((u, i) => {
-        console.log(`${i+1}. ${u.nom}: last_connection=${u.last_connection}`);
-      });
-      
-             utilisateursAvecStats.sort((a, b) => {
-         switch (primarySort) {
+      utilisateursAvecStats.sort((a, b) => {
+        switch (primarySort) {
           case "last_connection":
             // Tri par dernière connexion (plus récente en premier)
             if (!a.last_connection && !b.last_connection) return 0;
@@ -186,9 +178,7 @@ router.get("/utilisateurs", verifyToken, requireAdmin, async (req, res) => {
             
             const aLastConn = new Date(a.last_connection);
             const bLastConn = new Date(b.last_connection);
-            const diff = bLastConn.getTime() - aLastConn.getTime();
-            console.log(`Comparaison: ${a.nom}(${aLastConn.toISOString()}) vs ${b.nom}(${bLastConn.toISOString()}) = ${diff}`);
-            return diff;
+            return bLastConn.getTime() - aLastConn.getTime();
           
           case "last_session":
             // Tri par dernière séance (plus récente en premier)
@@ -217,12 +207,6 @@ router.get("/utilisateurs", verifyToken, requireAdmin, async (req, res) => {
           default:
             return 0;
         }
-      });
-      
-      // Debug: afficher quelques valeurs après tri
-      console.log("Après tri - 3 premiers:");
-      utilisateursAvecStats.slice(0, 3).forEach((u, i) => {
-        console.log(`${i+1}. ${u.nom}: last_connection=${u.last_connection}`);
       });
     }
 
@@ -331,13 +315,7 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
           id,
           nom,
           description,
-          niveau_id,
-          type_seance,
-          categorie_id,
-          categories(
-            nom,
-            couleur
-          )
+          type_seance
         ),
         utilisateurs!inner(
           id,
@@ -364,34 +342,7 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
       return res.status(500).json({ message: "Erreur lors de la récupération des séances récentes" });
     }
 
-    console.log(`Total des sessions récupérées: ${sessions.length}`);
 
-    // Debug: afficher les états des premières séances
-    console.log("États des séances récupérées:");
-    sessions.slice(0, 5).forEach((session, index) => {
-      console.log(`${index + 1}. Séance ${session.seances.nom}: etat = ${session.etat}, type = ${session.seances.type_seance}, categorie = ${session.seances.categories?.nom || 'Non catégorisée'}`);
-    });
-    
-    // Debug: compter les états
-    const etatsCount = sessions.reduce((acc, session) => {
-      acc[session.etat] = (acc[session.etat] || 0) + 1;
-      return acc;
-    }, {});
-    console.log("Comptage des états:", etatsCount);
-    
-    // Debug: afficher toutes les sessions skipped
-    const sessionsSkipped = sessions.filter(s => s.etat === 'skipped');
-    console.log(`Sessions skipped trouvées: ${sessionsSkipped.length}`);
-    sessionsSkipped.forEach((session, index) => {
-      console.log(`Skipped ${index + 1}: ${session.seances.nom} (ID: ${session.id}, type: ${session.seances.type_seance}, notes: ${session.notes ? 'oui' : 'non'})`);
-    });
-    
-    // Debug: afficher les types de séances
-    const typesSeances = sessions.reduce((acc, session) => {
-      acc[session.seances.type_seance] = (acc[session.seances.type_seance] || 0) + 1;
-      return acc;
-    }, {});
-    console.log("Types de séances:", typesSeances);
 
     // Formater les données pour l'affichage
     const seancesFormatees = sessions.map(session => {
@@ -447,6 +398,584 @@ router.get("/seances-recentes", verifyToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Erreur dans /admin/seances-recentes:", error);
     res.status(500).json({ message: "Erreur serveur interne" });
+  }
+});
+
+// =====================================================
+// ROUTES POUR L'ADMINISTRATION DES ZONES
+// =====================================================
+
+// GET /admin/zones-corps - Liste toutes les zones du corps
+router.get('/zones-corps', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('zones_corps')
+      .select('*')
+      .order('ordre_affichage', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ zones: data });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des zones du corps:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/zones-corps - Créer une nouvelle zone du corps
+router.post('/zones-corps', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { nom, description, couleur, icone, ordre_affichage } = req.body;
+
+    if (!nom) {
+      return res.status(400).json({ error: 'Le nom est requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('zones_corps')
+      .insert([{
+        nom,
+        description,
+        couleur: couleur || '#3B82F6',
+        icone: icone || '🦵',
+        ordre_affichage: ordre_affichage || 0
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ zone: data });
+  } catch (error) {
+    console.error('Erreur lors de la création de la zone du corps:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/zones-corps/ordre - Mettre à jour l'ordre des zones du corps
+router.put('/zones-corps/ordre', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { zones } = req.body;
+
+    if (!Array.isArray(zones)) {
+      return res.status(400).json({ error: 'Le paramètre zones doit être un tableau' });
+    }
+
+    // Mettre à jour l'ordre de chaque zone
+    for (let i = 0; i < zones.length; i++) {
+      const { error } = await supabase
+        .from('zones_corps')
+        .update({ ordre_affichage: i })
+        .eq('id', zones[i].id);
+
+      if (error) throw error;
+    }
+
+    res.json({ message: 'Ordre mis à jour avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/zones-corps/:id - Modifier une zone du corps
+router.put('/zones-corps/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nom, description, couleur, icone, ordre_affichage } = req.body;
+
+    if (!nom) {
+      return res.status(400).json({ error: 'Le nom est requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('zones_corps')
+      .update({
+        nom,
+        description,
+        couleur: couleur || '#3B82F6',
+        icone: icone || '🦵',
+        ordre_affichage: ordre_affichage || 0
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ zone: data });
+  } catch (error) {
+    console.error('Erreur lors de la modification de la zone du corps:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /admin/zones-corps/:id - Supprimer une zone du corps
+router.delete('/zones-corps/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier s'il y a des zones spécifiques liées
+    const { data: zonesSpecifiques, error: checkError } = await supabase
+      .from('zones_specifiques')
+      .select('id')
+      .eq('zone_corps_id', id);
+
+    if (checkError) throw checkError;
+
+    if (zonesSpecifiques && zonesSpecifiques.length > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer cette zone du corps car elle contient des zones spécifiques' 
+      });
+    }
+
+    const { error } = await supabase
+      .from('zones_corps')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Zone du corps supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la zone du corps:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
+
+// PUT /admin/zones-specifiques/ordre - Mettre à jour l'ordre des zones spécifiques
+router.put('/zones-specifiques/ordre', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { zonesSpecifiques } = req.body;
+
+    if (!Array.isArray(zonesSpecifiques)) {
+      return res.status(400).json({ error: 'Le paramètre zonesSpecifiques doit être un tableau' });
+    }
+
+    // Mettre à jour l'ordre de chaque zone spécifique
+    for (let i = 0; i < zonesSpecifiques.length; i++) {
+      const { error } = await supabase
+        .from('zones_specifiques')
+        .update({ ordre_affichage: i })
+        .eq('id', zonesSpecifiques[i].id);
+
+      if (error) throw error;
+    }
+
+    res.json({ message: 'Ordre mis à jour avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /admin/zones-specifiques - Liste toutes les zones spécifiques
+router.get('/zones-specifiques', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('zones_specifiques')
+      .select(`
+        *,
+        zones_corps (
+          id,
+          nom,
+          icone,
+          couleur
+        )
+      `)
+      .order('ordre_affichage', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ zonesSpecifiques: data });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des zones spécifiques:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/zones-specifiques - Créer une nouvelle zone spécifique
+router.post('/zones-specifiques', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { nom, description, zone_corps_id, ordre_affichage } = req.body;
+
+    if (!nom || !zone_corps_id) {
+      return res.status(400).json({ error: 'Le nom et la zone du corps sont requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('zones_specifiques')
+      .insert([{
+        nom,
+        description,
+        zone_corps_id,
+        ordre_affichage: ordre_affichage || 0
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ zoneSpecifique: data });
+  } catch (error) {
+    console.error('Erreur lors de la création de la zone spécifique:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/zones-specifiques/:id - Modifier une zone spécifique
+router.put('/zones-specifiques/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nom, description, zone_corps_id, ordre_affichage } = req.body;
+
+    if (!nom || !zone_corps_id) {
+      return res.status(400).json({ error: 'Le nom et la zone du corps sont requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('zones_specifiques')
+      .update({
+        nom,
+        description,
+        zone_corps_id,
+        ordre_affichage: ordre_affichage || 0
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ zoneSpecifique: data });
+  } catch (error) {
+    console.error('Erreur lors de la modification de la zone spécifique:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /admin/zones-specifiques/:id - Supprimer une zone spécifique
+router.delete('/zones-specifiques/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier s'il y a des exercices liés
+    const { data: exercices, error: checkError } = await supabase
+      .from('exercices_zones_specifiques')
+      .select('exercice_id')
+      .eq('zone_specifique_id', id);
+
+    if (checkError) throw checkError;
+
+    if (exercices && exercices.length > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer cette zone spécifique car elle est utilisée par des exercices' 
+      });
+    }
+
+    const { error } = await supabase
+      .from('zones_specifiques')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Zone spécifique supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la zone spécifique:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =====================================================
+// ROUTES POUR L'ADMINISTRATION DES CATÉGORIES
+// =====================================================
+
+// GET /admin/categories - Liste toutes les catégories
+router.get('/categories', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('ordre_affichage', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ categories: data });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des catégories:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/categories - Créer une nouvelle catégorie
+router.post('/categories', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { nom, description, couleur, icone, ordre_affichage } = req.body;
+
+    if (!nom) {
+      return res.status(400).json({ error: 'Le nom est requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{
+        nom,
+        description,
+        couleur: couleur || '#3B82F6',
+        icone: icone || '📁',
+        ordre_affichage: ordre_affichage || 0
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ categorie: data });
+  } catch (error) {
+    console.error('Erreur lors de la création de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/categories/ordre - Mettre à jour l'ordre des catégories
+router.put('/categories/ordre', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { categories } = req.body;
+
+    if (!Array.isArray(categories)) {
+      return res.status(400).json({ error: 'Le paramètre categories doit être un tableau' });
+    }
+
+    // Mettre à jour l'ordre de chaque catégorie
+    for (let i = 0; i < categories.length; i++) {
+      const { error } = await supabase
+        .from('categories')
+        .update({ ordre_affichage: i })
+        .eq('id', categories[i].id);
+
+      if (error) throw error;
+    }
+
+    res.json({ message: 'Ordre mis à jour avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/categories/:id - Modifier une catégorie
+router.put('/categories/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nom, description, couleur, icone, ordre_affichage } = req.body;
+
+    if (!nom) {
+      return res.status(400).json({ error: 'Le nom est requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('categories')
+      .update({
+        nom,
+        description,
+        couleur: couleur || '#3B82F6',
+        icone: icone || '📁',
+        ordre_affichage: ordre_affichage || 0
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ categorie: data });
+  } catch (error) {
+    console.error('Erreur lors de la modification de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /admin/categories/:id - Supprimer une catégorie
+router.delete('/categories/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier s'il y a des sous-catégories liées
+    const { data: sousCategories, error: checkError } = await supabase
+      .from('sous_categories')
+      .select('id')
+      .eq('categorie_id', id);
+
+    if (checkError) throw checkError;
+
+    if (sousCategories && sousCategories.length > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer cette catégorie car elle contient des sous-catégories' 
+      });
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Catégorie supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =====================================================
+// ROUTES POUR L'ADMINISTRATION DES SOUS-CATÉGORIES
+// =====================================================
+
+// GET /admin/sous-categories - Liste toutes les sous-catégories
+router.get('/sous-categories', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('sous_categories')
+      .select(`
+        *,
+        categories (
+          id,
+          nom,
+          icone,
+          couleur
+        )
+      `)
+      .order('ordre_affichage', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ sousCategories: data });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des sous-catégories:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /admin/sous-categories - Créer une nouvelle sous-catégorie
+router.post('/sous-categories', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { nom, description, categorie_id, ordre_affichage } = req.body;
+
+    if (!nom || !categorie_id) {
+      return res.status(400).json({ error: 'Le nom et la catégorie sont requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('sous_categories')
+      .insert([{
+        nom,
+        description,
+        categorie_id,
+        ordre_affichage: ordre_affichage || 0
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ sousCategorie: data });
+  } catch (error) {
+    console.error('Erreur lors de la création de la sous-catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/sous-categories/ordre - Mettre à jour l'ordre des sous-catégories
+router.put('/sous-categories/ordre', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { sousCategories } = req.body;
+
+    if (!Array.isArray(sousCategories)) {
+      return res.status(400).json({ error: 'Le paramètre sousCategories doit être un tableau' });
+    }
+
+    // Mettre à jour l'ordre de chaque sous-catégorie
+    for (let i = 0; i < sousCategories.length; i++) {
+      const { error } = await supabase
+        .from('sous_categories')
+        .update({ ordre_affichage: i })
+        .eq('id', sousCategories[i].id);
+
+      if (error) throw error;
+    }
+
+    res.json({ message: 'Ordre mis à jour avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /admin/sous-categories/:id - Modifier une sous-catégorie
+router.put('/sous-categories/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nom, description, categorie_id, ordre_affichage } = req.body;
+
+    if (!nom || !categorie_id) {
+      return res.status(400).json({ error: 'Le nom et la catégorie sont requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('sous_categories')
+      .update({
+        nom,
+        description,
+        categorie_id,
+        ordre_affichage: ordre_affichage || 0
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ sousCategorie: data });
+  } catch (error) {
+    console.error('Erreur lors de la modification de la sous-catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /admin/sous-categories/:id - Supprimer une sous-catégorie
+router.delete('/sous-categories/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier s'il y a des exercices liés
+    const { data: exercices, error: checkError } = await supabase
+      .from('exercices_sous_categories')
+      .select('exercice_id')
+      .eq('sous_categorie_id', id);
+
+    if (checkError) throw checkError;
+
+    if (exercices && exercices.length > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer cette sous-catégorie car elle est utilisée par des exercices' 
+      });
+    }
+
+    const { error } = await supabase
+      .from('sous_categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Sous-catégorie supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la sous-catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 

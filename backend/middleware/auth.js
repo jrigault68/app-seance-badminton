@@ -4,7 +4,6 @@ module.exports = function verifyToken(req, res, next) {
   const token = req.cookies.token;
 
   if (!token) {
-    console.warn("⛔ Aucun cookie 'token' reçu");
     return res.status(403).json({ message: "Accès refusé" });
   }
 
@@ -13,7 +12,6 @@ module.exports = function verifyToken(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    console.warn("⛔ Token invalide :", err.message);
     return res.status(401).json({ message: "Token invalide" });
   }
 };

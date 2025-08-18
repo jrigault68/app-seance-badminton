@@ -94,6 +94,9 @@ app.get("/supabase-ping", async (req, res) => {
 // API pour les exercices
 app.use("/exercices", require("./routes/exercices"));
 
+// API pour les familles d'exercices
+app.use("/familles-exercices", require("./routes/familles-exercices"));
+
 // API pour les séances
 app.use("/seances", require("./routes/seances"));
 

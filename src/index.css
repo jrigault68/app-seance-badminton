@@ -2,6 +2,214 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =================================================================
+   STRUCTURE CSS RÉUTILISABLE POUR ÉDITEURS HIÉRARCHIQUES
+   Basé sur le design exact de EditeurStructureSeance.jsx
+   ================================================================= */
+
+/* Conteneur principal - exactement comme EditeurStructureSeance */
+.hierarchical-editor {
+  @apply flex flex-col relative w-full
+}
+
+/* Titre de l'éditeur */
+.hierarchical-editor-title {
+  @apply text-xl font-bold text-orange-300 mb-4
+}
+
+/* Élément hiérarchique - exactement comme EditeurStructureSeance */
+.hierarchical-item {
+  @apply bg-gray-800/80 md:rounded-2xl rounded-lg mb-3 border border-gray-700 shadow-lg w-full;
+}
+
+/* En-tête de l'élément - exactement comme EditeurStructureSeance */
+.hierarchical-item-header {
+  @apply flex items-center gap-1.5 p-2;
+}
+
+/* Icône de flèche - exactement comme EditeurStructureSeance */
+.hierarchical-item-chevron {
+  @apply text-white transition-transform duration-200
+}
+
+.hierarchical-item-chevron.open {
+  @apply rotate-90
+}
+
+/* Contenu principal de l'élément - exactement comme EditeurStructureSeance */
+.hierarchical-item-content {
+  @apply flex-1 flex items-center gap-2
+}
+
+/* Icône de l'entité */
+.hierarchical-item-icon {
+  @apply text-2xl
+}
+
+/* Nom de l'élément - exactement comme EditeurStructureSeance */
+.hierarchical-item-name {
+  @apply font-medium text-orange-300 select-none text-sm tracking-wide
+}
+
+/* Actions de l'élément - exactement comme EditeurStructureSeance */
+.hierarchical-item-actions {
+  @apply flex items-center gap-2
+}
+
+/* Bouton de drag - exactement comme EditeurStructureSeance */
+.hierarchical-drag-button {
+  @apply text-white p-1 cursor-grab active:cursor-grabbing
+}
+
+/* Bouton d'action - exactement comme EditeurStructureSeance */
+.hierarchical-action-button {
+  @apply text-white p-1 transition-colors duration-200 active:text-orange-300
+}
+
+/* Contenu déplié de l'élément - exactement comme EditeurStructureSeance */
+.hierarchical-item-expanded {
+  @apply p-4 border-t border-gray-700/50 space-y-4 cursor-default
+}
+
+/* Conteneur de formulaire */
+.hierarchical-form-container {
+  @apply flex flex-col gap-4
+}
+
+/* Conteneur récursif - exactement comme EditeurStructureSeance */
+.hierarchical-recursive-container {
+  @apply flex flex-col
+}
+
+.hierarchical-recursive-label {
+  @apply text-sm text-gray-500 font-semibold
+}
+
+/* Boutons d'ajout - exactement comme EditeurStructureSeance */
+.hierarchical-add-buttons {
+  @apply flex flex-wrap gap-2
+}
+
+.hierarchical-add-button {
+  @apply flex items-center gap-2 px-3 py-1.5 text-orange-300 bg-gray-700/50 border border-gray-700 rounded-md transition-colors duration-200
+}
+
+.hierarchical-add-button:hover {
+  @apply bg-gray-700
+}
+
+/* Barre d'actions principale - exactement comme EditeurStructureSeance */
+.hierarchical-action-bar {
+  @apply mt-4 flex flex-row gap-2 items-center
+}
+
+/* Menu contextuel - exactement comme EditeurStructureSeance */
+.hierarchical-context-menu {
+  @apply w-48 bg-gray-900 border border-gray-700 rounded-md shadow-lg
+}
+
+.hierarchical-context-menu-item {
+  @apply w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2 transition-colors duration-200
+}
+
+.hierarchical-context-menu-item:hover {
+  @apply bg-gray-700
+}
+
+.hierarchical-context-menu-item.danger {
+  @apply text-red-400
+}
+
+.hierarchical-context-menu-item:disabled {
+  @apply opacity-50
+}
+
+/* Dialog de confirmation - exactement comme EditeurStructureSeance */
+.hierarchical-confirm-dialog {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50
+}
+
+.hierarchical-confirm-content {
+  @apply bg-gray-900 border border-gray-700 rounded-md shadow-lg p-6 min-w-96 max-w-full
+}
+
+.hierarchical-confirm-title {
+  @apply text-orange-300 font-semibold mb-4
+}
+
+.hierarchical-confirm-message {
+  @apply text-gray-300 mb-6
+}
+
+.hierarchical-confirm-actions {
+  @apply flex justify-end gap-2
+}
+
+.hierarchical-confirm-button {
+  @apply px-2 py-1 rounded-md border transition-all duration-200
+}
+
+.hierarchical-confirm-button.cancel {
+  @apply bg-gray-700 text-white border-gray-700
+}
+
+.hierarchical-confirm-button.cancel:hover {
+  @apply bg-gray-700
+}
+
+.hierarchical-confirm-button.confirm {
+    @apply bg-red-500 text-white border-red-500
+}
+
+.hierarchical-confirm-button.confirm:hover {
+  @apply bg-red-500
+}
+
+/* États de drag & drop - exactement comme EditeurStructureSeance */
+.hierarchical-dragging {
+  @apply opacity-50
+}
+
+.hierarchical-drag-overlay {
+  @apply bg-gray-800/80 border border-gray-700 rounded-lg shadow-lg w-full
+}
+
+@media (max-width: 768px) {
+  .hierarchical-drag-overlay {
+    @apply rounded-md
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hierarchical-add-buttons {
+    @apply flex-col
+  }
+  
+  .hierarchical-add-button {
+    @apply w-full justify-center
+  }
+}
+
+/* États de chargement */
+.hierarchical-loading {
+  @apply flex items-center justify-center p-8
+}
+
+.hierarchical-loading-text {
+  @apply text-orange-300 text-xl
+}
+
+/* États d'erreur */
+.hierarchical-error {
+  @apply text-red-400 text-sm mt-2
+}
+
+/* États de succès */
+.hierarchical-success {
+  @apply text-green-400 text-sm mt-2
+}
+
 @keyframes dropdown {
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -200,4 +408,145 @@
 
 .fade-in-up {
   animation: fadeInUp 0.5s ease-out;
+}
+
+/* =================================================================
+   STYLES SPÉCIFIQUES POUR LES PAGES D'ADMINISTRATION
+   ================================================================= */
+
+/* Structure exactement comme SeanceDetail */
+.page-wrapper {
+  @apply w-full flex justify-center mt-4 px-2 sm:px-4 md:px-12;
+}
+
+.page-content {
+  @apply bg-black/40 border border-gray-700 rounded-2xl shadow-lg w-full max-w-none mx-auto p-4 sm:p-4 md:p-6 xl:px-8 xl:py-6;
+  max-width: 1800px;
+}
+
+.badge-container {
+  @apply flex flex-wrap gap-2 mb-4;
+}
+
+/* Badge de base */
+.badge {
+  @apply rounded-full border px-4 py-1 text-xs font-semibold flex items-center gap-1;
+}
+
+/* Badge par défaut (gris) */
+.badge-white {
+  @apply border-gray-600 text-white bg-transparent;
+}
+
+/* Badge bleu */
+.badge-blue {
+  @apply border-blue-500 text-blue-300 bg-blue-900/20;
+}
+
+/* Badge vert */
+.badge-green {
+  @apply border-green-500 text-green-300 bg-green-900/20;
+}
+
+/* Badge rouge */
+.badge-red {
+  @apply border-red-500 text-red-300 bg-red-900/20;
+}
+
+/* Badge orange */
+.badge-orange {
+  @apply border-orange-500 text-orange-300 bg-orange-900/20;
+}
+
+/* Badge violet */
+.badge-purple {
+  @apply border-purple-500 text-purple-300 bg-purple-900/20;
+}
+
+/* Badge jaune */
+.badge-yellow {
+  @apply border-yellow-500 text-yellow-300 bg-yellow-900/20;
+}
+
+/* Badge cyan */
+.badge-cyan {
+  @apply border-cyan-500 text-cyan-300 bg-cyan-900/20;
+}
+
+/* Badge rose */
+.badge-pink {
+  @apply border-pink-500 text-pink-300 bg-pink-900/20;
+}
+
+/* Badge indigo */
+.badge-indigo {
+  @apply border-indigo-500 text-indigo-300 bg-indigo-900/20;
+}
+
+/* Badge émeraude */
+.badge-emerald {
+  @apply border-emerald-500 text-emerald-300 bg-emerald-900/20;
+}
+
+.badge-icon {
+  @apply inline-block text-gray-300 mr-1;
+}
+
+.badge-text-italic {
+  @apply italic text-gray-500;
+}
+
+/* Encart principal exactement comme SeanceDetail */
+.admin-page-main-container {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #374151;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
+}
+
+/* Titre principal des pages d'administration */
+.page-title {
+  @apply text-2xl font-bold mb-2 text-rose-400;
+}
+
+/* Description des pages d'administration */
+.page-description {
+  @apply text-gray-300 italic mb-6 whitespace-pre-line;
+}
+
+/* Responsive design */
+@media (min-width: 640px) {
+  .admin-page-wrapper {
+    padding: 0 1.5rem;
+  }
+  
+  .admin-page-main-container {
+    padding: 2rem;
+  }
+  
+  .admin-page-title {
+    font-size: 1.875rem; /* text-3xl */
+  }
+}
+
+@media (min-width: 768px) {
+  .admin-page-wrapper {
+    padding: 0 2rem;
+  }
+  
+  .admin-page-main-container {
+    padding: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-page-wrapper {
+    padding: 0 3rem;
+  }
+  
+  .admin-page-main-container {
+    padding: 3rem;
+  }
 }

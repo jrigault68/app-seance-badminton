@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import { Plus, Search, Filter, ChevronDown } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown, Dumbbell, Heart, Target } from "lucide-react";
 
 export default function Exercices() {
   const [exercices, setExercices] = useState([]);
@@ -10,7 +10,6 @@ export default function Exercices() {
   const [filters, setFilters] = useState({
     categorie: '',
     groupe_musculaire: '',
-    niveau: '',
     type: '',
     search: ''
   });
@@ -28,7 +27,7 @@ export default function Exercices() {
         const params = new URLSearchParams();
         if (filters.categorie) params.append('categorie', filters.categorie);
         if (filters.groupe_musculaire) params.append('groupe_musculaire', filters.groupe_musculaire);
-        if (filters.niveau) params.append('niveau', filters.niveau);
+
         if (filters.type) params.append('type', filters.type);
         if (filters.search) params.append('search', filters.search);
         params.append('limit', 50);
@@ -66,15 +65,7 @@ export default function Exercices() {
     navigate(`/exercices/${exerciceId}`);
   };
 
-  const getNiveauColor = (niveau) => {
-    switch (niveau?.toLowerCase()) {
-      case 'facile': return 'bg-green-500';
-      case 'intermédiaire': return 'bg-yellow-500';
-      case 'difficile': return 'bg-orange-500';
-      case 'expert': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
+
 
   const getCategorieIcon = (categorie) => {
     switch (categorie?.toLowerCase()) {
@@ -204,18 +195,7 @@ export default function Exercices() {
             <option value="cardio">Cardio</option>
             <option value="tout le corps">Tout le corps</option>
           </select>
-          {/* Filtres niveau */}
-          <select
-            value={filters.niveau}
-            onChange={e => setFilters({ ...filters, niveau: e.target.value })}
-            className="h-8 px-4 rounded-full bg-[#2a2a2a] text-gray-100 border border-[#232526] focus:ring-2 focus:ring-orange-400 text-sm"
-          >
-            <option value="">Tous niveaux</option>
-            <option value="facile">Facile</option>
-            <option value="intermédiaire">Intermédiaire</option>
-            <option value="difficile">Difficile</option>
-            <option value="expert">Expert</option>
-          </select>
+
           {/* Filtres type */}
           <select
             value={filters.type}
@@ -268,7 +248,27 @@ export default function Exercices() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 min-w-[120px]">
-                    <span className={`text-xs text-white px-2 py-1 rounded-full font-medium ${getNiveauColor(exercice.niveau_nom)}`}>{exercice.niveau_nom || 'Non spécifié'}</span>
+                                                                     {/* Notes de difficulté */}
+                         <div className="flex flex-wrap gap-1 justify-end">
+                           {exercice.note_force !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-1 py-1 rounded flex items-center gap-1" title="Force">
+                               <Dumbbell size={10} />
+                               {exercice.note_force}
+                             </span>
+                           )}
+                           {exercice.note_cardio !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-1 py-1 rounded flex items-center gap-1" title="Cardio">
+                               <Heart size={10} />
+                               {exercice.note_cardio}
+                             </span>
+                           )}
+                           {exercice.note_technique !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-1 py-1 rounded flex items-center gap-1" title="Technique">
+                               <Target size={10} />
+                               {exercice.note_technique}
+                             </span>
+                           )}
+                         </div>
                     <span className="text-xs text-gray-400">{formatDuree(exercice.duree_estimee)}</span>
                     {exercice.calories_estimees && (
                       <span className="text-xs text-gray-400">{exercice.calories_estimees} cal</span>

@@ -502,13 +502,27 @@ export default function SeanceDetail() {
 
   // Récupère les listes de référence
   useEffect(() => {
-    fetch(`${apiUrl}/niveaux`).then(res => res.json()).then(setNiveaux);
-    fetch(`${apiUrl}/categories`).then(res => res.json()).then(setCategories);
-    fetch(`${apiUrl}/types`).then(res => res.json()).then(setTypes);
-    fetch(`${apiUrl}/exercices?limit=1000`).then(res => res.json()).then(data => {
-      const exercicesData = data.exercices || data || [];
-      console.log('Exercices chargés:', exercicesData.length);
-      setExercices(exercicesData);
+    // Charger les données de référence pour les séances
+    // Note: Les séances utilisent encore l'ancien système de niveau/type/catégorie
+    // mais on utilise les nouveaux endpoints pour éviter les erreurs
+    Promise.all([
+      fetch(`${apiUrl}/niveaux`).then(res => res.json()).catch(() => []),
+      fetch(`${apiUrl}/categories`).then(res => res.json()).catch(() => []),
+      fetch(`${apiUrl}/types`).then(res => res.json()).catch(() => []),
+      fetch(`${apiUrl}/exercices?limit=1000`).then(res => res.json()).catch(() => ({ exercices: [] }))
+    ]).then(([niveauxData, categoriesData, typesData, exercicesData]) => {
+      setNiveaux(Array.isArray(niveauxData) ? niveauxData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setTypes(Array.isArray(typesData) ? typesData : []);
+      const exercicesArray = exercicesData.exercices || exercicesData || [];
+      console.log('Exercices chargés:', exercicesArray.length);
+      setExercices(exercicesArray);
+    }).catch(err => {
+      console.warn('Erreur lors du chargement des données de référence:', err);
+      setNiveaux([]);
+      setCategories([]);
+      setTypes([]);
+      setExercices([]);
     });
   }, [apiUrl]);
 
@@ -823,13 +837,10 @@ export default function SeanceDetail() {
           }
         ] : []}
       >
-        <div className="w-full flex items-center justify-center px-4 text-white">
-          <div className="w-full max-w-4xl space-y-8 mx-auto">
+        <div className="page-wrapper">
+          <div className="page-content">
             <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="bg-black/40 rounded-2xl p-6 border border-gray-700 space-y-6 mt-8">
               {error && <div className="text-red-400 text-center mb-2">{error}</div>}
-              
-              
-
               
               {/* Sélecteur de type de séance */}
               <div className="mb-4">
@@ -1216,60 +1227,49 @@ export default function SeanceDetail() {
         }
       ].filter(Boolean)}
     >
-      <div className="w-full flex justify-center mt-4 px-2 sm:px-4 md:px-12">
-        <div className="bg-black/40 border border-gray-700 rounded-2xl shadow-lg w-full max-w-none mx-auto p-4 sm:p-4 md:p-6 xl:px-8 xl:py-6" style={{maxWidth: '1800px'}}>
+      <div className="page-wrapper">
+        <div className="page-content">
           {/* Badges arrondis */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Niveau de la séance">
-              <BarChart2 size={14} className="inline-block text-gray-300 mr-1" />
-              {niveaux.find(n => n.id === Number(seance.niveau_id))?.nom || <span className="italic text-gray-500">Niveau inconnu</span>}
+          <div className="badge-container">
+            <span className="badge badge-white" title="Niveau de la séance">
+              <BarChart2 size={14} className="badge-icon" />
+              {false || <span className="badge-text-italic">Niveau inconnu</span>}
             </span>
-            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Catégorie de la séance">
-              <Tag size={14} className="inline-block text-gray-300 mr-1" />
-              {categories.find(c => c.id === Number(seance.categorie_id))?.nom || <span className="italic text-gray-500">Catégorie inconnue</span>}
+            <span className="badge badge-white" title="Catégorie de la séance">
+              <Tag size={14} className="badge-icon" />
+              {categories.find(c => c.id === Number(seance.categorie_id))?.nom || <span className="badge-text-italic">Catégorie inconnue</span>}
             </span>
-            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Type de la séance">
-              <Layers size={14} className="inline-block text-gray-300 mr-1" />
-              {types.find(t => t.id === Number(seance.type_id))?.nom || <span className="italic text-gray-500">Type inconnu</span>}
+            <span className="badge badge-white" title="Type de la séance">
+              <Layers size={14} className="badge-icon" />
+              {false || <span className="badge-text-italic">Type inconnu</span>}
             </span>
-            <span className={
-              "rounded-full px-4 py-1 text-xs font-semibold border flex items-center gap-1 " +
-              (seance.type_seance === "instruction"
-                ? "bg-orange-900/80 border-orange-700 text-orange-300"
-                : "bg-blue-900/80 border-blue-700 text-blue-300")
+            <span className={"badge " + (seance.type_seance === "instruction" ? "badge-orange" : "badge-blue")
             } title={seance.type_seance === "instruction" ? "Séance d'instruction" : "Séance d'exercices"}>
               {seance.type_seance === "instruction" ? "Instruction" : "Exercices"}
             </span>
-            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Auteur de la séance">
-              <User size={14} className="inline-block text-gray-300 mr-1" />
-              {seance.auteur_pseudo || <span className="italic text-gray-400">Auteur inconnu</span>}
+            <span className="badge badge-white" title="Auteur de la séance">
+              <User size={14} className="badge-icon" />
+              {seance.auteur_pseudo || <span className="badge-text-italic">Auteur inconnu</span>}
             </span>
-            <span className={
-              "rounded-full px-4 py-1 text-xs font-semibold border flex items-center gap-1 " +
-              (seance.est_active !== false
-                ? "bg-green-900/80 border-green-700 text-green-300"
-                : "bg-gray-800/80 border-gray-700 text-gray-400")
-            } title={seance.est_active !== false ? "Séance active" : "Séance inactive"}>
+            <span className={"badge " + (seance.est_active !== false ? "badge-green" : "badge-gray")} title={seance.est_active !== false ? "Séance active" : "Séance inactive"}>
               {seance.est_active !== false ? <CheckCircle size={14} className="inline-block text-green-300 mr-1" /> : <XCircle size={14} className="inline-block text-gray-400 mr-1" />}
               {seance.est_active !== false ? "Active" : "Inactive"}
             </span>
             {seance.created_at && (
-              <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Date de création">
-                <Calendar size={14} className="inline-block text-gray-300 mr-1" />
+              <span className="badge badge-white" title="Date de création">
+                <Calendar size={14} className="badge-icon" />
                 {new Date(seance.created_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })}
               </span>
             )}
             {seance.updated_at && (
-              <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Date de dernière modification">
-                <Pencil size={14} className="inline-block text-gray-300 mr-1" />
+              <span className="badge badge-white" title="Date de dernière modification">
+                <Pencil size={14} className="badge-icon" />
                 {new Date(seance.updated_at).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })}
               </span>
             )}
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-rose-400">{seance.nom}</h2>
-          <p className="text-gray-300 italic mb-6 whitespace-pre-line">
-            {seance.description || <span className="italic text-gray-500">Aucune description</span>}
-          </p>
+          <h2 className="page-title">{seance.nom}</h2>
+            <p className="page-description">{seance.description || ""}</p>
           {seance.notes && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-orange-300 mb-2">Focus ou état d'esprit</h3>

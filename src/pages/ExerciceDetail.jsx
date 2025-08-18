@@ -5,8 +5,11 @@ import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import Snackbar from "../components/Snackbar";
+import ExerciceSelector from "../components/ui/ExerciceSelector";
+import FamilleSelector from "../components/ui/FamilleSelector";
+import DifficultyHelpDialog from "../components/ui/DifficultyHelpDialog";
 import { useSafeBlocker } from "../utils/useBlocker";
-import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, Upload, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle } from "lucide-react";
+import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, Upload, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle, Folder, ArrowUp, ArrowDown, Link, Dumbbell, Heart, Zap, Move, Shield, Brain, Edit, ArrowLeft } from "lucide-react";
 import { useUser } from "../contexts/UserContext";
 
 export default function ExerciceDetail() {
@@ -26,7 +29,14 @@ export default function ExerciceDetail() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
+  const [showDifficultyHelpDialog, setShowDifficultyHelpDialog] = useState(false);
+  const [currentDifficultyType, setCurrentDifficultyType] = useState(null);
   const [pendingMode, setPendingMode] = useState(null);
+  
+  // États pour les sélecteurs
+  const [showExercicePlusDurSelector, setShowExercicePlusDurSelector] = useState(false);
+  const [showExercicePlusFacileSelector, setShowExercicePlusFacileSelector] = useState(false);
+  const [showExercicesSimilairesSelector, setShowExercicesSimilairesSelector] = useState(false);
   
   // États pour les snackbars
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -44,9 +54,12 @@ export default function ExerciceDetail() {
   "position_depart": "Debout, les pieds écartés de la largeur des hanches.",
   "categorie_id": 1,
   "groupe_musculaire_id": 1,
-  "niveau_id": 1,
-  "type_id": 1,
-  "materiel": [],
+  "note_force": 3,
+  "note_cardio": 8,
+  "note_technique": 2,
+  "note_mobilite": 4,
+  "note_impact": 1,
+  "note_mentale": 2,
   "erreurs": ["Ne bloque pas ta respiration", "Ne courbe pas ton dos", "Ne lève pas tes genoux trop haut"],
   "focus_zone": ["Tu devrais sentir ton cardio monter progressivement", "Concentre-toi sur ta coordination bras-jambes", "Sens tes jambes s'échauffer"],
   "image_url": null,
@@ -66,10 +79,12 @@ export default function ExerciceDetail() {
     "La description doit être concise (1-2 phrases), sans conseils ni position de départ.",
     "Les conseils, erreurs, focus_zone sont des tableaux de phrases complètes, positives et audio-friendly.",
     "Le champ 'variantes' est un objet avec 'plus_faciles' et 'plus_difficiles', chacun étant un tableau de suggestions.",
+    "Les notes de difficulté sont des valeurs entre 0 et 20 pour chaque aspect (force, cardio, technique, mobilité, impact, mentale).",
     "La durée et les calories sont pour 1 répétition.",
     "Évite les termes techniques complexes, privilégie la clarté et la sécurité.",
     "Tous les textes doivent pouvoir être lus à haute voix.",
-    "Respecte le format JSON strict (guillemets, virgules, etc.)."
+    "Respecte le format JSON strict (guillemets, virgules, etc.).",
+    "Les anciens champs (niveau_id, type_id) sont ignorés automatiquement."
   ];
 
   const promptIA = `Génère un objet JSON pour un exercice sportif. Respecte strictement ce format et ces consignes :
@@ -78,6 +93,7 @@ export default function ExerciceDetail() {
 - Description concise (1-2 phrases), sans conseils ni position de départ
 - Conseils, erreurs, focus_zone : tableaux de phrases complètes, positives, audio-friendly
 - 'variantes' : objet avec 'plus_faciles' et 'plus_difficiles', chacun tableau de suggestions
+- Notes de difficulté : valeurs entre 0 et 20 pour chaque aspect (force, cardio, technique, mobilité, impact, mentale)
 - Durée et calories pour 1 répétition
 - Tous les textes doivent pouvoir être lus à haute voix
 - Remplis tous les champs pertinents
@@ -88,9 +104,12 @@ export default function ExerciceDetail() {
   "position_depart": "",
   "categorie_id": 1,
   "groupe_musculaire_id": 1,
-  "niveau_id": 1,
-  "type_id": 1,
-  "materiel": [],
+  "note_force": 0,
+  "note_cardio": 0,
+  "note_technique": 0,
+  "note_mobilite": 0,
+  "note_impact": 0,
+  "note_mentale": 0,
   "erreurs": [],
   "focus_zone": [],
   "image_url": null,
@@ -105,8 +124,8 @@ export default function ExerciceDetail() {
   // Données de référence
   const [categories, setCategories] = useState([]);
   const [groupesMusculaires, setGroupesMusculaires] = useState([]);
-  const [niveaux, setNiveaux] = useState([]);
   const [types, setTypes] = useState([]);
+  const [familles, setFamilles] = useState([]);
 
   // Formulaire pour édition/création
   const [form, setForm] = useState({
@@ -115,8 +134,22 @@ export default function ExerciceDetail() {
     position_depart: '',
     categorie_id: '',
     groupe_musculaire_id: '',
-    niveau_id: '',
     type_id: '',
+    famille_id: '',
+    famille_nom: '',
+    exercice_plus_dur_id: '',
+    exercice_plus_dur_nom: '',
+    exercice_plus_facile_id: '',
+    exercice_plus_facile_nom: '',
+    exercices_similaires: [],
+    exercices_similaires_noms: [],
+    // Notes de difficulté (0-20)
+    note_force: 0,
+    note_cardio: 0,
+    note_technique: 0,
+    note_mobilite: 0,
+    note_impact: 0,
+    note_mentale: 0,
     duree_estimee: '',
     calories_estimees: '',
     muscles_sollicites: '',
@@ -169,24 +202,26 @@ export default function ExerciceDetail() {
 
   const chargerDonneesReference = async () => {
     try {
-      const [categoriesRes, groupesRes, niveauxRes, typesRes] = await Promise.all([
-        fetch(`${apiUrl}/exercices/categories/list`),
-        fetch(`${apiUrl}/exercices/groupes/list`),
-        fetch(`${apiUrl}/exercices/niveaux/list`),
-        fetch(`${apiUrl}/exercices/types/list`)
+      const [categoriesRes, groupesRes, famillesRes] = await Promise.all([
+        fetch(`${apiUrl}/exercices/categories/list`).catch(() => ({ json: () => ({ categories: [] }) })),
+        fetch(`${apiUrl}/exercices/groupes/list`).catch(() => ({ json: () => ({ groupes: [] }) })),
+        fetch(`${apiUrl}/familles-exercices?limit=100`).catch(() => ({ json: () => ({ familles: [] }) }))
       ]);
       
       const categoriesData = await categoriesRes.json();
       const groupesData = await groupesRes.json();
-      const niveauxData = await niveauxRes.json();
-      const typesData = await typesRes.json();
+      const famillesData = await famillesRes.json();
       
       setCategories(categoriesData.categories || []);
       setGroupesMusculaires(groupesData.groupes || []);
-      setNiveaux(niveauxData.niveaux || []);
-      setTypes(typesData.types || []);
+      setTypes([]); // Les types ne sont plus utilisés dans le nouveau système
+      setFamilles(famillesData.familles || []);
     } catch (error) {
       console.error('Erreur lors du chargement des données de référence:', error);
+      setCategories([]);
+      setGroupesMusculaires([]);
+      setTypes([]);
+      setFamilles([]);
     }
   };
 
@@ -197,8 +232,22 @@ export default function ExerciceDetail() {
       position_depart: '',
       categorie_id: '',
       groupe_musculaire_id: '',
-      niveau_id: '',
       type_id: '',
+      famille_id: '',
+      famille_nom: '',
+      exercice_plus_dur_id: '',
+      exercice_plus_dur_nom: '',
+      exercice_plus_facile_id: '',
+      exercice_plus_facile_nom: '',
+      exercices_similaires: [],
+      exercices_similaires_noms: [],
+      // Notes de difficulté (0-20)
+      note_force: 0,
+      note_cardio: 0,
+      note_technique: 0,
+      note_mobilite: 0,
+      note_impact: 0,
+      note_mentale: 0,
       duree_estimee: '',
       calories_estimees: '',
       muscles_sollicites: '',
@@ -217,8 +266,22 @@ export default function ExerciceDetail() {
       position_depart: exercice.position_depart || '',
       categorie_id: exercice.categorie_id || '',
       groupe_musculaire_id: exercice.groupe_musculaire_id || '',
-      niveau_id: exercice.niveau_id || '',
       type_id: exercice.type_id || '',
+      famille_id: exercice.famille_id || '',
+      famille_nom: exercice.famille_nom || '',
+      exercice_plus_dur_id: exercice.exercice_plus_dur_id || '',
+      exercice_plus_dur_nom: exercice.exercice_plus_dur_nom || '',
+      exercice_plus_facile_id: exercice.exercice_plus_facile_id || '',
+      exercice_plus_facile_nom: exercice.exercice_plus_facile_nom || '',
+      exercices_similaires: Array.isArray(exercice.exercices_similaires) ? exercice.exercices_similaires : [],
+      exercices_similaires_noms: Array.isArray(exercice.exercices_similaires_noms) ? exercice.exercices_similaires_noms : [],
+      // Notes de difficulté (0-20)
+      note_force: exercice.note_force || 0,
+      note_cardio: exercice.note_cardio || 0,
+      note_technique: exercice.note_technique || 0,
+      note_mobilite: exercice.note_mobilite || 0,
+      note_impact: exercice.note_impact || 0,
+      note_mentale: exercice.note_mentale || 0,
       duree_estimee: exercice.duree_estimee ? String(exercice.duree_estimee) : '',
       calories_estimees: exercice.calories_estimees ? String(exercice.calories_estimees) : '',
       muscles_sollicites: Array.isArray(exercice.muscles_sollicites) ? exercice.muscles_sollicites.join('; ') : '',
@@ -234,9 +297,69 @@ export default function ExerciceDetail() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Gestion spéciale pour les notes de difficulté (doivent être des nombres)
+    if (name.startsWith('note_')) {
+      const numValue = parseInt(value) || 0;
+      setForm(prev => ({
+        ...prev,
+        [name]: Math.max(0, Math.min(20, numValue)) // Limite entre 0 et 20
+      }));
+    } else {
+      setForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Handlers pour les sélecteurs
+  const handleExercicePlusDurSelect = (exercice) => {
+    console.log('🔍 handleExercicePlusDurSelect called with:', exercice);
     setForm(prev => ({
       ...prev,
-      [name]: value
+      exercice_plus_dur_id: exercice.id,
+      exercice_plus_dur_nom: exercice.nom
+    }));
+  };
+
+  const handleExercicePlusFacileSelect = (exercice) => {
+    setForm(prev => ({
+      ...prev,
+      exercice_plus_facile_id: exercice.id,
+      exercice_plus_facile_nom: exercice.nom
+    }));
+  };
+
+  const handleExercicesSimilairesSelect = (exercices) => {
+    setForm(prev => ({
+      ...prev,
+      exercices_similaires: exercices.map(e => e.id),
+      exercices_similaires_noms: exercices.map(e => e.nom)
+    }));
+  };
+
+  const clearExercicePlusDur = () => {
+    setForm(prev => ({
+      ...prev,
+      exercice_plus_dur_id: '',
+      exercice_plus_dur_nom: ''
+    }));
+  };
+
+  const clearExercicePlusFacile = () => {
+    setForm(prev => ({
+      ...prev,
+      exercice_plus_facile_id: '',
+      exercice_plus_facile_nom: ''
+    }));
+  };
+
+  const clearExercicesSimilaires = () => {
+    setForm(prev => ({
+      ...prev,
+      exercices_similaires: [],
+      exercices_similaires_noms: []
     }));
   };
 
@@ -319,29 +442,40 @@ export default function ExerciceDetail() {
       setSaving(true);
       setFormError("");
 
-      // Préparer les données
-      const exerciceData = {
-        nom: formData.nom,
-        description: formData.description,
-        position_depart: formData.position_depart,
-        categorie_id: formData.categorie_id ? parseInt(formData.categorie_id, 10) : null,
-        groupe_musculaire_id: formData.groupe_musculaire_id ? parseInt(formData.groupe_musculaire_id, 10) : null,
-        niveau_id: formData.niveau_id ? parseInt(formData.niveau_id, 10) : null,
-        type_id: formData.type_id ? parseInt(formData.type_id, 10) : null,
-        duree_estimee: formData.duree_estimee ? parseFloat(String(formData.duree_estimee).replace(',', '.')) : null,
-        calories_estimees: formData.calories_estimees ? parseFloat(String(formData.calories_estimees).replace(',', '.')) : null,
-        muscles_sollicites: formData.muscles_sollicites.split(';').map(s => s.trim()).filter(s => s),
-        erreurs: formData.erreurs.split(';').map(s => s.trim()).filter(s => s),
-        variantes: {
-          plus_difficiles: formData.variantes_plus_difficiles.split(';').map(s => s.trim()).filter(s => s),
-          plus_faciles: formData.variantes_plus_faciles.split(';').map(s => s.trim()).filter(s => s)
-        },
-        conseils: formData.conseils.split(';').map(s => s.trim()).filter(s => s),
-        focus_zone: formData.focus_zone.split(';').map(s => s.trim()).filter(s => s),
-        image_url: formData.image_url || null,
-        video_url: formData.video_url || null,
-        materiel: []
-      };
+             // Préparer les données
+       const exerciceData = {
+         nom: formData.nom,
+         description: formData.description,
+         position_depart: formData.position_depart,
+         categorie_id: formData.categorie_id ? parseInt(formData.categorie_id, 10) : null,
+         groupe_musculaire_id: formData.groupe_musculaire_id ? parseInt(formData.groupe_musculaire_id, 10) : null,
+         type_id: formData.type_id ? parseInt(formData.type_id, 10) : null,
+         famille_id: formData.famille_id || null,
+         exercice_plus_dur_id: formData.exercice_plus_dur_id || null,
+         exercice_plus_facile_id: formData.exercice_plus_facile_id || null,
+         exercices_similaires: formData.exercices_similaires || [],
+         // Notes de difficulté (0-20)
+         note_force: parseInt(formData.note_force) || 0,
+         note_cardio: parseInt(formData.note_cardio) || 0,
+         note_technique: parseInt(formData.note_technique) || 0,
+         note_mobilite: parseInt(formData.note_mobilite) || 0,
+         note_impact: parseInt(formData.note_impact) || 0,
+         note_mentale: parseInt(formData.note_mentale) || 0,
+         duree_estimee: formData.duree_estimee ? parseFloat(String(formData.duree_estimee).replace(',', '.')) : null,
+         calories_estimees: formData.calories_estimees ? parseFloat(String(formData.calories_estimees).replace(',', '.')) : null,
+         muscles_sollicites: formData.muscles_sollicites.split(';').map(s => s.trim()).filter(s => s),
+         erreurs: formData.erreurs.split(';').map(s => s.trim()).filter(s => s),
+         variantes: {
+           plus_difficiles: formData.variantes_plus_difficiles.split(';').map(s => s.trim()).filter(s => s),
+           plus_faciles: formData.variantes_plus_faciles.split(';').map(s => s.trim()).filter(s => s)
+         },
+         conseils: formData.conseils.split(';').map(s => s.trim()).filter(s => s),
+         focus_zone: formData.focus_zone.split(';').map(s => s.trim()).filter(s => s),
+         image_url: formData.image_url || null,
+         video_url: formData.video_url || null,
+         materiel: [],
+         zones_specifiques_ids: [] // Ajout du champ manquant avec une valeur par défaut vide
+       };
 
       if (mode === "edit" && id && id !== "new") {
         // Mise à jour
@@ -447,29 +581,78 @@ export default function ExerciceDetail() {
   const handleImportJson = () => {
     try {
       const data = JSON.parse(importJsonText);
+      
+      // Fonction pour nettoyer et valider les données
+      const cleanData = (value, defaultValue = '') => {
+        if (value === null || value === undefined) return defaultValue;
+        return value;
+      };
+      
+      // Fonction pour convertir un tableau en chaîne séparée par des points-virgules
+      const arrayToString = (arr) => {
+        if (!Array.isArray(arr)) return '';
+        return arr.filter(item => item && typeof item === 'string').join('; ');
+      };
+      
       setForm({
-        nom: data.nom || '',
-        description: data.description || '',
-        position_depart: data.position_depart || '',
-        categorie_id: data.categorie_id || '',
-        groupe_musculaire_id: data.groupe_musculaire_id || '',
-        niveau_id: data.niveau_id || '',
-        type_id: data.type_id || '',
-        duree_estimee: data.duree_estimee ? String(data.duree_estimee) : '',
-        calories_estimees: data.calories_estimees ? String(data.calories_estimees) : '',
-        muscles_sollicites: Array.isArray(data.muscles_sollicites) ? data.muscles_sollicites.join('; ') : '',
-        erreurs: Array.isArray(data.erreurs) ? data.erreurs.join('; ') : '',
-        variantes_plus_difficiles: data.variantes?.plus_difficiles ? data.variantes.plus_difficiles.join('; ') : '',
-        variantes_plus_faciles: data.variantes?.plus_faciles ? data.variantes.plus_faciles.join('; ') : '',
-        conseils: Array.isArray(data.conseils) ? data.conseils.join('; ') : '',
-        focus_zone: Array.isArray(data.focus_zone) ? data.focus_zone.join('; ') : '',
-        image_url: data.image_url || '',
-        video_url: data.video_url || ''
+        // Champs de base (toujours présents)
+        nom: cleanData(data.nom),
+        description: cleanData(data.description),
+        position_depart: cleanData(data.position_depart),
+        
+        // Champs de catégorisation (peuvent être absents dans l'ancien système)
+        categorie_id: cleanData(data.categorie_id),
+        groupe_musculaire_id: cleanData(data.groupe_musculaire_id),
+        type_id: cleanData(data.type_id), // Ancien champ, ignoré si absent
+        
+        // Champs de famille (nouveau système)
+        famille_id: cleanData(data.famille_id),
+        famille_nom: cleanData(data.famille_nom),
+        
+        // Champs de difficulté (nouveau système)
+        note_force: cleanData(data.note_force, 0),
+        note_cardio: cleanData(data.note_cardio, 0),
+        note_technique: cleanData(data.note_technique, 0),
+        note_mobilite: cleanData(data.note_mobilite, 0),
+        note_impact: cleanData(data.note_impact, 0),
+        note_mentale: cleanData(data.note_mentale, 0),
+        
+        // Champs techniques
+        duree_estimee: cleanData(data.duree_estimee) ? String(data.duree_estimee) : '',
+        calories_estimees: cleanData(data.calories_estimees) ? String(data.calories_estimees) : '',
+        
+        // Champs de contenu (tableaux convertis en chaînes)
+        muscles_sollicites: arrayToString(data.muscles_sollicites),
+        erreurs: arrayToString(data.erreurs),
+        conseils: arrayToString(data.conseils),
+        focus_zone: arrayToString(data.focus_zone),
+        
+        // Variantes (peuvent être dans un objet ou directement)
+        variantes_plus_difficiles: data.variantes?.plus_difficiles 
+          ? arrayToString(data.variantes.plus_difficiles)
+          : arrayToString(data.variantes_plus_difficiles), // Ancien format
+        variantes_plus_faciles: data.variantes?.plus_faciles
+          ? arrayToString(data.variantes.plus_faciles)
+          : arrayToString(data.variantes_plus_faciles), // Ancien format
+        
+        // Médias
+        image_url: cleanData(data.image_url),
+        video_url: cleanData(data.video_url),
+        
+        // Champs de relations (nouveau système)
+        exercice_plus_dur_id: cleanData(data.exercice_plus_dur_id),
+        exercice_plus_dur_nom: cleanData(data.exercice_plus_dur_nom),
+        exercice_plus_facile_id: cleanData(data.exercice_plus_facile_id),
+        exercice_plus_facile_nom: cleanData(data.exercice_plus_facile_nom),
+        exercices_similaires: Array.isArray(data.exercices_similaires) ? data.exercices_similaires : [],
+        exercices_similaires_noms: Array.isArray(data.exercices_similaires_noms) ? data.exercices_similaires_noms : []
       });
+      
       setShowImportDialog(false);
       setImportError('');
     } catch (error) {
-      setImportError('Erreur de format JSON. Vérifiez la syntaxe.');
+      console.error('Erreur lors de l\'import JSON:', error);
+      setImportError(`Erreur de format JSON: ${error.message}`);
     }
   };
 
@@ -482,6 +665,19 @@ export default function ExerciceDetail() {
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleDifficultyHelp = (difficultyType) => {
+    setCurrentDifficultyType(difficultyType);
+    setShowDifficultyHelpDialog(true);
+  };
+
+  const handleNoteSelect = (note) => {
+    const noteField = `note_${currentDifficultyType}`;
+    setForm(prev => ({
+      ...prev,
+      [noteField]: note
+    }));
   };
 
   const getNiveauColor = (niveau) => {
@@ -633,18 +829,7 @@ export default function ExerciceDetail() {
                       <option key={groupe.id} value={groupe.id}>{groupe.nom}</option>
                     ))}
                   </FloatingLabelInput>
-                  <FloatingLabelInput
-                    label="Niveau"
-                    name="niveau_id"
-                    value={form.niveau_id}
-                    onChange={handleChange}
-                    as="select"
-                  >
-                    <option value="">Sélectionner un niveau</option>
-                    {niveaux.map(niveau => (
-                      <option key={niveau.id} value={niveau.id}>{niveau.nom}</option>
-                    ))}
-                  </FloatingLabelInput>
+                  
                   <FloatingLabelInput
                     label="Type"
                     name="type_id"
@@ -657,6 +842,260 @@ export default function ExerciceDetail() {
                       <option key={type.id} value={type.id}>{type.nom}</option>
                     ))}
                   </FloatingLabelInput>
+                </div>
+                             </div>
+
+                               {/* Notes de difficulté */}
+                <div className="bg-[#222] rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-orange-100 mb-4">Notation de l'exercice</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                         {/* Force */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('force')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Dumbbell size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Force</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_force > 0 ? (
+                           <span className="text-white font-medium">{form.note_force}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+
+                                         {/* Cardio */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('cardio')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Heart size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Cardio</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_cardio > 0 ? (
+                           <span className="text-white font-medium">{form.note_cardio}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+
+                                         {/* Technique */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('technique')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Target size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Technique</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_technique > 0 ? (
+                           <span className="text-white font-medium">{form.note_technique}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+
+                                         {/* Mobilité */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('mobilite')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Move size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Mobilité</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_mobilite > 0 ? (
+                           <span className="text-white font-medium">{form.note_mobilite}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+
+                                         {/* Impact */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('impact')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Shield size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Impact</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_impact > 0 ? (
+                           <span className="text-white font-medium">{form.note_impact}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+
+                                         {/* Mentale */}
+                     <button
+                       type="button"
+                       onClick={() => handleDifficultyHelp('mentale')}
+                       className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-orange-500 hover:bg-gray-750 transition-all w-full"
+                     >
+                       <div className="flex items-center gap-2">
+                         <Brain size={18} className="text-gray-300" />
+                         <span className="text-sm font-medium text-white">Mentale</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         {form.note_mentale > 0 ? (
+                           <span className="text-white font-medium">{form.note_mentale}/20</span>
+                         ) : (
+                           <span className="text-gray-400 text-sm">Non noté</span>
+                         )}
+                         <Edit size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+                  </div>
+                </div>
+
+               {/* Familles et variantes */}
+              <div className="bg-[#222] rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-orange-100 mb-4">Familles et variantes</h3>
+                <div className="space-y-4">
+                  
+                  {/* Famille */}
+                  <FamilleSelector
+                    value={form.famille_id}
+                    onChange={(e) => {
+                      const familleId = e.target.value;
+                      const famille = familles.find(f => f.id === familleId);
+                      setForm(prev => ({
+                        ...prev,
+                        famille_id: familleId,
+                        famille_nom: famille ? famille.nom : ''
+                      }));
+                    }}
+                    placeholder="Sélectionner une famille..."
+                  />
+
+                  {/* Exercice plus difficile */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-white">Exercice plus difficile</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 p-3 bg-gray-800 rounded-lg border border-gray-700 min-h-[44px] flex items-center">
+                        {form.exercice_plus_dur_nom ? (
+                          <div className="flex items-center gap-2">
+                            <ArrowUp size={16} className="text-red-400" />
+                            <span className="text-white">{form.exercice_plus_dur_nom}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Aucun exercice sélectionné</span>
+                        )}
+                      </div>
+                                             <button
+                         type="button"
+                         onClick={() => {
+                           console.log('🔍 Bouton Sélectionner cliqué, setting showExercicePlusDurSelector to true');
+                           setShowExercicePlusDurSelector(true);
+                         }}
+                         className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                       >
+                         Sélectionner
+                       </button>
+                      {form.exercice_plus_dur_id && (
+                        <button
+                          type="button"
+                          onClick={clearExercicePlusDur}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Exercice plus facile */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-white">Exercice plus facile</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 p-3 bg-gray-800 rounded-lg border border-gray-700 min-h-[44px] flex items-center">
+                        {form.exercice_plus_facile_nom ? (
+                          <div className="flex items-center gap-2">
+                            <ArrowDown size={16} className="text-green-400" />
+                            <span className="text-white">{form.exercice_plus_facile_nom}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Aucun exercice sélectionné</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowExercicePlusFacileSelector(true)}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                      >
+                        Sélectionner
+                      </button>
+                      {form.exercice_plus_facile_id && (
+                        <button
+                          type="button"
+                          onClick={clearExercicePlusFacile}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Exercices similaires */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-white">Exercices similaires</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 p-3 bg-gray-800 rounded-lg border border-gray-700 min-h-[44px]">
+                        {form.exercices_similaires_noms.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {form.exercices_similaires_noms.map((nom, index) => (
+                              <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded-full">
+                                <Link size={12} />
+                                {nom}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Aucun exercice sélectionné</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowExercicesSimilairesSelector(true)}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                      >
+                        Sélectionner
+                      </button>
+                      {form.exercices_similaires.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={clearExercicesSimilaires}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -902,19 +1341,47 @@ export default function ExerciceDetail() {
 {promptIA}
                 </pre>
               </div>
-            </div>
-          </div>
-              )}
-      
-      {/* Snackbar pour les messages de validation et d'erreur */}
-      <Snackbar 
-        message={snackbarMessage} 
-        type={snackbarType} 
-        onClose={() => setSnackbarMessage("")} 
+                           </div>
+             </div>
+               )}
+
+      {/* Composants de sélection */}
+      <ExerciceSelector
+        open={showExercicePlusDurSelector}
+        onClose={() => setShowExercicePlusDurSelector(false)}
+        onSelect={handleExercicePlusDurSelect}
+        title="Sélectionner un exercice plus difficile"
+        placeholder="Rechercher un exercice plus difficile..."
       />
-    </Layout>
-  );
-}
+      
+      <ExerciceSelector
+        open={showExercicePlusFacileSelector}
+        onClose={() => setShowExercicePlusFacileSelector(false)}
+        onSelect={handleExercicePlusFacileSelect}
+        title="Sélectionner un exercice plus facile"
+        placeholder="Rechercher un exercice plus facile..."
+      />
+      
+             <ExerciceSelector
+         open={showExercicesSimilairesSelector}
+         onClose={() => setShowExercicesSimilairesSelector(false)}
+         onMultipleSelect={handleExercicesSimilairesSelect}
+         title="Sélectionner des exercices similaires"
+         placeholder="Rechercher des exercices similaires..."
+         multiple={true}
+         selectedExercices={form.exercices_similaires}
+       />
+
+       {/* Dialog d'aide pour les notes de difficulté */}
+       <DifficultyHelpDialog
+         open={showDifficultyHelpDialog}
+         onClose={() => setShowDifficultyHelpDialog(false)}
+         difficultyType={currentDifficultyType}
+         onNoteSelect={handleNoteSelect}
+       />
+      </Layout>
+    );
+  }
 
   // Mode affichage (détail)
   if (!exercice) {
@@ -959,10 +1426,45 @@ export default function ExerciceDetail() {
               <Activity size={14} className="inline-block text-gray-300 mr-1" />
               {exercice.groupe_musculaire_nom || <span className="italic text-gray-500">Groupe inconnu</span>}
             </span>
-            <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Niveau de l'exercice">
-              <BarChart2 size={14} className="inline-block text-gray-300 mr-1" />
-              {exercice.niveau_nom || <span className="italic text-gray-500">Niveau inconnu</span>}
-            </span>
+                         {/* Notes de difficulté */}
+             <div className="flex flex-wrap gap-1">
+               {exercice.note_force !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Force">
+                   <Dumbbell size={12} className="text-gray-300" />
+                   {exercice.note_force}/20
+                 </span>
+               )}
+               {exercice.note_cardio !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Cardio">
+                   <Heart size={12} className="text-gray-300" />
+                   {exercice.note_cardio}/20
+                 </span>
+               )}
+               {exercice.note_technique !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Technique">
+                   <Target size={12} className="text-gray-300" />
+                   {exercice.note_technique}/20
+                 </span>
+               )}
+               {exercice.note_mobilite !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Mobilité">
+                   <Move size={12} className="text-gray-300" />
+                   {exercice.note_mobilite}/20
+                 </span>
+               )}
+               {exercice.note_impact !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Impact">
+                   <Shield size={12} className="text-gray-300" />
+                   {exercice.note_impact}/20
+                 </span>
+               )}
+               {exercice.note_mentale !== undefined && (
+                 <span className="rounded-full border border-gray-600 text-white px-2 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Mentale">
+                   <Brain size={12} className="text-gray-300" />
+                   {exercice.note_mentale}/20
+                 </span>
+               )}
+             </div>
             <span className="rounded-full border border-gray-600 text-white px-4 py-1 text-xs font-semibold bg-transparent flex items-center gap-1" title="Type d'exercice">
               <Layers size={14} className="inline-block text-gray-300 mr-1" />
               {exercice.type_nom || <span className="italic text-gray-500">Type inconnu</span>}
@@ -999,6 +1501,64 @@ export default function ExerciceDetail() {
           </div>
           
           <h2 className="text-2xl font-bold mb-2 text-rose-400">{exercice.nom}</h2>
+
+          {/* Familles et variantes */}
+          {(exercice.famille_nom || exercice.exercice_plus_dur_nom || exercice.exercice_plus_facile_nom || (exercice.exercices_similaires_noms && exercice.exercices_similaires_noms.length > 0)) && (
+            <div className="bg-black/40 rounded-lg p-4 border border-gray-700 mb-6">
+              <h3 className="text-lg font-semibold text-orange-100 mb-3 flex items-center gap-2">
+                <Folder size={20} className="text-orange-400" />
+                Familles et variantes
+              </h3>
+              
+              <div className="space-y-3">
+                {/* Famille */}
+                {exercice.famille_nom && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-300 min-w-[120px]">Famille :</span>
+                    <span className="text-orange-300">{exercice.famille_nom}</span>
+                  </div>
+                )}
+
+                {/* Exercice plus difficile */}
+                {exercice.exercice_plus_dur_nom && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-300 min-w-[120px]">Plus difficile :</span>
+                    <div className="flex items-center gap-2">
+                      <ArrowUp size={16} className="text-red-400" />
+                      <span className="text-red-300">{exercice.exercice_plus_dur_nom}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Exercice plus facile */}
+                {exercice.exercice_plus_facile_nom && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-300 min-w-[120px]">Plus facile :</span>
+                    <div className="flex items-center gap-2">
+                      <ArrowDown size={16} className="text-green-400" />
+                      <span className="text-green-300">{exercice.exercice_plus_facile_nom}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Exercices similaires */}
+                {exercice.exercices_similaires_noms && exercice.exercices_similaires_noms.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium text-gray-300 min-w-[120px] mt-1">Similaires :</span>
+                    <div className="flex flex-wrap gap-2">
+                      {exercice.exercices_similaires_noms.map((nom, index) => (
+                        <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded-full border border-orange-500/30">
+                          <Link size={12} />
+                          {nom}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Position de départ + Description ensemble */}
           {(exercice.position_depart || exercice.description) && (
             <div className="bg-black/40 rounded-lg p-4 border border-gray-700 mb-6">
@@ -1180,13 +1740,21 @@ export default function ExerciceDetail() {
           </div>
         </div>
       )}
-      
-      {/* Snackbar pour les messages de validation et d'erreur */}
-      <Snackbar 
-        message={snackbarMessage} 
-        type={snackbarType} 
-        onClose={() => setSnackbarMessage("")} 
-      />
-    </Layout>
-  );
-} 
+             {/* Snackbar pour les messages de validation et d'erreur */}
+       <Snackbar 
+         message={snackbarMessage} 
+         type={snackbarType} 
+         onClose={() => setSnackbarMessage("")} 
+       />
+
+       {/* Dialog d'aide pour les notes de difficulté */}
+       <DifficultyHelpDialog
+         open={showDifficultyHelpDialog}
+         onClose={() => setShowDifficultyHelpDialog(false)}
+         difficultyType={currentDifficultyType}
+         onNoteSelect={handleNoteSelect}
+       />
+
+     </Layout>
+   );
+ } 

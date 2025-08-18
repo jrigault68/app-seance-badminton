@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, Eye, Clock, User, Calendar } from 'lucide-react';
+import { ArrowLeft, Check, X, Eye, Clock, User, Calendar, Dumbbell, Heart, Target, Move, Shield, Brain } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import Snackbar from '../components/Snackbar';
 
@@ -367,12 +367,48 @@ export default function AdminExercices() {
                           <p className="text-white">{exercice.groupe_musculaire_nom}</p>
                         </div>
                       )}
-                      {exercice.niveau_nom && (
-                        <div>
-                          <span className="text-gray-500">Niveau:</span>
-                          <p className="text-white">{exercice.niveau_nom}</p>
-                        </div>
-                      )}
+                                             {/* Notes de difficulté */}
+                       <div className="col-span-2">
+                         <span className="text-gray-500">Difficulté:</span>
+                         <div className="flex flex-wrap gap-1 mt-1">
+                           {exercice.note_force !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Dumbbell size={10} />
+                               {exercice.note_force}/20
+                             </span>
+                           )}
+                           {exercice.note_cardio !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Heart size={10} />
+                               {exercice.note_cardio}/20
+                             </span>
+                           )}
+                           {exercice.note_technique !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Target size={10} />
+                               {exercice.note_technique}/20
+                             </span>
+                           )}
+                           {exercice.note_mobilite !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Move size={10} />
+                               {exercice.note_mobilite}/20
+                             </span>
+                           )}
+                           {exercice.note_impact !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Shield size={10} />
+                               {exercice.note_impact}/20
+                             </span>
+                           )}
+                           {exercice.note_mentale !== undefined && (
+                             <span className="text-xs bg-gray-700 text-white px-2 py-1 rounded flex items-center gap-1">
+                               <Brain size={10} />
+                               {exercice.note_mentale}/20
+                             </span>
+                           )}
+                         </div>
+                       </div>
                       {exercice.duree_estimee && (
                         <div>
                           <span className="text-gray-500">Durée:</span>

@@ -1,7 +1,7 @@
 import { useUser } from "../contexts/UserContext";
 import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ProgrammeActuelCard from "../components/ui/ProgrammeActuelCard";
 import SemaineProgramme from "../components/ui/SemaineProgramme";
 import ProgressionProgramme from "../components/ui/ProgressionProgramme";

@@ -615,25 +615,24 @@ function StepContent({
   };
 
   return (
-    <div className="bg-gray-800/80 md:rounded-2xl rounded-lg mb-3 border border-gray-700 shadow-lg w-full">
-      <div className={`flex items-center gap-1.5 p-2`} onClick={toggleAccordion}>
-        <div className="p-1"><ChevronRight className={`text-white transition-transform duration-200 ${(openAccordions || []).includes(uid) ? 'rotate-90' : ''}`} size={18} /></div>
-        <div className="flex-1 flex items-center gap-2">
-          <span className="font-medium text-orange-300 select-none text-sm tracking-wide">{item.type === "bloc" ? item.nom || "Section" : item.nom || "Exercice"}</span>
-
+    <div className="hierarchical-item">
+      <div className="hierarchical-item-header" onClick={toggleAccordion}>
+        <div className="p-1"><ChevronRight className={`hierarchical-item-chevron ${(openAccordions || []).includes(uid) ? 'hierarchical-item-chevron-open' : ''}`} size={18} /></div>
+        <div className="hierarchical-item-content">
+          <span className="hierarchical-item-name">{item.type === "bloc" ? item.nom || "Section" : item.nom || "Exercice"}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" {...dragHandleListeners} className="text-white p-1 cursor-grab active:cursor-grabbing" onClick={e => e.stopPropagation()}><GripVertical size={18} /></button> 
+        <div className="hierarchical-item-actions">
+          <button type="button" {...dragHandleListeners} className="hierarchical-drag-button" onClick={e => e.stopPropagation()}><GripVertical size={18} /></button> 
           
-            <button type="button" ref={moreBtnRef} onClick={e => { e.stopPropagation(); setContextMenu(isMenuOpen ? null : path); }} className="text-white p-1"><MoreVertical size={18} /></button>
+            <button type="button" ref={moreBtnRef} onClick={e => { e.stopPropagation(); setContextMenu(isMenuOpen ? null : path); }} className="hierarchical-action-button"><MoreVertical size={18} /></button>
             {isMenuOpen && (
               <ContextMenuPortal anchorRef={moreBtnRef}>
-                <div ref={menuRef} className="w-48 bg-gray-900 border border-gray-700 rounded-md shadow-lg">
-                   <button onClick={e => { e.stopPropagation(); handleCopy(); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2"><Copy size={16} /> Copier</button>
-                   <button onClick={e => { e.stopPropagation(); handleCut(); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2"><ClipboardPaste size={16} /> Couper</button>
-                   <button onClick={e => { e.stopPropagation(); handlePaste('before'); setContextMenu(null); }} disabled={!globalStates.clipboard} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"><ClipboardPaste size={16} /> Coller avant</button>
-                   <button onClick={e => { e.stopPropagation(); handlePaste('after'); setContextMenu(null); }} disabled={!globalStates.clipboard} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"><ClipboardPaste size={16} /> Coller après</button>
-                   <button onClick={e => { e.stopPropagation(); handleRemove(); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 flex items-center gap-2"><Trash2 size={16} /> Supprimer</button>
+                <div ref={menuRef} className="hierarchical-context-menu">
+                   <button onClick={e => { e.stopPropagation(); handleCopy(); setContextMenu(null); }} className="hierarchical-context-menu-item"><Copy size={16} /> Copier</button>
+                   <button onClick={e => { e.stopPropagation(); handleCut(); setContextMenu(null); }} className="hierarchical-context-menu-item"><ClipboardPaste size={16} /> Couper</button>
+                   <button onClick={e => { e.stopPropagation(); handlePaste('before'); setContextMenu(null); }} disabled={!globalStates.clipboard} className="hierarchical-context-menu-item disabled:opacity-50"><ClipboardPaste size={16} /> Coller avant</button>
+                   <button onClick={e => { e.stopPropagation(); handlePaste('after'); setContextMenu(null); }} disabled={!globalStates.clipboard} className="hierarchical-context-menu-item disabled:opacity-50"><ClipboardPaste size={16} /> Coller après</button>
+                   <button onClick={e => { e.stopPropagation(); handleRemove(); setContextMenu(null); }} className="hierarchical-context-menu-item danger"><Trash2 size={16} /> Supprimer</button>
                 </div>
               </ContextMenuPortal>
             )}
@@ -641,10 +640,10 @@ function StepContent({
         </div>
       </div>
       { (openAccordions || []).includes(uid) && (
-        <div className="p-4 border-t border-gray-700/50 space-y-4 cursor-default" onClick={e => e.stopPropagation()}>
+        <div className="hierarchical-item-expanded" onClick={e => e.stopPropagation()}>
           {item.type === "bloc" ? (
             <>
-              <div className="space-y-4">
+              <div className="hierarchical-form-container">
                 <FloatingLabelInput label="Titre de la section" value={item.nom || ""} onChange={e => handleChange("nom", e.target.value)} />
                 <FloatingLabelInput label="Description / Consignes" value={item.description || ""} onChange={e => handleChange("description", e.target.value)} />
                 {/* Switch pour intro_bloc */}

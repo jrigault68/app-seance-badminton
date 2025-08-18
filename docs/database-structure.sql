@@ -1,30 +1,15 @@
 -- =====================================================
--- STRUCTURE COMPLÈTE DE BASE DE DONNÉES SMARTSPORTS
+-- STRUCTURE DE LA BASE DE DONNÉES
+-- Application de gestion de séances de badminton
 -- =====================================================
-
--- Table des utilisateurs 
-CREATE TABLE IF NOT EXISTS utilisateurs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    nom VARCHAR(100),
-    pseudo VARCHAR(50) UNIQUE,
-    avatar_url TEXT,
-    last_connection TIMESTAMP WITH TIME ZONE,
-    niveau_utilisateur VARCHAR(20) DEFAULT 'debutant',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    google_id VARCHAR(255),
-    is_admin BOOLEAN DEFAULT FALSE
-);
 
 -- =====================================================
 -- TABLES POUR LA GESTION DES SÉANCES
 -- =====================================================
 
--- Table des catégories d'activités (pour séances et programmes)
+-- Table des catégories d'activités (classification fonctionnelle)
 CREATE TABLE IF NOT EXISTS categories (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nom VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
     couleur VARCHAR(7) DEFAULT '#3B82F6',
@@ -33,32 +18,45 @@ CREATE TABLE IF NOT EXISTS categories (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Table des groupes musculaires
-CREATE TABLE IF NOT EXISTS groupes_musculaires (
-    id SERIAL PRIMARY KEY,
+-- Table des sous-catégories (types techniques)
+CREATE TABLE IF NOT EXISTS sous_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nom VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    zone_corps VARCHAR(50),
+    categorie_id UUID REFERENCES categories(id),
     ordre_affichage INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Table des niveaux de difficulté
-CREATE TABLE IF NOT EXISTS niveaux_difficulte (
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(20) UNIQUE NOT NULL,
+-- Table des zones du corps (remplace groupes_musculaires)
+CREATE TABLE IF NOT EXISTS zones_corps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    ordre INTEGER DEFAULT 0,
-    couleur VARCHAR(7) DEFAULT '#6B7280',
+    couleur VARCHAR(7) DEFAULT '#3B82F6',
+    icone VARCHAR(50),
+    ordre_affichage INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Table des types d'exercices
-CREATE TABLE IF NOT EXISTS types (
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(30) UNIQUE NOT NULL,
+-- Table des zones spécifiques
+CREATE TABLE IF NOT EXISTS zones_specifiques (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
+    zone_corps_id UUID REFERENCES zones_corps(id),
+    ordre_affichage INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des familles d'exercices
+CREATE TABLE IF NOT EXISTS familles_exercices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom VARCHAR(100) NOT NULL,
+    description TEXT,
+    famille_parent_id UUID REFERENCES familles_exercices(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Table du matériel
@@ -81,10 +79,25 @@ CREATE TABLE IF NOT EXISTS exercices (
     nom VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     position_depart TEXT,
-    categorie_id INTEGER REFERENCES categories(id),
-    groupe_musculaire_id INTEGER REFERENCES groupes_musculaires(id),
-    niveau_id INTEGER REFERENCES niveaux_difficulte(id),
-    type_id INTEGER REFERENCES types(id),
+    famille_id UUID REFERENCES familles_exercices(id),
+    
+    -- Exercices de progression (plus dur/facile)
+    exercice_plus_dur_id VARCHAR(100) REFERENCES exercices(id),
+    exercice_plus_facile_id VARCHAR(100) REFERENCES exercices(id),
+    
+    -- Exercices similaires et variantes
+    exercices_similaires JSONB DEFAULT '[]', -- Array d'IDs d'exercices similaires
+    variantes JSONB DEFAULT '[]', -- Array d'IDs d'exercices variantes
+    
+    -- Notes de difficulté (0-20 pour chaque aspect)
+    note_force INTEGER DEFAULT 0 CHECK (note_force >= 0 AND note_force <= 20),
+    note_cardio INTEGER DEFAULT 0 CHECK (note_cardio >= 0 AND note_cardio <= 20),
+    note_technique INTEGER DEFAULT 0 CHECK (note_technique >= 0 AND note_technique <= 20),
+    note_mobilite INTEGER DEFAULT 0 CHECK (note_mobilite >= 0 AND note_mobilite <= 20),
+    note_impact INTEGER DEFAULT 0 CHECK (note_impact >= 0 AND note_impact <= 20),
+    note_mentale INTEGER DEFAULT 0 CHECK (note_mentale >= 0 AND note_mentale <= 20),
+    
+    -- Informations techniques
     erreurs JSONB DEFAULT '[]',
     focus_zone JSONB DEFAULT '[]',
     image_url TEXT,
@@ -94,6 +107,8 @@ CREATE TABLE IF NOT EXISTS exercices (
     muscles_sollicites JSONB DEFAULT '[]',
     variantes JSONB DEFAULT '[]',
     conseils JSONB DEFAULT '[]',
+    
+    -- Métadonnées
     created_by UUID REFERENCES utilisateurs(id),
     is_validated BOOLEAN DEFAULT false,
     validated_by UUID REFERENCES utilisateurs(id),
@@ -102,14 +117,48 @@ CREATE TABLE IF NOT EXISTS exercices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Table de jointure exercices <-> sous_categories
+CREATE TABLE IF NOT EXISTS exercices_sous_categories (
+    exercice_id VARCHAR(100) REFERENCES exercices(id) ON DELETE CASCADE,
+    sous_categorie_id UUID REFERENCES sous_categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(exercice_id, sous_categorie_id)
+);
+
+-- Table des zones du corps
+CREATE TABLE IF NOT EXISTS zones_corps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    couleur VARCHAR(7) DEFAULT '#3B82F6',
+    icone VARCHAR(50),
+    ordre_affichage INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des zones spécifiques
+CREATE TABLE IF NOT EXISTS zones_specifiques (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    zone_corps_id UUID REFERENCES zones_corps(id),
+    ordre_affichage INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table de jointure exercices <-> zones_specifiques
+CREATE TABLE IF NOT EXISTS exercices_zones_specifiques (
+    exercice_id VARCHAR(100) REFERENCES exercices(id) ON DELETE CASCADE,
+    zone_specifique_id UUID REFERENCES zones_specifiques(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (exercice_id, zone_specifique_id)
+);
+
 -- Table des séances
 CREATE TABLE IF NOT EXISTS seances (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nom VARCHAR(150) NOT NULL,
     description TEXT,
-    niveau_id INTEGER REFERENCES niveaux_difficulte(id),
-    type_id INTEGER REFERENCES types(id),
-    categorie_id INTEGER REFERENCES categories(id),
     type_seance VARCHAR(20) DEFAULT 'exercice', -- 'exercice' ou 'instruction'
     objectifs JSONB DEFAULT '[]',
     duree_estimee INTEGER,
@@ -125,17 +174,22 @@ CREATE TABLE IF NOT EXISTS seances (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Table de jointure seances <-> sous_categories
+CREATE TABLE IF NOT EXISTS seances_sous_categories (
+    seance_id UUID REFERENCES seances(id) ON DELETE CASCADE,
+    sous_categorie_id UUID REFERENCES sous_categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(seance_id, sous_categorie_id)
+);
+
 -- Table des programmes sportifs
 CREATE TABLE IF NOT EXISTS programmes (
   id SERIAL PRIMARY KEY,
   nom VARCHAR(100) NOT NULL,
   description TEXT,
-  niveau_id INTEGER REFERENCES niveaux_difficulte(id),
   nb_jours INTEGER,
   image_url TEXT,
   objectif TEXT,
-  type_id INTEGER REFERENCES types(id),
-  categorie_id INTEGER REFERENCES categories(id),
   date_debut DATE,
   date_fin DATE,
   est_actif BOOLEAN DEFAULT TRUE,
@@ -145,270 +199,106 @@ CREATE TABLE IF NOT EXISTS programmes (
   type_programme VARCHAR(20) NOT NULL DEFAULT 'libre' -- 'libre' ou 'calendaire'
 );
 
+-- Table de jointure programmes <-> sous_categories
+CREATE TABLE IF NOT EXISTS programmes_sous_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE,
+    sous_categorie_id UUID REFERENCES sous_categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(programme_id, sous_categorie_id)
+);
+
 -- Table de liaison entre programmes et séances
 CREATE TABLE IF NOT EXISTS programme_seances (
   id SERIAL PRIMARY KEY,
   programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE,
   jour INTEGER,
   date DATE,
-  seance_id UUID REFERENCES seances(id) ON DELETE CASCADE
-);
---
--- Pour un programme libre : renseigner 'jour', laisser 'date' à NULL
--- Pour un programme calendaire : renseigner 'date', laisser 'jour' à NULL
-
--- Table des programmes suivis par les utilisateurs
-CREATE TABLE IF NOT EXISTS utilisateur_programmes (
-  id SERIAL PRIMARY KEY,
-  utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE,
-  date_debut DATE DEFAULT CURRENT_DATE,
-  date_fin DATE,
-  est_actif BOOLEAN DEFAULT TRUE,
-  progression JSONB DEFAULT '{}', -- Suivi de la progression dans le programme
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(utilisateur_id, programme_id) -- Un utilisateur ne peut suivre qu'un seul programme à la fois
+  seance_id UUID REFERENCES seances(id) ON DELETE CASCADE,
+  ordre INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
--- TABLES POUR LE SUIVI DES SÉANCES
+-- TABLES POUR LA GESTION DES UTILISATEURS
+-- =====================================================
+
+-- Table des utilisateurs
+CREATE TABLE IF NOT EXISTS utilisateurs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    nom VARCHAR(100),
+    prenom VARCHAR(100),
+    pseudo VARCHAR(50) UNIQUE,
+    avatar_url TEXT,
+    is_admin BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- TABLES POUR LE SUIVI DES SESSIONS
 -- =====================================================
 
 -- Table des sessions d'entraînement
 CREATE TABLE IF NOT EXISTS sessions_entrainement (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    seance_id UUID REFERENCES seances(id),
-    seance_personnalisee_id UUID, -- Pour les séances personnalisées
-    programme_id INTEGER REFERENCES programmes(id), -- Lien avec le programme
-    jour_programme INTEGER, -- Jour dans le programme (1, 2, 3...)
-    nom_session VARCHAR(150),
-    date_debut TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    seance_id UUID REFERENCES seances(id) ON DELETE SET NULL,
+    programme_id INTEGER REFERENCES programmes(id) ON DELETE SET NULL,
+    date_debut TIMESTAMP WITH TIME ZONE NOT NULL,
     date_fin TIMESTAMP WITH TIME ZONE,
     duree_totale INTEGER, -- en secondes
-    calories_brulees INTEGER,
-    niveau_effort DECIMAL(3,1), -- 1.0 à 10.0
-    satisfaction DECIMAL(3,1), -- 1.0 à 5.0
+    calories_totales INTEGER,
     notes TEXT,
-    etat VARCHAR(20) DEFAULT 'en_cours', -- 'en_cours', 'terminee', 'interrompue'
-    progression TEXT DEFAULT '{}', -- Suivi de la progression pendant la session (JSON en TEXT)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Index pour les performances de sessions_entrainement
-CREATE INDEX IF NOT EXISTS idx_sessions_utilisateur ON sessions_entrainement(utilisateur_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_programme ON sessions_entrainement(programme_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_seance ON sessions_entrainement(seance_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions_entrainement(date_debut);
-CREATE INDEX IF NOT EXISTS idx_sessions_etat ON sessions_entrainement(etat);
-
--- Table des exercices réalisés dans une session
--- CREATE TABLE IF NOT EXISTS exercices_realises (
---     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---     session_id UUID REFERENCES sessions_entrainement(id) ON DELETE CASCADE,
---     exercice_id VARCHAR(100) REFERENCES exercices(id),
---     ordre_execution INTEGER NOT NULL,
---     series_realisees JSONB DEFAULT '[]', -- Détail des séries réalisées
---     temps_total INTEGER, -- en secondes
---     calories_brulees INTEGER,
---     difficulte_ressentie DECIMAL(3,1),
---     notes TEXT,
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
--- );
-
--- Table des séries réalisées (détail des exercices)
--- CREATE TABLE IF NOT EXISTS series_realisees (
---     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---     exercice_realise_id UUID REFERENCES exercices_realises(id) ON DELETE CASCADE,
---     numero_serie INTEGER NOT NULL,
---     repetitions_realisees INTEGER,
---     temps_serie INTEGER, -- en secondes
---     temps_repos INTEGER, -- en secondes
---     difficulte_ressentie DECIMAL(3,1),
---     notes TEXT,
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
--- );
-
--- =====================================================
--- TABLES POUR LES STATISTIQUES ET SUIVI
--- =====================================================
-
--- Table des statistiques utilisateur
---CREATE TABLE IF NOT EXISTS statistiques_utilisateur (
---    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---    utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
---    date_statistique DATE NOT NULL,
---    nombre_sessions INTEGER DEFAULT 0,
---    temps_total_entrainement INTEGER DEFAULT 0, -- en minutes
---    calories_totales INTEGER DEFAULT 0,
---    seances_completees JSONB DEFAULT '[]',
---      exercices_favoris JSONB DEFAULT '[]',
---    progression_niveau JSONB DEFAULT '{}',
---    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---    UNIQUE(utilisateur_id, date_statistique)
---);
-
--- Table des objectifs utilisateur
---CREATE TABLE IF NOT EXISTS objectifs_utilisateur (
---    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---    utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
---    nom VARCHAR(100) NOT NULL,
---    description TEXT,
---    type_objectif VARCHAR(50), -- 'frequence', 'duree', 'calories', 'performance'
---    valeur_cible INTEGER,
---    unite VARCHAR(20),
---    date_debut DATE NOT NULL,
---    date_fin DATE,
---    progression_actuelle DECIMAL(5,2) DEFAULT 0,
---    est_atteint BOOLEAN DEFAULT false,
---    est_actif BOOLEAN DEFAULT true,
---    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
---);
-
--- Table des favoris (séances et exercices favoris)
---CREATE TABLE IF NOT EXISTS favoris (
---    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---    utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
---    type_favori VARCHAR(20) NOT NULL, -- 'seance', 'exercice'
---    element_id VARCHAR(100), -- ID de la séance ou exercice
---    date_ajout TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---    notes TEXT,
---    UNIQUE(utilisateur_id, type_favori, element_id)
---);
-
--- =====================================================
--- TABLES POUR LES RECOMMANDATIONS
--- =====================================================
-
--- Table des recommandations
---CREATE TABLE IF NOT EXISTS recommandations (
---    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---    utilisateur_id UUID REFERENCES utilisateurs(id) ON DELETE CASCADE,
---    seance_id VARCHAR(100) REFERENCES seances(id),
---    type_recommandation VARCHAR(50), -- 'niveau', 'objectif', 'variete', 'progression'
---    score_recommandation DECIMAL(3,2), -- 0.0 à 1.0
---    raison TEXT,
---    date_recommandation TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---    est_acceptee BOOLEAN,
---    date_acceptation TIMESTAMP WITH TIME ZONE
---);
 
 -- =====================================================
 -- INDEX POUR LES PERFORMANCES
 -- =====================================================
 
 -- Index pour les exercices
-CREATE INDEX IF NOT EXISTS idx_exercices_categorie ON exercices(categorie_id);
 CREATE INDEX IF NOT EXISTS idx_exercices_groupe_musculaire ON exercices(groupe_musculaire_id);
-CREATE INDEX IF NOT EXISTS idx_exercices_niveau ON exercices(niveau_id);
-CREATE INDEX IF NOT EXISTS idx_exercices_type ON exercices(type_id);
+CREATE INDEX IF NOT EXISTS idx_exercices_famille ON exercices(famille_id);
 CREATE INDEX IF NOT EXISTS idx_exercices_created_by ON exercices(created_by);
 CREATE INDEX IF NOT EXISTS idx_exercices_is_validated ON exercices(is_validated);
-CREATE INDEX IF NOT EXISTS idx_exercices_validated_by ON exercices(validated_by);
-CREATE INDEX IF NOT EXISTS idx_exercices_validated_at ON exercices(validated_at);
+
+-- Index pour les sous-catégories
+CREATE INDEX IF NOT EXISTS idx_sous_categories_categorie ON sous_categories(categorie_id);
+CREATE INDEX IF NOT EXISTS idx_sous_categories_ordre ON sous_categories(ordre_affichage);
+
+-- Index pour les tables de jointure
+CREATE INDEX IF NOT EXISTS idx_exercices_sous_categories_exercice ON exercices_sous_categories(exercice_id);
+CREATE INDEX IF NOT EXISTS idx_exercices_sous_categories_sous_categorie ON exercices_sous_categories(sous_categorie_id);
+CREATE INDEX IF NOT EXISTS idx_seances_sous_categories_seance ON seances_sous_categories(seance_id);
+CREATE INDEX IF NOT EXISTS idx_seances_sous_categories_sous_categorie ON seances_sous_categories(sous_categorie_id);
+CREATE INDEX IF NOT EXISTS idx_programmes_sous_categories_programme ON programmes_sous_categories(programme_id);
+CREATE INDEX IF NOT EXISTS idx_programmes_sous_categories_sous_categorie ON programmes_sous_categories(sous_categorie_id);
 
 -- Index pour les séances
-CREATE INDEX IF NOT EXISTS idx_seances_niveau ON seances(niveau_id);
-CREATE INDEX IF NOT EXISTS idx_seances_type ON seances(type_id);
-CREATE INDEX IF NOT EXISTS idx_seances_auteur ON seances(created_by);
-CREATE INDEX IF NOT EXISTS idx_seances_publiques ON seances(est_publique) WHERE est_publique = true;
+CREATE INDEX IF NOT EXISTS idx_seances_created_by ON seances(created_by);
+CREATE INDEX IF NOT EXISTS idx_seances_type_seance ON seances(type_seance);
+CREATE INDEX IF NOT EXISTS idx_seances_is_validated ON seances(is_validated);
 
--- Index pour les sessions
---CREATE INDEX IF NOT EXISTS idx_sessions_utilisateur ON sessions_entrainement(utilisateur_id);
---CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions_entrainement(date_debut);
---CREATE INDEX IF NOT EXISTS idx_sessions_etat ON sessions_entrainement(etat);
+-- Index pour les programmes
+CREATE INDEX IF NOT EXISTS idx_programmes_created_by ON programmes(created_by);
+CREATE INDEX IF NOT EXISTS idx_programmes_est_actif ON programmes(est_actif);
+CREATE INDEX IF NOT EXISTS idx_programmes_type_programme ON programmes(type_programme);
 
--- Index pour les statistiques
---CREATE INDEX IF NOT EXISTS idx_stats_utilisateur_date ON statistiques_utilisateur(utilisateur_id, date_statistique);
-
--- Index pour les favoris
---CREATE INDEX IF NOT EXISTS idx_favoris_utilisateur ON favoris(utilisateur_id);
---CREATE INDEX IF NOT EXISTS idx_favoris_type ON favoris(type_favori);
-
--- Index pour les recommandations
---CREATE INDEX IF NOT EXISTS idx_recommandations_utilisateur ON recommandations(utilisateur_id);
---CREATE INDEX IF NOT EXISTS idx_recommandations_score ON recommandations(score_recommandation DESC);
+-- Index pour les sessions d'entraînement
+CREATE INDEX IF NOT EXISTS idx_sessions_utilisateur ON sessions_entrainement(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_seance ON sessions_entrainement(seance_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_programme ON sessions_entrainement(programme_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_date_debut ON sessions_entrainement(date_debut);
 
 -- =====================================================
--- DONNÉES INITIALES
+-- FONCTIONS ET TRIGGERS
 -- =====================================================
 
--- Insertion des catégories d'exercices
-INSERT INTO categories (nom, description, couleur, icone, ordre_affichage) VALUES
-('échauffement', 'Exercices pour préparer le corps à l''effort', '#10B981', '🔥', 1),
-('mobilité', 'Exercices pour améliorer la mobilité articulaire', '#3B82F6', '🔄', 2),
-('renforcement', 'Exercices de musculation et tonification', '#F59E0B', '💪', 3),
-('étirement', 'Exercices pour assouplir les muscles', '#8B5CF6', '🧘', 4),
-('cardio', 'Exercices cardiovasculaires', '#EF4444', '❤️', 5),
-('gainage', 'Exercices de stabilisation et renforcement profond', '#06B6D4', '🛡️', 6),
-('récupération_active', 'Exercices doux pour la récupération', '#84CC16', '🌿', 7),
-('ancrage', 'Exercices de respiration et concentration', '#6366F1', '🧘‍♀️', 8)
-ON CONFLICT (nom) DO NOTHING;
-
--- Insertion des groupes musculaires
-INSERT INTO groupes_musculaires (nom, description, zone_corps, ordre_affichage) VALUES
-('corps entier', 'Tout le corps', 'général', 1),
-('jambes', 'Muscles des membres inférieurs', 'inférieur', 2),
-('fessiers', 'Muscles fessiers', 'inférieur', 3),
-('cuisses', 'Muscles des cuisses', 'inférieur', 4),
-('mollets', 'Muscles des mollets', 'inférieur', 5),
-('abdominaux', 'Muscles abdominaux', 'tronc', 6),
-('dos', 'Muscles du dos', 'tronc', 7),
-('pectoraux', 'Muscles pectoraux', 'tronc', 8),
-('épaules', 'Muscles des épaules', 'supérieur', 9),
-('bras', 'Muscles des bras', 'supérieur', 10),
-('triceps', 'Muscles triceps', 'supérieur', 11),
-('biceps', 'Muscles biceps', 'supérieur', 12),
-('avant-bras', 'Muscles des avant-bras', 'supérieur', 13),
-('tronc', 'Muscles du tronc', 'tronc', 14),
-('colonne vertébrale', 'Colonne vertébrale', 'tronc', 15),
-('hanches', 'Muscles des hanches', 'inférieur', 16),
-('cheville', 'Articulation de la cheville', 'inférieur', 17)
-ON CONFLICT (nom) DO NOTHING;
-
--- Insertion des niveaux de difficulté
-INSERT INTO niveaux_difficulte (nom, description, ordre, couleur) VALUES
-('facile', 'Niveau débutant, accessible à tous', 1, '#10B981'),
-('intermédiaire', 'Niveau intermédiaire, nécessite une base', 2, '#F59E0B'),
-('difficile', 'Niveau avancé, pour sportifs confirmés', 3, '#EF4444'),
-('expert', 'Niveau expert, très exigeant', 4, '#7C3AED')
-ON CONFLICT (nom) DO NOTHING;
-
--- Insertion des types d'exercices
-INSERT INTO types (nom, description) VALUES
-('temps', 'Exercice chronométré'),
-('repetitions', 'Exercice avec nombre de répétitions'),
-('mouvement', 'Mouvement libre'),
-('mobilité', 'Exercice de mobilité'),
-('respiration', 'Exercice de respiration'),
-('gainage', 'Exercice de gainage'),
-('cardio', 'Exercice cardiovasculaire'),
-('etirement', 'Exercice d''étirement')
-ON CONFLICT (nom) DO NOTHING;
-
--- Insertion du matériel
-INSERT INTO materiel (nom, description) VALUES
-('Barre de musculation', 'Barre de musculation standard'),
-('Poids de musculation', 'Poids de musculation pour les exercices de force'),
-('Ballon de yoga', 'Ballon de yoga pour les exercices de renforcement'),
-('Bande élastique', 'Bande élastique pour les exercices de résistance'),
-('Foulard de musculation', 'Foulard pour les exercices de musculation'),
-('Gourde d''eau', 'Gourde d''eau pour les exercices de cardio'),
-('Chaussures de sport', 'Chaussures de sport pour les exercices de musculation'),
-('Tapis de yoga', 'Tapis de yoga pour les exercices de renforcement')
-ON CONFLICT (nom) DO NOTHING;
-
-
--- =====================================================
--- TRIGGERS ET FONCTIONS
--- =====================================================
-
--- Fonction pour mettre à jour updated_at
+-- Fonction pour mettre à jour automatiquement updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -419,77 +309,175 @@ $$ language 'plpgsql';
 
 -- Triggers pour updated_at
 CREATE TRIGGER update_utilisateurs_updated_at BEFORE UPDATE ON utilisateurs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_familles_exercices_updated_at BEFORE UPDATE ON familles_exercices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_exercices_updated_at BEFORE UPDATE ON exercices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_seances_updated_at BEFORE UPDATE ON seances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_programmes_updated_at BEFORE UPDATE ON programmes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_sessions_entrainement_updated_at BEFORE UPDATE ON sessions_entrainement FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_statistiques_utilisateur_updated_at BEFORE UPDATE ON statistiques_utilisateur FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
---CREATE TRIGGER update_objectifs_utilisateur_updated_at BEFORE UPDATE ON objectifs_utilisateur FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
 -- VUES UTILES
 -- =====================================================
 
--- Vue pour les séances avec toutes les informations
-CREATE OR REPLACE VIEW v_seances_completes AS
-SELECT 
-    s.*,
-    nd.nom as niveau_nom,
-    nd.couleur as niveau_couleur,
-    COALESCE(u.pseudo, u.nom, 'Utilisateur ' || s.created_by::text) as auteur_pseudo
-FROM seances s
-LEFT JOIN niveaux_difficulte nd ON s.niveau_id = nd.id
-LEFT JOIN utilisateurs u ON s.created_by = u.id;
-
 -- Vue pour les exercices avec toutes les informations
-CREATE OR REPLACE VIEW v_exercices_completes AS
+CREATE VIEW v_exercices_completes AS
 SELECT 
     e.*,
-    ce.nom as categorie_nom,
-    ce.couleur as categorie_couleur,
-    ce.icone as categorie_icone,
-    gm.nom as groupe_musculaire_nom,
-    gm.zone_corps,
-    nd.nom as niveau_nom,
-    nd.couleur as niveau_couleur,
-    te.nom as type_nom,
+    -- Informations sur les catégories et sous-catégories
+    array_agg(DISTINCT c.nom) as categories_noms,
+    array_agg(DISTINCT c.couleur) as categories_couleurs,
+    array_agg(DISTINCT c.icone) as categories_icones,
+    array_agg(DISTINCT sc.nom) as sous_categories_noms,
+    array_agg(DISTINCT sc.id) as sous_categories_ids,
+    -- Informations sur les zones du corps et zones spécifiques
+    array_agg(DISTINCT zc.nom) as zones_corps_noms,
+    array_agg(DISTINCT zc.couleur) as zones_corps_couleurs,
+    array_agg(DISTINCT zc.icone) as zones_corps_icones,
+    array_agg(DISTINCT zs.nom) as zones_specifiques_noms,
+    array_agg(DISTINCT zs.id) as zones_specifiques_ids,
+    -- Informations sur les familles d'exercices
+    fe.nom as famille_nom,
+    -- Exercices de progression
+    e_plus_dur.nom as exercice_plus_dur_nom,
+    e_plus_facile.nom as exercice_plus_facile_nom,
+    -- Auteur
     COALESCE(u.pseudo, u.nom, 'Utilisateur ' || e.created_by::text) as auteur_pseudo
 FROM exercices e
-LEFT JOIN categories ce ON e.categorie_id = ce.id
-LEFT JOIN groupes_musculaires gm ON e.groupe_musculaire_id = gm.id
-LEFT JOIN niveaux_difficulte nd ON e.niveau_id = nd.id
-LEFT JOIN types te ON e.type_id = te.id
-LEFT JOIN utilisateurs u ON e.created_by = u.id;
+-- Jointure avec les sous-catégories via la table de jointure
+LEFT JOIN exercices_sous_categories esc ON e.id = esc.exercice_id
+LEFT JOIN sous_categories sc ON esc.sous_categorie_id = sc.id
+LEFT JOIN categories c ON sc.categorie_id = c.id
+-- Jointure avec les zones spécifiques via la table de jointure
+LEFT JOIN exercices_zones_specifiques ezs ON e.id = ezs.exercice_id
+LEFT JOIN zones_specifiques zs ON ezs.zone_specifique_id = zs.id
+LEFT JOIN zones_corps zc ON zs.zone_corps_id = zc.id
+-- Autres jointures
+LEFT JOIN familles_exercices fe ON e.famille_id = fe.id
+LEFT JOIN exercices e_plus_dur ON e.exercice_plus_dur_id = e_plus_dur.id
+LEFT JOIN exercices e_plus_facile ON e.exercice_plus_facile_id = e_plus_facile.id
+LEFT JOIN utilisateurs u ON e.created_by = u.id
+GROUP BY 
+    e.id, e.nom, e.description, e.position_depart, e.famille_id,
+    e.exercice_plus_dur_id, e.exercice_plus_facile_id,
+    e.exercices_similaires, e.variantes, e.note_force, e.note_cardio,
+    e.note_technique, e.note_mobilite, e.note_impact, e.note_mentale,
+    e.erreurs, e.focus_zone, e.image_url, e.video_url, e.duree_estimee,
+    e.calories_estimees, e.muscles_sollicites, e.conseils, e.created_by,
+    e.is_validated, e.validated_by, e.validated_at, e.created_at, e.updated_at,
+    fe.nom, e_plus_dur.nom, e_plus_facile.nom,
+    u.pseudo, u.nom;
 
--- Vue pour les statistiques utilisateur par semaine
---CREATE OR REPLACE VIEW v_stats_utilisateur_semaine AS
---SELECT 
---    su.utilisateur_id,
---    DATE_TRUNC('week', su.date_statistique) as semaine,
---    SUM(su.nombre_sessions) as total_sessions,
---    SUM(su.temps_total_entrainement) as total_temps_minutes,
---    SUM(su.calories_totales) as total_calories,
---    AVG(su.nombre_sessions) as moyenne_sessions_par_jour
---FROM statistiques_utilisateur su
---GROUP BY su.utilisateur_id, DATE_TRUNC('week', su.date_statistique);
+-- Vue pour les séances avec toutes les informations
+CREATE VIEW v_seances_completes AS
+SELECT 
+    s.*,
+    -- Informations sur les catégories et sous-catégories
+    array_agg(DISTINCT c.nom) as categories_noms,
+    array_agg(DISTINCT c.couleur) as categories_couleurs,
+    array_agg(DISTINCT c.icone) as categories_icones,
+    array_agg(DISTINCT sc.nom) as sous_categories_noms,
+    array_agg(DISTINCT sc.id) as sous_categories_ids,
+    -- Auteur
+    COALESCE(u.pseudo, u.nom, 'Utilisateur ' || s.created_by::text) as auteur_pseudo
+FROM seances s
+-- Jointure avec les sous-catégories via la table de jointure
+LEFT JOIN seances_sous_categories ssc ON s.id = ssc.seance_id
+LEFT JOIN sous_categories sc ON ssc.sous_categorie_id = sc.id
+LEFT JOIN categories c ON sc.categorie_id = c.id
+-- Autres jointures
+LEFT JOIN utilisateurs u ON s.created_by = u.id
+GROUP BY 
+    s.id, s.nom, s.description, s.type_seance, s.structure, s.notes,
+    s.duree_estimee, s.created_by, s.created_at, s.updated_at,
+    u.pseudo, u.nom;
+
+-- Vue pour les catégories avec leurs sous-catégories
+CREATE VIEW v_categories_avec_sous_categories AS
+SELECT 
+    c.id as categorie_id,
+    c.nom as categorie_nom,
+    c.description as categorie_description,
+    c.couleur as categorie_couleur,
+    c.icone as categorie_icone,
+    c.ordre_affichage as categorie_ordre,
+    sc.id as sous_categorie_id,
+    sc.nom as sous_categorie_nom,
+    sc.description as sous_categorie_description,
+    sc.ordre_affichage as sous_categorie_ordre
+FROM categories c
+LEFT JOIN sous_categories sc ON c.id = sc.categorie_id
+ORDER BY c.ordre_affichage, sc.ordre_affichage;
+
+-- Vue pour les statistiques d'utilisation des sous-catégories
+CREATE VIEW v_stats_sous_categories AS
+SELECT 
+    sc.id as sous_categorie_id,
+    sc.nom as sous_categorie_nom,
+    c.nom as categorie_nom,
+    COUNT(DISTINCT esc.exercice_id) as nombre_exercices,
+    COUNT(DISTINCT ssc.seance_id) as nombre_seances
+FROM sous_categories sc
+LEFT JOIN categories c ON sc.categorie_id = c.id
+LEFT JOIN exercices_sous_categories esc ON sc.id = esc.sous_categorie_id
+LEFT JOIN seances_sous_categories ssc ON sc.id = ssc.sous_categorie_id
+GROUP BY sc.id, sc.nom, c.nom
+ORDER BY c.nom, sc.nom;
+
+-- Vue pour les zones du corps avec leurs zones spécifiques
+CREATE VIEW v_zones_corps_avec_zones_specifiques AS
+SELECT 
+    zc.id as zone_corps_id,
+    zc.nom as zone_corps_nom,
+    zc.description as zone_corps_description,
+    zc.couleur as zone_corps_couleur,
+    zc.icone as zone_corps_icone,
+    zc.ordre_affichage as zone_corps_ordre,
+    zs.id as zone_specifique_id,
+    zs.nom as zone_specifique_nom,
+    zs.description as zone_specifique_description,
+    zs.ordre_affichage as zone_specifique_ordre
+FROM zones_corps zc
+LEFT JOIN zones_specifiques zs ON zc.id = zs.zone_corps_id
+ORDER BY zc.ordre_affichage, zs.ordre_affichage;
+
+-- Vue pour les statistiques d'utilisation des zones spécifiques
+CREATE VIEW v_stats_zones_specifiques AS
+SELECT 
+    zs.id as zone_specifique_id,
+    zs.nom as zone_specifique_nom,
+    zc.nom as zone_corps_nom,
+    COUNT(DISTINCT ezs.exercice_id) as nombre_exercices
+FROM zones_specifiques zs
+LEFT JOIN zones_corps zc ON zs.zone_corps_id = zc.id
+LEFT JOIN exercices_zones_specifiques ezs ON zs.id = ezs.zone_specifique_id
+GROUP BY zs.id, zs.nom, zc.nom
+ORDER BY zc.nom, zs.nom;
 
 -- =====================================================
 -- COMMENTAIRES
 -- =====================================================
 
 COMMENT ON TABLE utilisateurs IS 'Table des utilisateurs de l''application';
-COMMENT ON TABLE categories IS 'Catégories d''exercices (échauffement, mobilité, etc.)';
-COMMENT ON TABLE groupes_musculaires IS 'Groupes musculaires sollicités';
-COMMENT ON TABLE niveaux_difficulte IS 'Niveaux de difficulté des exercices';
-COMMENT ON TABLE types IS 'Types d''exercices (temps, répétitions, etc.)';
+COMMENT ON TABLE categories IS 'Catégories d''exercices (classification fonctionnelle)';
+COMMENT ON TABLE sous_categories IS 'Sous-catégories techniques des exercices';
+COMMENT ON TABLE zones_corps IS 'Zones du corps (remplace groupes_musculaires)';
+COMMENT ON TABLE zones_specifiques IS 'Zones spécifiques par zone du corps (muscles, articulations, tendons, etc.)';
+COMMENT ON TABLE familles_exercices IS 'Familles d''exercices pour regrouper les exercices similaires';
 COMMENT ON TABLE exercices IS 'Exercices disponibles dans l''application';
+COMMENT ON COLUMN exercices.note_force IS 'Note de difficulté force (0-20) : intensité musculaire et charge de travail';
+COMMENT ON COLUMN exercices.note_cardio IS 'Note de difficulté cardio (0-20) : effort cardiovasculaire et respiratoire';
+COMMENT ON COLUMN exercices.note_technique IS 'Note de difficulté technique (0-20) : complexité d''exécution et précision';
+COMMENT ON COLUMN exercices.note_mobilite IS 'Note de difficulté mobilité (0-20) : amplitude articulaire et flexibilité';
+COMMENT ON COLUMN exercices.note_impact IS 'Note de difficulté impact (0-20) : stress mécanique sur les articulations';
+COMMENT ON COLUMN exercices.note_mentale IS 'Note de difficulté mentale (0-20) : concentration et endurance mentale';
+COMMENT ON COLUMN exercices.exercices_similaires IS 'Array d''IDs d''exercices similaires (même famille, même type)';
+COMMENT ON COLUMN exercices.exercices_variantes IS 'Array d''IDs d''exercices variantes (même base, modifications)';
+COMMENT ON COLUMN exercices.exercices_complementaires IS 'Array d''IDs d''exercices complémentaires (équilibre, antagoniste)';
 COMMENT ON TABLE seances IS 'Séances prédéfinies';
 COMMENT ON TABLE programmes IS 'Programmes sportifs';
---COMMENT ON TABLE sessions_entrainement IS 'Sessions d''entraînement réalisées';
---COMMENT ON TABLE exercices_realises IS 'Exercices réalisés dans une session';
---COMMENT ON TABLE series_realisees IS 'Séries réalisées pour un exercice';
---COMMENT ON TABLE statistiques_utilisateur IS 'Statistiques quotidiennes des utilisateurs';
---COMMENT ON TABLE objectifs_utilisateur IS 'Objectifs personnalisés des utilisateurs';
---COMMENT ON TABLE favoris IS 'Séances et exercices favoris des utilisateurs';
---COMMENT ON TABLE recommandations IS 'Recommandations de séances pour les utilisateurs';
+COMMENT ON TABLE sessions_entrainement IS 'Sessions d''entraînement réalisées';
+COMMENT ON TABLE exercices_sous_categories IS 'Table de jointure entre exercices et sous-catégories';
+COMMENT ON TABLE exercices_zones_specifiques IS 'Table de jointure entre exercices et zones spécifiques';
+COMMENT ON TABLE seances_sous_categories IS 'Table de jointure entre séances et sous-catégories';
+COMMENT ON TABLE programmes_sous_categories IS 'Table de jointure entre programmes et sous-catégories';
 

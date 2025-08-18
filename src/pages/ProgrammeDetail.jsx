@@ -55,9 +55,23 @@ export default function ProgrammeDetail() {
   const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`${apiUrl}/niveaux`).then(res => res.json()).then(setNiveaux);
-    fetch(`${apiUrl}/categories`).then(res => res.json()).then(setCategories);
-    fetch(`${apiUrl}/types`).then(res => res.json()).then(setTypes);
+    // Charger les données de référence pour les programmes
+    // Note: Les programmes utilisent encore l'ancien système de niveau/type/catégorie
+    // mais on utilise les nouveaux endpoints pour éviter les erreurs
+    Promise.all([
+      fetch(`${apiUrl}/niveaux`).then(res => res.json()).catch(() => []),
+      fetch(`${apiUrl}/categories`).then(res => res.json()).catch(() => []),
+      fetch(`${apiUrl}/types`).then(res => res.json()).catch(() => [])
+    ]).then(([niveauxData, categoriesData, typesData]) => {
+      setNiveaux(Array.isArray(niveauxData) ? niveauxData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setTypes(Array.isArray(typesData) ? typesData : []);
+    }).catch(err => {
+      console.warn('Erreur lors du chargement des données de référence:', err);
+      setNiveaux([]);
+      setCategories([]);
+      setTypes([]);
+    });
   }, [apiUrl]);
 
   useEffect(() => {
@@ -257,15 +271,15 @@ export default function ProgrammeDetail() {
   const isAdmin = user && user.is_admin;
 
   const getNomNiveau = (niveau_id) => {
-    const n = niveaux.find(n => n.id === niveau_id);
+    const n = niveaux ? niveaux.find(n => n.id === niveau_id) : null;
     return n ? n.nom : <span className="italic text-gray-500">Non renseigné</span>;
   };
   const getNomCategorie = (categorie_id) => {
-    const c = categories.find(c => c.id === categorie_id);
+    const c = categories ? categories.find(c => c.id === categorie_id) : null;
     return c ? c.nom : <span className="italic text-gray-500">Non renseignée</span>;
   };
   const getNomType = (type_id) => {
-    const t = types.find(t => t.id === type_id);
+    const t = types ? types.find(t => t.id === type_id) : null;
     return t ? t.nom : <span className="italic text-gray-500">Non renseigné</span>;
   };
 
