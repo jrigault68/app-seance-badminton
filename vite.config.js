@@ -14,8 +14,17 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: "index.html"
-      }
-    }
+      },
+      output: {
+        // Regrouper tout lucide-react (et lucide-react/dynamic) dans un seul chunk
+        // pour éviter des centaines de petits chunks par icône (surtout avec DynamicIcon).
+        manualChunks(id) {
+          if (id.includes("node_modules") && id.includes("lucide")) {
+            return "lucide-react";
+          }
+        },
+      },
+    },
   },
   define: {
     __BRAND_NAME__: JSON.stringify(BRAND_CONFIG.name),

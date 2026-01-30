@@ -1,10 +1,15 @@
-import { useState, useEffect  } from "react";
+import { useState, useEffect, useRef } from "react";
 import { register, login } from "../services/authService";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
-import { User, Mail, Lock, ArrowRight, AlertCircle, HelpCircle } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, AlertCircle, HelpCircle, Loader2 } from "lucide-react";
 import { getDisplayName } from "../config/brand";
 import Layout from "../components/Layout";
+
+/** Délai (ms) avant d'afficher le message "démarrage" (cold start Render, etc.) */
+const COLD_START_MESSAGE_DELAY_MS = 4000;
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function ConnexionInscription() {
 	const navigate = useNavigate();
@@ -36,6 +41,15 @@ export default function ConnexionInscription() {
 		}
 		// Si pas de paramètre tab, on garde le comportement par défaut (connexion)
 	}, [searchParams]);
+
+	// Health check après le premier paint : pré-réveille le backend (Render). Décalé pour ne jamais bloquer l’affichage.
+	useEffect(() => {
+		const id = setTimeout(() => {
+			fetch(`${API_BASE}/health`, { method: "GET" })
+				.catch(() => { /* silencieux : simple wake-up */ });
+		}, 0);
+		return () => clearTimeout(id);
+	}, []);
 	
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
@@ -43,6 +57,30 @@ export default function ConnexionInscription() {
   const [password, setPassword] = useState("");
   const [erreur, setErreur] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  /** Afficher le message "Démarrage de l'application" après un délai (cold start backend) */
+  const [showColdStartMessage, setShowColdStartMessage] = useState(false);
+  const coldStartTimerRef = useRef(null);
+
+  // Afficher le message de cold start après COLD_START_MESSAGE_DELAY_MS si la requête est encore en cours
+  useEffect(() => {
+    if (!isLoading) {
+      setShowColdStartMessage(false);
+      if (coldStartTimerRef.current) {
+        clearTimeout(coldStartTimerRef.current);
+        coldStartTimerRef.current = null;
+      }
+      return;
+    }
+    coldStartTimerRef.current = setTimeout(() => {
+      setShowColdStartMessage(true);
+      coldStartTimerRef.current = null;
+    }, COLD_START_MESSAGE_DELAY_MS);
+    return () => {
+      if (coldStartTimerRef.current) {
+        clearTimeout(coldStartTimerRef.current);
+      }
+    };
+  }, [isLoading]);
 
   const handleSubmit = async (e) => {
 	e.preventDefault();
@@ -65,7 +103,15 @@ export default function ConnexionInscription() {
 	  console.log("user: ", user);
 	  navigate(from);
 	} catch (err) {
-	  setErreur(err.message);
+	  const isNetworkError =
+		err?.message === "Failed to fetch" ||
+		err?.name === "TypeError" ||
+		/^(Failed to fetch|Load failed|NetworkError|Network request failed)/i.test(err?.message ?? "");
+	  setErreur(
+	    isNetworkError
+	      ? "Impossible de joindre le serveur. Vérifiez votre connexion internet."
+	      : (err?.message ?? "Une erreur est survenue.")
+	  );
 	} finally {
 	  setIsLoading(false);
 	}
@@ -209,6 +255,26 @@ export default function ConnexionInscription() {
 		  <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 flex items-center gap-3">
 			<AlertCircle size={20} className="text-red-400 flex-shrink-0" />
 			<span className="text-sm text-red-300">{erreur}</span>
+		  </div>
+		)}
+
+		{/* Overlay "Démarrage de l'application" après délai (cold start Render / backend) */}
+		{showColdStartMessage && (
+		  <div
+		    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+		    role="status"
+		    aria-live="polite"
+		    aria-label="Démarrage de l'application en cours"
+		  >
+		    <div className="bg-black/80 border border-red-900/40 rounded-2xl p-6 sm:p-8 max-w-sm mx-4 text-center shadow-2xl">
+		      <Loader2 className="w-12 h-12 text-red-500 animate-spin mx-auto mb-4" aria-hidden />
+		      <h2 className="text-lg font-semibold text-white mb-2">
+		        Démarrage de l'application
+		      </h2>
+		      <p className="text-sm text-gray-400">
+		        Merci de patienter. Cela peut prendre jusqu'à une minute après une période d'inactivité.
+		      </p>
+		    </div>
 		  </div>
 		)}
 		</div>
