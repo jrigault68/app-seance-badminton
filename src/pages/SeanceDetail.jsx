@@ -10,11 +10,12 @@ import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
 import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
-import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, Settings, RotateCcw, Upload, HelpCircle, Copy, X } from "lucide-react";
-import { estimerDureeEtape, calculerTempsTotalSeance } from "../utils/helpers";
+import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, RotateCcw, Copy, X, Sparkles } from "lucide-react";
+import { calculerTempsTotalSeance } from "../utils/helpers";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
-import { JsonViewer } from "json-viewer-react";
-import { getActiveAIService, AI_PROVIDER, AI_CONFIG } from "../config/aiConfig";
+import { getActiveAIService, isAnyProviderConfigured } from "../services/aiService";
+import { filterExercicesByPrompt, formatExercicesCompact } from "../utils/exercicesPourIA.js";
+import { getPromptSeanceTemplate } from "../config/aiPrompts.js";
 
 // Composant pour sélectionner une séance à copier
 function SeanceCopySelector({ onSelect, onCancel }) {
@@ -121,11 +122,8 @@ export default function SeanceDetail() {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useUser();
   const isNew = !id || id === "new";
-  
-
   
   const [mode, setMode] = useState(isNew ? "new" : "detail"); // 'detail' | 'edit' | 'new'
   const [structureEditMode, setStructureEditMode] = useState(false); // Nouveau mode pour l'édition de structure
@@ -138,8 +136,6 @@ export default function SeanceDetail() {
   const [categories, setCategories] = useState([]);
   const [types, setTypes] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
-  const [blockedLocation, setBlockedLocation] = useState(null);
   const [savingAndQuit, setSavingAndQuit] = useState(false);
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
@@ -154,15 +150,10 @@ export default function SeanceDetail() {
   const [snackbarType, setSnackbarType] = useState("success");
 
   // États pour l'import de séances
-  const [showImportDialog, setShowImportDialog] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [hasImportedData, setHasImportedData] = useState(false);
-  
-
-  const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
-  const [importJsonText, setImportJsonText] = useState('');
-  const [importError, setImportError] = useState('');
+  const aiPromptInputRef = useRef(null);
   const [copied, setCopied] = useState({ json: false, prompt: false });
   
   // États pour l'IA
@@ -170,126 +161,8 @@ export default function SeanceDetail() {
   const [aiResponse, setAiResponse] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestedExercices, setSuggestedExercices] = useState([]);
-
-  // Exemple JSON et prompt IA pour les séances
-  const exempleJsonSeance = `{
-  "nom": "Séance d'échauffement complet",
-  "description": "Séance d'échauffement progressive pour préparer le corps à l'effort",
-  "niveau_id": 1,
-  "type_id": 1,
-  "categorie_id": 1,
-  "type_seance": "exercice",
-  "notes": "Se concentrer sur la respiration et la fluidité des mouvements",
-  "structure": [
-    {
-      "type": "bloc",
-      "nom": "Échauffement articulaire",
-      "description": "Mobilisation douce des articulations principales",
-      "nbTours": 1,
-      "temps_repos_bloc": 30,
-      "temps_repos_exercice": 15,
-      "contenu": [
-        {
-          "type": "exercice",
-          "id": "course_sur_place",
-          "series": 1,
-          "repetitions": 0,
-          "temps_series": 60,
-          "temps_repos_series": 0,
-          "temps_repos_exercice": 0
-        },
-        {
-          "type": "exercice",
-          "id": "rotations_epaules",
-          "series": 1,
-          "repetitions": 10,
-          "temps_series": 0,
-          "temps_repos_series": 0,
-          "temps_repos_exercice": 0
-        }
-      ]
-    },
-    {
-      "type": "bloc",
-      "nom": "Renforcement léger",
-      "description": "Exercices de renforcement musculaire progressif",
-      "nbTours": 2,
-      "temps_repos_bloc": 60,
-      "temps_repos_exercice": 30,
-      "contenu": [
-        {
-          "type": "exercice",
-          "id": "pompes_genoux",
-          "series": 2,
-          "repetitions": 8,
-          "temps_series": 0,
-          "temps_repos_series": 45,
-          "temps_repos_exercice": 0
-        },
-        {
-          "type": "exercice",
-          "id": "squats_air",
-          "series": 2,
-          "repetitions": 12,
-          "temps_series": 0,
-          "temps_repos_series": 45,
-          "temps_repos_exercice": 0
-        }
-      ]
-    }
-  ]
-}`;
-
-  const directivesSeance = [
-    "Utilise le format JSON strict avec guillemets doubles.",
-    "La structure doit être un tableau d'objets de type 'bloc' ou 'exercice'.",
-    "Les blocs contiennent un tableau 'contenu' avec des exercices ou sous-blocs.",
-    "Les exercices doivent utiliser les IDs exacts des exercices existants dans la base.",
-    "Les champs de configuration (series, repetitions, temps_series, etc.) sont optionnels.",
-    "Les temps sont exprimés en secondes.",
-    "Le champ 'type_seance' peut être 'exercice' ou 'instruction'.",
-    "Respecte la hiérarchie : structure > blocs > exercices."
-  ];
-
-  const promptIASeance = `Génère un objet JSON pour une séance d'entraînement. Respecte strictement ce format et ces consignes :
-- Utilise uniquement les exercices existants dans la base de données
-- Structure hiérarchique : blocs contenant des exercices
-- Configuration des exercices : series, repetitions, temps_series, temps_repos_series, temps_repos_exercice
-- Temps exprimés en secondes
-- Remplis tous les champs pertinents
-- Réponds uniquement avec le JSON, sans explication
-{
-  "nom": "<NOM_SEANCE>",
-  "description": "",
-  "niveau_id": 1,
-  "type_id": 1,
-  "categorie_id": 1,
-  "type_seance": "exercice",
-  "notes": "",
-  "structure": [
-    {
-      "type": "bloc",
-      "nom": "",
-      "description": "",
-      "nbTours": 1,
-      "temps_repos_bloc": 0,
-      "temps_repos_exercice": 0,
-      "contenu": [
-        {
-          "type": "exercice",
-          "id": "<ID_EXERCICE_EXISTANT>",
-          "series": 1,
-          "repetitions": 0,
-          "temps_series": 0,
-          "temps_repos_series": 0,
-          "temps_repos_exercice": 0
-        }
-      ]
-    }
-  ]
-}`;
+  const [generatedPromptForCopy, setGeneratedPromptForCopy] = useState('');
+  const [pasteJsonFromIA, setPasteJsonFromIA] = useState('');
 
   // Fonctions pour l'import
   const handleCopy = async (text, type) => {
@@ -302,44 +175,7 @@ export default function SeanceDetail() {
     }
   };
 
-  const handleImportJson = () => {
-    try {
-      const data = JSON.parse(importJsonText);
-      
-      // Validation des exercices existants
-      const validationResult = validateExercicesInStructure(data.structure, exercices);
-      
-      if (validationResult.hasErrors) {
-        setImportError(`Erreurs de validation : ${validationResult.errors.join(', ')}`);
-        return;
-      }
-      
-      // Remplir directement le formulaire
-      const newForm = {
-        nom: data.nom || '',
-        description: data.description || '',
-        niveau_id: data.niveau_id ? String(data.niveau_id) : '',
-        type_id: data.type_id ? String(data.type_id) : '',
-        categorie_id: data.categorie_id ? String(data.categorie_id) : '',
-        notes: data.notes || '',
-        structure: data.structure || [],
-        type_seance: data.type_seance || 'exercice'
-      };
-      
-      setForm(newForm);
-      initialFormRef.current = newForm;
-      setHasImportedData(true);
-      
-      setShowImportDialog(false);
-      setImportError('');
-      setSnackbarMessage("Séance importée ! Modifiez les champs selon vos besoins puis sauvegardez.");
-      setSnackbarType("success");
-    } catch (error) {
-      setImportError('Erreur de format JSON. Vérifiez la syntaxe.');
-    }
-  };
-
-  // Fonction pour valider les exercices dans la structure
+  // Fonction pour valider les exercices dans la structure (id null = exercice créé par l'IA, autorisé)
   const validateExercicesInStructure = (structure, availableExercices) => {
     const errors = [];
     const exerciceIds = new Set(availableExercices.map(exo => exo.id));
@@ -349,9 +185,7 @@ export default function SeanceDetail() {
         if (item.type === 'bloc' && item.contenu) {
           validateStructure(item.contenu);
         } else if (item.type === 'exercice') {
-          if (!item.id) {
-            errors.push(`Exercice sans ID trouvé`);
-          } else if (!exerciceIds.has(item.id)) {
+          if (item.id != null && item.id !== '' && !exerciceIds.has(item.id)) {
             errors.push(`Exercice "${item.id}" n'existe pas dans la base de données`);
           }
         }
@@ -366,17 +200,6 @@ export default function SeanceDetail() {
       hasErrors: errors.length > 0,
       errors
     };
-  };
-
-  const handleImportFile = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImportJsonText(event.target.result);
-      };
-      reader.readAsText(file);
-    }
   };
 
   // Fonction pour copier une séance existante
@@ -418,39 +241,83 @@ export default function SeanceDetail() {
     setSnackbarType("success");
   };
 
+  // Construit le prompt complet à copier-coller dans un chat IA (quand pas de clé API)
+  const buildFullPromptForCopy = () => {
+    const filtered = filterExercicesByPrompt(aiPrompt || '', exercices || []);
+    const list = formatExercicesCompact(filtered);
+    return `${getPromptSeanceTemplate()}
+
+Liste des exercices disponibles (utilise uniquement ces "id" dans le JSON, n=nom, c=catégorie) :
+${JSON.stringify(list)}
+
+Description de la séance demandée :
+${aiPrompt}
+
+Réponds uniquement avec le JSON de la séance, sans explication ni texte autour.`;
+  };
+
+  const applyJsonToForm = (jsonText) => {
+    try {
+      const data = JSON.parse(jsonText);
+      const validationResult = validateExercicesInStructure(data.structure, exercices);
+      if (validationResult.hasErrors) {
+        setAiError(`Erreurs : ${validationResult.errors.join(', ')}`);
+        return;
+      }
+      setForm({
+        nom: data.nom || '',
+        description: data.description || '',
+        niveau_id: data.niveau_id ? String(data.niveau_id) : '',
+        type_id: data.type_id ? String(data.type_id) : '',
+        categorie_id: data.categorie_id ? String(data.categorie_id) : '',
+        notes: data.notes || '',
+        structure: data.structure || [],
+        type_seance: data.type_seance || 'exercice'
+      });
+      setShowAIDialog(false);
+      setPasteJsonFromIA('');
+      setGeneratedPromptForCopy('');
+      setSnackbarMessage('Séance appliquée. Enregistrez pour finaliser.');
+      setSnackbarType('success');
+    } catch (e) {
+      setAiError('JSON invalide. Collez uniquement le JSON retourné par l\'IA.');
+    }
+  };
+
   // Fonctions pour l'IA
   const handleAIGenerate = async () => {
     if (!aiPrompt.trim()) {
-      setAiError('Veuillez saisir une description de séance');
+      setAiError('Décrivez la séance souhaitée.');
+      return;
+    }
+    setAiError('');
+    setAiResponse('');
+
+    if (!isAnyProviderConfigured()) {
+      setGeneratedPromptForCopy(buildFullPromptForCopy());
+      setPasteJsonFromIA('');
+      return;
+    }
+
+    const aiService = await getActiveAIService();
+    if (!aiService) {
+      setGeneratedPromptForCopy(buildFullPromptForCopy());
+      setPasteJsonFromIA('');
       return;
     }
 
     setAiLoading(true);
-    setAiError('');
-    setAiResponse('');
-
     try {
-      // Obtenir le service IA actif
-      const aiService = await getActiveAIService();
-      
-      // Utiliser le service IA
-      const response = await aiService.generateSeance(aiPrompt, exercices, promptIASeance);
-      
+      const response = await aiService.generateSeance(aiPrompt, exercices);
       setAiResponse(response);
-      setImportJsonText(response);
-      
-      // Appliquer directement la séance générée au formulaire
+      setGeneratedPromptForCopy('');
       try {
         const data = JSON.parse(response);
-        
-        // Validation des exercices existants
         const validationResult = validateExercicesInStructure(data.structure, exercices);
-        
         if (validationResult.hasErrors) {
-          setAiError(`Erreurs de validation : ${validationResult.errors.join(', ')}`);
+          setAiError(`Erreurs : ${validationResult.errors.join(', ')}`);
           return;
         }
-        
         setForm({
           nom: data.nom || '',
           description: data.description || '',
@@ -461,42 +328,15 @@ export default function SeanceDetail() {
           structure: data.structure || [],
           type_seance: data.type_seance || 'exercice'
         });
-        
-        setSnackbarMessage("Séance générée et appliquée avec succès !");
-        setSnackbarType("success");
-        
+        setSnackbarMessage('Séance générée et appliquée.');
+        setSnackbarType('success');
       } catch (parseError) {
-        setAiError('Erreur lors du parsing de la réponse IA : ' + parseError.message);
+        setAiError('Réponse IA invalide : ' + parseError.message);
       }
-      
     } catch (error) {
-      setAiError('Erreur lors de la génération : ' + error.message);
+      setAiError(error.message || 'Erreur lors de la génération.');
     } finally {
       setAiLoading(false);
-    }
-  };
-
-  // Fonction pour suggérer des exercices similaires
-  const suggestSimilarExercices = async (searchTerm) => {
-    if (!searchTerm.trim()) {
-      setSuggestedExercices([]);
-      return;
-    }
-
-    try {
-      const aiService = await getActiveAIService();
-      const suggestions = await aiService.suggestExercices(searchTerm, exercices);
-      setSuggestedExercices(suggestions);
-    } catch (error) {
-      console.warn('Erreur suggestion IA:', error);
-      // Fallback vers recherche simple
-      const suggestions = exercices
-        .filter(exo => 
-          exo.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          exo.categorie_nom?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .slice(0, 5);
-      setSuggestedExercices(suggestions);
     }
   };
 
@@ -525,6 +365,14 @@ export default function SeanceDetail() {
       setExercices([]);
     });
   }, [apiUrl]);
+
+  // Focus sur la description à l'ouverture du dialogue IA
+  useEffect(() => {
+    if (showAIDialog) {
+      const t = setTimeout(() => aiPromptInputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [showAIDialog]);
 
   // Charge la séance si mode detail/edit
   useEffect(() => {
@@ -578,7 +426,8 @@ export default function SeanceDetail() {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
 
-      SeanceService.getExercicesSeance(id).then(data => setExercices(data || []));
+      // Ne pas écraser exercices : on garde le catalogue complet (chargé au montage)
+      // pour l'affichage de la structure et pour la génération IA.
   }, [id, isNew]);
 
   // Vérifier s'il y a une session en cours pour cette séance
@@ -829,13 +678,18 @@ export default function SeanceDetail() {
         backTo="/seances" 
         backLabel="Retour à la liste des séances"
         onBackClick={handleBackClick}
-        pageActions={mode === "new" ? [
-          {
+        pageActions={[
+          ...(mode === "new" ? [{
             icon: <Copy size={20} className="text-green-400" />,
             label: 'Copier une séance',
             onClick: () => setShowCopyDialog(true)
+          }] : []),
+          {
+            icon: <Sparkles size={20} className="text-purple-400" />,
+            label: 'Générer une séance avec l\'IA',
+            onClick: () => setShowAIDialog(true)
           }
-        ] : []}
+        ]}
       >
         <div className="page-wrapper">
           <div className="page-content">
@@ -913,109 +767,7 @@ export default function SeanceDetail() {
           </div>
         </div>
         
-        {/* Dialogs pour l'import et l'IA */}
-        {showImportDialog && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-            onClick={e => {
-              if (e.target === e.currentTarget) {
-                setShowImportDialog(false); setImportError('');
-              }
-            }}
-          >
-            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-lg border border-gray-700 relative" onClick={e => e.stopPropagation()}>
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                onClick={() => { setShowImportDialog(false); setImportError(''); }}
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-              <h2 className="text-lg font-bold text-white mb-4">Importer une séance au format JSON</h2>
-              <textarea
-                className="w-full h-32 p-2 bg-gray-800 border border-gray-600 rounded mb-2 text-white"
-                placeholder="Collez ici le texte JSON..."
-                value={importJsonText}
-                onChange={e => setImportJsonText(e.target.value)}
-              />
-              <div className="flex items-center gap-2 mb-2">
-                <input type="file" accept="application/json,.json,.txt" onChange={handleImportFile} className="text-white" />
-                <span className="text-xs text-gray-400">ou choisir un fichier</span>
-              </div>
-              {importError && <div className="text-red-400 mb-2">{importError}</div>}
-              <div className="flex justify-between gap-2 mt-2">
-                <div className="flex gap-2">
-                  <button
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                    onClick={() => setShowHelpDialog(true)}
-                    type="button"
-                  >
-                    <HelpCircle size={18} /> Aide modèle JSON
-                  </button>
-                  <button
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white"
-                    onClick={() => setShowAIDialog(true)}
-                    type="button"
-                  >
-                    <Settings size={18} /> Générer avec IA
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                    onClick={() => { setShowImportDialog(false); setImportError(''); }}
-                  >Annuler</button>
-                  <button
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold"
-                    onClick={handleImportJson}
-                  >Importer</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showHelpDialog && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-            onClick={e => {
-              if (e.target === e.currentTarget) setShowHelpDialog(false);
-            }}
-          >
-            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                onClick={() => setShowHelpDialog(false)}
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-              <h2 className="text-lg font-bold text-white mb-4">Modèle JSON & Directives</h2>
-              <div className="mb-4 relative">
-                <h3 className="text-md font-semibold text-orange-300 mb-2">Exemple de modèle JSON</h3>
-                <button
-                  className="absolute top-0 right-0 flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
-                  onClick={() => handleCopy(exempleJsonSeance, 'json')}
-                  type="button"
-                >
-                  <Copy size={14} /> {copied.json ? 'Copié !' : 'Copier'}
-                </button>
-                <pre className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto mt-6">
-                  {exempleJsonSeance}
-                </pre>
-              </div>
-              <div>
-                <h3 className="text-md font-semibold text-orange-300 mb-2">Directives importantes</h3>
-                <ul className="list-disc pl-6 text-gray-200 text-sm space-y-1">
-                  {directivesSeance.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Dialog IA : description + génération ou copier-coller */}
         {showAIDialog && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
@@ -1023,43 +775,84 @@ export default function SeanceDetail() {
               if (e.target === e.currentTarget) setShowAIDialog(false);
             }}
           >
-            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <button
                 className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                onClick={() => setShowAIDialog(false)}
+                onClick={() => { setShowAIDialog(false); setGeneratedPromptForCopy(''); setPasteJsonFromIA(''); setAiError(''); }}
                 aria-label="Fermer"
               >
                 <X size={18} />
               </button>
-              <h2 className="text-lg font-bold text-white mb-4">Générer une séance avec l'IA</h2>
+              <h2 className="text-lg font-bold text-white mb-1">Générer une séance avec l&apos;IA</h2>
+              <p className="text-sm text-gray-400 mb-4">
+                Décrivez la séance, temps, exercices, etc.
+              </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-white">Description de la séance souhaitée</label>
+                  <label className="block text-sm font-medium mb-2 text-white">Description de la séance</label>
                   <textarea
-                    className="w-full h-32 p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                    placeholder="Décrivez la séance que vous souhaitez générer..."
+                    ref={aiPromptInputRef}
+                    className="w-full h-28 p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="Ex : Échauffement 15 min puis renforcement..."
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
                   />
                 </div>
-                {aiError && <div className="text-red-400">{aiError}</div>}
-                {aiResponse && (
-                  <div>
-                    <h3 className="text-md font-semibold text-orange-300 mb-2">Séance générée</h3>
-                    <div className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto max-h-60">
+
+                {aiError && <div className="text-red-400 text-sm">{aiError}</div>}
+
+                {/* Pas de clé API : afficher le prompt à copier + zone pour coller le JSON */}
+                {generatedPromptForCopy && (
+                  <div className="space-y-3 rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
+                    <p className="text-amber-200 text-sm font-medium">
+                      Copiez le prompt ci-dessous dans un chat IA (ChatGPT, Claude…), puis collez le JSON retourné dans la zone prévue.
+                    </p>
+                    <div className="relative">
+                      <pre className="bg-black/70 text-gray-300 text-xs p-3 rounded overflow-x-auto max-h-48 whitespace-pre-wrap break-words pr-20">
+                        {generatedPromptForCopy}
+                      </pre>
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
+                        onClick={() => handleCopy(generatedPromptForCopy, 'prompt')}
+                      >
+                        <Copy size={14} /> {copied.prompt ? 'Copié !' : 'Copier'}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Collez ici le JSON retourné par l&apos;IA</label>
+                      <textarea
+                        className="w-full h-24 p-2 bg-gray-800 border border-gray-600 rounded text-white text-xs font-mono"
+                        placeholder='{"nom": "...", "structure": [...]}'
+                        value={pasteJsonFromIA}
+                        onChange={e => setPasteJsonFromIA(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium"
+                        onClick={() => applyJsonToForm(pasteJsonFromIA)}
+                      >
+                        Appliquer cette séance
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Réponse API : séance générée */}
+                {aiResponse && !generatedPromptForCopy && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-orange-300">Séance générée</h3>
+                    <div className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto max-h-48">
                       {(() => {
                         try {
                           const data = JSON.parse(aiResponse);
                           return (
                             <div className="space-y-2">
                               <div><strong>Nom:</strong> {data.nom}</div>
-                              <div><strong>Description:</strong> {data.description}</div>
-                              <div><strong>Type:</strong> {data.type_seance}</div>
                               <div><strong>Structure:</strong> {data.structure?.length || 0} bloc(s)</div>
-                              {data.structure?.map((bloc, index) => (
-                                <div key={index} className="ml-4 border-l-2 border-gray-600 pl-2">
-                                  <div><strong>Bloc {index + 1}:</strong> {bloc.nom}</div>
-                                  <div className="text-gray-400">{bloc.contenu?.length || 0} exercice(s)</div>
+                              {data.structure?.map((bloc, i) => (
+                                <div key={i} className="ml-4 border-l-2 border-gray-600 pl-2">
+                                  {bloc.nom} — {bloc.contenu?.length || 0} ex.
                                 </div>
                               ))}
                             </div>
@@ -1069,46 +862,31 @@ export default function SeanceDetail() {
                         }
                       })()}
                     </div>
-                    <div className="flex justify-center mt-4">
-                      <button
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white font-semibold"
-                        onClick={() => {
-                          try {
-                            const data = JSON.parse(aiResponse);
-                            setForm({
-                              nom: data.nom || '',
-                              description: data.description || '',
-                              niveau_id: data.niveau_id ? String(data.niveau_id) : '',
-                              type_id: data.type_id ? String(data.type_id) : '',
-                              categorie_id: data.categorie_id ? String(data.categorie_id) : '',
-                              notes: data.notes || '',
-                              structure: data.structure || [],
-                              type_seance: data.type_seance || 'exercice'
-                            });
-                            setShowAIDialog(false);
-                            setSnackbarMessage("Séance appliquée avec succès !");
-                            setSnackbarType("success");
-                          } catch (e) {
-                            setAiError('Erreur lors de l\'application : ' + e.message);
-                          }
-                        }}
-                      >
-                        Appliquer cette séance
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium"
+                      onClick={() => applyJsonToForm(aiResponse)}
+                    >
+                      Appliquer cette séance
+                    </button>
                   </div>
                 )}
-                <div className="flex justify-between gap-2">
+
+                <div className="flex justify-between gap-2 pt-2">
                   <button
+                    type="button"
                     className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                    onClick={() => setShowAIDialog(false)}
-                  >Annuler</button>
+                    onClick={() => { setShowAIDialog(false); setGeneratedPromptForCopy(''); setPasteJsonFromIA(''); setAiError(''); }}
+                  >
+                    Fermer
+                  </button>
                   <button
+                    type="button"
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white font-semibold"
                     onClick={handleAIGenerate}
                     disabled={aiLoading}
                   >
-                    {aiLoading ? 'Génération...' : 'Générer'}
+                    {aiLoading ? 'Génération...' : 'Générer' + (isAnyProviderConfigured() ? ' avec IA' : ' le prompt')}
                   </button>
                 </div>
               </div>

@@ -74,7 +74,8 @@ export function genererEtapesDepuisStructure(
  */
 function preparerTousLesExercices(structure, exoDict) {
   const exercicesEnrichis = {};
-  
+  let inlineCounter = 0;
+
   function preparerExerciceRecursif(step) {
     if (step.type === "bloc") {
       // Pour un bloc, traiter récursivement son contenu
@@ -86,18 +87,21 @@ function preparerTousLesExercices(structure, exoDict) {
       // Pour un exercice, l'enrichir avec toutes ses données
       const exoId = step.id;
       const exoData = exoDict[exoId] || {};
-      
-      // Vérifier si l'exercice a des personnalisations
-      const hasPersonnalisations = (step.nom !== undefined && step.nom !== exoData.nom) || 
-                                  step.description !== undefined || 
-                                  step.position_depart !== undefined ||
-                                  step.focus_zone !== undefined ||
-                                  step.erreurs !== undefined ||
-                                  step.conseils !== undefined;
-      
-      // Déterminer l'identifiant à utiliser
-      let exerciceId = hasPersonnalisations ? step._uid : exoId;
-      //console.log("exerciceId :", exerciceId, step._uid, exoId)
+      const isInline = exoId == null || exoId === '';
+
+      const hasPersonnalisations = !isInline && (
+        (step.nom !== undefined && step.nom !== exoData.nom) ||
+        step.description !== undefined ||
+        step.position_depart !== undefined ||
+        step.focus_zone !== undefined ||
+        step.erreurs !== undefined ||
+        step.conseils !== undefined
+      );
+
+      let exerciceId = isInline
+        ? (step._uid || `inline-${++inlineCounter}`)
+        : (hasPersonnalisations ? step._uid : exoId);
+      if (isInline && !step._uid) step._uid = exerciceId;
       // Enrichir l'exercice avec toutes ses données (personnalisées + par défaut)
       const exerciceEnrichi = {
         ...exoData,           // Données de base de l'exercice
@@ -248,13 +252,12 @@ function traiterExercice(step, structure, exercicesEnrichis, stepIndex, stepInBl
   let exerciceEnrichi = null;
   //console.log("step ids :", step.id, step._uid)
   
-  // Étape 1 : Chercher par UID si disponible
+  // Étape 1 : Chercher par UID si disponible (obligatoire pour exercices inline id null)
   if (step._uid) {
     exerciceEnrichi = exercicesEnrichis.find(e => e.exerciceId === step._uid);
   }
-  
-  // Étape 2 : Fallback sur l'ID de base si pas trouvé par UID
-  if (!exerciceEnrichi) {
+  // Étape 2 : Fallback sur l'ID de base si pas trouvé par UID (exercices de la base)
+  if (!exerciceEnrichi && exoId != null) {
     exerciceEnrichi = exercicesEnrichis.find(e => e.id === exoId);
   }
   

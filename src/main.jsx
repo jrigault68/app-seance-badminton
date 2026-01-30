@@ -8,8 +8,7 @@ import DynamicTitle from "./components/DynamicTitle";
 
 import "./index.css";
 
-// Lazy load des pages : chaque route charge son .jsx uniquement à la navigation.
-// Les "chunks" = fichiers JS créés par Vite (code splitting) ; un chunk = une page + ses imports directs.
+// Lazy load des pages : chaque route charge son .jsx uniquement à la navigation
 const Accueil = lazy(() => import("./pages/Accueil"));
 const ConnexionInscription = lazy(() => import("./pages/ConnexionInscription"));
 const AuthSuccess = lazy(() => import("./pages/AuthSuccess"));

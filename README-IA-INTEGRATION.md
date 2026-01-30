@@ -134,11 +134,6 @@ class AIService {
     // Génère une séance d'entraînement
     // Retourne : Promise<string> (JSON de la séance)
   }
-
-  async suggestExercices(searchTerm, exercices) {
-    // Suggère des exercices similaires
-    // Retourne : Promise<Array> (liste d'exercices)
-  }
 }
 ```
 
@@ -150,10 +145,6 @@ class AIService {
 class MyAIService {
   async generateSeance(prompt, exercices, template) {
     // Votre logique de génération
-  }
-
-  async suggestExercices(searchTerm, exercices) {
-    // Votre logique de suggestion
   }
 }
 
