@@ -82,12 +82,13 @@ export async function speak(messages, current = {}, tempsRestantMs, margeMs = 50
     console.log(`[SPEAK] "${texte}" (${dureeEstimee.toFixed(0)}ms estimés, ${reste.toFixed(0)}ms restants)`);
     await speakMessage(texte);
   }
+  console.log("nonPrononces :", nonPrononces)
   return nonPrononces;
 }
 
 import messagesJSON from "@/assets/messages_vocaux.json";
 
-export function getMessagesFromKey(key, current = {}, skippedMessagesRef, infosDejaDiffusees={}) {
+export function getMessagesFromKey(key, current = {}, skippedMessagesRef, infosDejaDiffusees={}, nextExo) {
   if (!key || typeof key !== "string") return [];
   
   if (key === "message_retarde" && skippedMessagesRef?.current?.length) {
@@ -109,15 +110,15 @@ export function getMessagesFromKey(key, current = {}, skippedMessagesRef, infosD
   // 🎯 Cas 1 : tableau de variantes
   if (Array.isArray(raw)) {
     const texte = raw[Math.floor(Math.random() * raw.length)];
-    return [remplacerVariables(texte, current,infosDejaDiffusees)];
+    return [remplacerVariables(texte, current,infosDejaDiffusees, nextExo)];
   }
 
   // 🎯 Cas 2 : string simple à template
-  return [remplacerVariables(raw, current,infosDejaDiffusees)];
+  return [remplacerVariables(raw, current,infosDejaDiffusees, nextExo)];
 }
 
 // ✨ Fonction helper pour insérer les variables dynamiques
-function remplacerVariables(template, current, infosDejaDiffusees) {
+function remplacerVariables(template, current, infosDejaDiffusees, nextExo) {
   // On récupère l'exoId si possible pour alimenter le bon sous-objet
   const exoId = current?.exo?.id || current?.exoId || current?.id;
   // S'assurer que la structure existe
@@ -143,12 +144,14 @@ function remplacerVariables(template, current, infosDejaDiffusees) {
       }
     }
   }
-
+  console.log("message :", template)
+console.log("nextExo :", nextExo)
   // On prépare les valeurs à injecter
   const duration = formatDureeVocal(current?.duree || current?.duration || 0);
   const serie = current?.serie || "";
   const total_series = current?.total_series || "";
   const exoNom = current?.exo?.nom || "";
+  const nextExoNom = nextExo?.nom || "";
   const blocTour = current?.blocTour || current?.exo?.blocTour || "";
   const totalBlocTour = current?.totalBlocTour || current?.exo?.totalBlocTour || "";
   const exoDescription = current?.exo?.description || "";
@@ -180,7 +183,6 @@ function remplacerVariables(template, current, infosDejaDiffusees) {
   if (template.includes("{exo.nom}") && exoNom) {
     setInfo("nom", exoNom);
   }
-
   
 
   const exoDetails = (() => {
@@ -215,6 +217,7 @@ function remplacerVariables(template, current, infosDejaDiffusees) {
     .replace(/{serie}/g, serie)
     .replace(/{total_series}/g, total_series)
     .replace(/{exo\.nom}/g, exoNom)
+    .replace(/{next_exo\.nom}/g, nextExoNom)
     .replace(/{exo\.description}/g, exoDescription)
     .replace(/{exo\.position_depart}/g, exoPosition)
     .replace(/{exo\.erreurs}/g, exoErreur)

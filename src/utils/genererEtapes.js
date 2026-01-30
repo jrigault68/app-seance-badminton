@@ -56,8 +56,9 @@ export function genererEtapesDepuisStructure(
   // ===== TRAITEMENT DE CHAQUE ÉTAPE =====
   for (const step of structure) {
     if (step.type === "bloc") {
-      etapes.push(...traiterBloc(step, structure, exercices, stepIndex, blocIndex, nextBlocStep, infosDejaDiffusees));
+      etapes.push(...traiterBloc(step, structure, exercices, stepIndex, stepInBlocIndex, blocIndex, nextBlocStep, infosDejaDiffusees));
       blocIndex += 1;
+      stepInBlocIndex += 1;
     } else {
       etapes.push(...traiterExercice(step, structure, exercices, stepIndex, stepInBlocIndex, isBlocWithIntro, blocIndex, blocRepsIndex, totalBlocReps, nextBlocStep, infosDejaDiffusees));
       stepInBlocIndex += 1;
@@ -159,7 +160,7 @@ function preparerTousLesExercices(structure, exoDict) {
 /**
  * Traite un bloc d'exercices
  */
-function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, nextBlocStep, infosDejaDiffusees) {
+function traiterBloc(step, structure, exercicesEnrichis, stepIndex, stepInBlocIndex, blocIndex, nextBlocStep, infosDejaDiffusees) {
   const etapes = [];
   const totalBlocReps = step.nbTours || 1;
   const blocRepos = step.temps_repos_bloc || 0;
@@ -173,7 +174,6 @@ function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, n
       description: step.description,
       exercices: contenu,
       nbTours: totalBlocReps,
-      tempsReposBloc: blocRepos,
     });
   }
 
@@ -185,7 +185,7 @@ function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, n
         contenu,
         Object.values(exercicesEnrichis), // Convertir l'objet en array
         stepIndex,
-        0, // stepInBlocIndex
+        stepInBlocIndex, // stepInBlocIndex
         step.intro_bloc,//isBlocWithIntro
         blocIndex, // blocIndex
         blocRepsIndex,
@@ -197,21 +197,44 @@ function traiterBloc(step, structure, exercicesEnrichis, stepIndex, blocIndex, n
   }
   
   // ===== REPOS APRÈS BLOC =====
-  const reposApresBloc = step.temps_repos_exercice || 0;
-  if (reposApresBloc) {
+  if (blocRepos) {
     const reposEtapes = genererReposApresEtape(
-      reposApresBloc,
+      blocRepos,
       structure[stepIndex + 1] || nextBlocStep,
       exercicesEnrichis,
-      blocRepsIndex,
-      999,
+      0,
+      totalBlocReps,
       0, // nextStepRepsIndex
-      infosDejaDiffusees
+      infosDejaDiffusees,
+      getNextExo(structure[stepIndex + 1] || nextBlocStep, exercicesEnrichis), // nextExo
+      true // isReposBloc
     );
     etapes.push(...reposEtapes);
   }
-  
+    
   return etapes;
+}
+
+function getNextExo(nextStep, exercicesEnrichis){
+    let nextExo = null;
+    // Si c'est un bloc, prendre le premier exercice
+    if (nextStep && nextStep.type === "bloc") {
+      nextStep = nextStep.contenu[0] || [];
+    }
+    // Récupérer l'exercice enrichi
+    // Chercher d'abord par UID, puis par ID de base
+    if (nextStep) {
+      if (nextStep._uid) {
+        // Chercher par UID en priorité
+        nextExo = exercicesEnrichis.find(e => e.exerciceId === nextStep._uid);
+      }
+      
+      // Fallback sur l'ID de base si pas trouvé par UID
+      if (!nextExo) {
+        nextExo = exercicesEnrichis.find(e => e.id === nextStep.id) || {};
+      }
+    }
+    return nextExo;
 }
 
 /**
@@ -250,14 +273,19 @@ function traiterExercice(step, structure, exercicesEnrichis, stepIndex, stepInBl
   };
   const base = { id: exoId, exo: stepData };
 
+  let nextStep = structure[stepInBlocIndex +1] || nextBlocStep;
+  let nextExo = getNextExo(nextStep, exercicesEnrichis);
+
   // ===== ÉTAPE D'INTRODUCTION (si premier exercice) =====
+  let aUneIntro = false;
   if (doitAjouterIntro(stepIndex, stepInBlocIndex, isBlocWithIntro, blocIndex, blocRepsIndex)) {
-    etapes.push(creerEtapeIntro(stepData, isBlocWithIntro, exoId, infosDejaDiffusees));
+    aUneIntro = true;
+    etapes.push(creerEtapeIntro(stepData, isBlocWithIntro, infosDejaDiffusees));
   }
 
   // ===== GÉNÉRATION DES SÉRIES =====
   const nbSeries = step.series && step.series > 0 ? step.series : 1;
-  const seriesEtapes = genererSeries(step, stepData, base, nbSeries, exoId, infosDejaDiffusees);
+  const seriesEtapes = genererSeries(step, stepData, base, nbSeries, exoId, infosDejaDiffusees, nextExo, aUneIntro);
   etapes.push(...seriesEtapes);
   
   // ===== REPOS APRÈS EXERCICE =====
@@ -266,12 +294,15 @@ function traiterExercice(step, structure, exercicesEnrichis, stepIndex, stepInBl
     let nextStepRepsIndex = structure[stepInBlocIndex + 1] ? blocRepsIndex : blocRepsIndex + 1;
     const reposEtapes = genererReposApresEtape(
       reposApres,
-      structure[stepInBlocIndex +1] || nextBlocStep,
+      nextStep,
       exercicesEnrichis,
+      stepInBlocIndex,
       blocRepsIndex,
       totalBlocReps,
       nextStepRepsIndex,
-      infosDejaDiffusees
+      infosDejaDiffusees,
+      nextExo,
+      false // isReposBloc
     );
     etapes.push(...reposEtapes);
   }
@@ -291,8 +322,7 @@ function doitAjouterIntro(stepIndex, stepInBlocIndex, isBlocWithIntro, blocIndex
 /**
  * Formate les messages vocaux en évitant les répétitions
  */
-function formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees) {
-  
+function formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees, nextExo) {
   // Initialiser le suivi pour cet exercice si nécessaire
   if (!infosDejaDiffusees[exoId]) {
     infosDejaDiffusees[exoId] = {
@@ -329,7 +359,7 @@ function formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees) {
   for (const message of messages) {
     if (!message) continue;
     if (message === "intro.start_bloc" || message === "intro.start_seance" || message === "message_retarde" || message === "repos.prochain_tour") {messagesComplets.push(message); continue;}
-    const messageTraite = getMessagesFromKey(message, currentTemp, infosDejaDiffusees);
+    const messageTraite = getMessagesFromKey(message, currentTemp, null, infosDejaDiffusees, nextExo);
     if (Array.isArray(messageTraite)) {
       messagesComplets.push(...messageTraite);
     } else if (messageTraite) {
@@ -343,15 +373,15 @@ function formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees) {
 /**
  * Crée une étape d'introduction
  */
-function creerEtapeIntro(stepData, isBlocWithIntro, exoId, infosDejaDiffusees) {
-  const messages = [];
-  messages.push(isBlocWithIntro ? "intro.start_bloc" : "intro.start_seance");
-  messages.push("intro.annonce_premier_exercice");
-  messages.push("exercice.position_depart");
-  messages.push("exercice.description");
-//console.log("intro :", stepData)
-
-  const messagesVocaux = formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees);
+function creerEtapeIntro(stepData, isBlocWithIntro, infosDejaDiffusees) {
+  const messagesVocaux = genererMessages({
+    type: 'intro',
+    exercice: stepData,
+    contexte: {
+      isBlocWithIntro,
+    },
+    infosDejaDiffusees
+  });
   
   const introEtape = {
     type: "intro",
@@ -365,27 +395,29 @@ function creerEtapeIntro(stepData, isBlocWithIntro, exoId, infosDejaDiffusees) {
 
 /**
  * Génère toutes les séries d'un exercice
+ * @param {boolean} aUneIntro - Si true, les messages position_depart et description ne seront pas répétés au début des séries (déjà dits dans l'intro)
  */
-function genererSeries(step, stepData, base, nbSeries, exoId, infosDejaDiffusees) {
+function genererSeries(step, stepData, base, nbSeries, exoId, infosDejaDiffusees, nextExo, aUneIntro = false) {
   const etapes = [];
 
   // ===== GÉNÉRATION DE CHAQUE SÉRIE =====
   for (let s = 0; s < nbSeries; s++) {
     const isLastSerie = s === nbSeries - 1;
-    const noRepos = !step.temps_repos_series || step.temps_repos_series === 0;
+    const noReposSeries = !step.temps_repos_series || step.temps_repos_series === 0;
+    const noReposExo = !step.temps_repos_exercice || step.temps_repos_exercice === 0;
 
     // Calculer la durée de la série
     const duree = calculerDureeSerie(step);
     
     // Gérer le changement de côté
     if (step.changement_cote) {
-      etapes.push(...genererSerieAvecChangementCote(step, stepData, base, s, nbSeries, duree, isLastSerie, noRepos, exoId, infosDejaDiffusees));
+      etapes.push(...genererSerieAvecChangementCote(step, stepData, base, s, nbSeries, duree, isLastSerie, noReposSeries, noReposExo, exoId, infosDejaDiffusees, nextExo, aUneIntro));
     } else {
-      etapes.push(genererSerieNormale(step, stepData, base, s, nbSeries, duree, isLastSerie, noRepos, exoId, infosDejaDiffusees));
+      etapes.push(genererSerieNormale(step, stepData, base, s, nbSeries, duree, isLastSerie, noReposSeries, noReposExo, exoId, infosDejaDiffusees, nextExo, aUneIntro));
     }
 
     // Ajouter repos entre séries (sauf dernière série)
-    if (s < nbSeries - 1 && !noRepos) {
+    if (s < nbSeries - 1 && !noReposSeries) {
       etapes.push(genererReposEntreSeries(step, base, s, nbSeries, infosDejaDiffusees));
     }
   }
@@ -407,21 +439,27 @@ function calculerDureeSerie(step) {
 /**
  * Génère une série avec changement de côté
  */
-function genererSerieAvecChangementCote(step, stepData, base, serieIndex, nbSeries, duree, isLastSerie, noRepos, exoId, infosDejaDiffusees) {
+function genererSerieAvecChangementCote(step, stepData, base, serieIndex, nbSeries, duree, isLastSerie, noReposSeries, noReposExo, exoId, infosDejaDiffusees, nextExo, aUneIntro = false) {
   const etapes = [];
   const dureePremierePartie = Math.floor(duree / 2);
   const dureeDeuxiemePartie = duree - dureePremierePartie;
   
-  const messages = [
-    nbSeries > 1
-      ? (serieIndex === 0
-          ? "exercice.start_serie"
-          : (isLastSerie ? "exercice.start_last_serie" : "exercice.start"))
-      : "exercice.start",
-    "exercice.premier_cote",
-    "message_retarde",
-  ];
-  const messagesComplets = formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees);
+  const messagesComplets = genererMessages({
+    type: 'debut',
+    exercice: stepData,
+    contexte: {
+      serie: serieIndex + 1,
+      totalSeries: nbSeries,
+      isLastSerie,
+      isFirstSerie: serieIndex === 0,
+      hasReposSeries: !noReposSeries,
+      hasReposExercise: !noReposExo,
+      partie: 1,
+      totalParties: 2
+    },
+    infosDejaDiffusees,
+    aUneIntro
+  });
 
   // Première partie
   etapes.push({
@@ -442,7 +480,34 @@ function genererSerieAvecChangementCote(step, stepData, base, serieIndex, nbSeri
     exo: stepData,
   });
 
-  const messagesErreur = formaterMessagesVocaux(["exercice.erreur"], stepData, exoId, infosDejaDiffusees);
+  const messagesDeuxiemePartie = genererMessages({
+    type: 'milieu',
+    exercice: stepData,
+    contexte: {
+      serie: serieIndex + 1,
+      totalSeries: nbSeries,
+      isLastSerie,
+      partie: 2,
+      totalParties: 2
+    },
+    infosDejaDiffusees
+  });
+
+  const messagesFinComplets = genererMessages({
+    type: 'fin',
+    exercice: stepData,
+    nextExercice: nextExo,
+    contexte: {
+      serie: serieIndex + 1,
+      totalSeries: nbSeries,
+      isLastSerie,
+      hasReposSeries: !noReposSeries,
+      hasReposExercise: !noReposExo,
+      partie: 2,
+      totalParties: 2
+    },
+    infosDejaDiffusees
+  });
   
   etapes.push({
     ...base,
@@ -450,7 +515,8 @@ function genererSerieAvecChangementCote(step, stepData, base, serieIndex, nbSeri
     serie: serieIndex + 1,
     total_series: nbSeries,
     duree: dureeDeuxiemePartie,
-    messages: messagesErreur,
+    messages: messagesDeuxiemePartie,
+    messages_fin: messagesFinComplets,
     partie: 2,
   });
 
@@ -460,28 +526,44 @@ function genererSerieAvecChangementCote(step, stepData, base, serieIndex, nbSeri
 /**
  * Génère une série normale (sans changement de côté)
  */
-function genererSerieNormale(step, stepData, base, serieIndex, nbSeries, duree, isLastSerie, noRepos, exoId, infosDejaDiffusees) {
-  const messages = [
-    nbSeries > 1
-      ? (serieIndex === 0
-          ? "exercice.start_serie"
-          : (isLastSerie ? "exercice.start_last_serie" : "exercice.start"))
-      : "exercice.start",
-    "message_retarde",
-    step.duree > 30 ? "exercice.erreur" : "",
-    !isLastSerie && noRepos ? "exercice.enchainement_serie" : "",
-  ];
+function genererSerieNormale(step, stepData, base, serieIndex, nbSeries, duree, isLastSerie, noReposSeries, noReposExo, exoId, infosDejaDiffusees, nextExo, aUneIntro = false) {
+  const messagesComplets = genererMessages({
+    type: 'debut',
+    exercice: stepData,
+    contexte: {
+      serie: serieIndex + 1,
+      totalSeries: nbSeries,
+      isLastSerie,
+      isFirstSerie: serieIndex === 0,
+      hasReposSeries: !noReposSeries,
+      hasReposExercise: !noReposExo
+    },
+    infosDejaDiffusees,
+    aUneIntro
+  });
   
-  // Traiter tous les messages avec getMessagesFromKey
-  const messagesComplets = formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees);
-
+  const messagesFinComplets = genererMessages({
+    type: 'fin',
+    exercice: stepData,
+    nextExercice: nextExo,
+    contexte: {
+      serie: serieIndex + 1,
+      totalSeries: nbSeries,
+      isLastSerie,
+      hasReposSeries: !noReposSeries,
+      hasReposExercise: !noReposExo
+    },
+    infosDejaDiffusees
+  });
+  
   return {
     ...base,
     type: "exercice",
     serie: serieIndex + 1,
     total_series: nbSeries,
     duree,
-    messages: messagesComplets
+    messages: messagesComplets,
+    messages_fin: messagesFinComplets,
   };
 }
 
@@ -489,19 +571,16 @@ function genererSerieNormale(step, stepData, base, serieIndex, nbSeries, duree, 
  * Génère un repos entre séries
  */
 function genererReposEntreSeries(step, base, serieIndex, nbSeries, infosDejaDiffusees) {
-  const isSerieReps = step.repetitions && step.series;
-  const messages = isSerieReps
-    ? nbSeries - serieIndex === 2
-      ? "repos.avant_derniere_serie"
-      : nbSeries - serieIndex === 1
-      ? "repos.derniere_serie"
-      : "repos.serie_suivante"
-    : "repos.serie_suivante";
-  
-  // Utiliser les données de base pour les messages vocaux
   const stepData = base.exo;
-  const exoId = base.id;
-  const messagesComplets = formaterMessagesVocaux(messages, stepData, exoId, infosDejaDiffusees);
+  const messagesComplets = genererMessages({
+    type: 'repos_series',
+    exercice: stepData,
+    contexte: {
+      serie: serieIndex,
+      totalSeries: nbSeries
+    },
+    infosDejaDiffusees
+  });
   
   return {
     ...base,
@@ -514,52 +593,35 @@ function genererReposEntreSeries(step, base, serieIndex, nbSeries, infosDejaDiff
 /**
  * Génère un repos après une étape (exercice ou bloc)
  */
-function genererReposApresEtape(duree, nextStep, exercicesEnrichis, blocRepsIndex, totalBlocReps, nextStepRepsIndex, infosDejaDiffusees) {
-  const etapes = [];
+function genererReposApresEtape(duree, nextStep, exercicesEnrichis, stepInBlocIndex, blocRepsIndex, totalBlocReps, nextStepRepsIndex, infosDejaDiffusees, nextExo, isReposBloc = false) {
+  const etapes = [];  
   
   // Vérifier si le prochain élément est un bloc avec lancement manuel
   const isNextBlocWithManualLaunch = nextStep && nextStep.type === "bloc" && nextStep.intro_bloc;
   
   // Ne pas ajouter de repos si le prochain élément est un bloc avec lancement manuel
   if (!isNextBlocWithManualLaunch) {
-    let nextStepToProcess = nextStep;
     
-    // Si c'est un bloc, prendre le premier exercice
-    if (nextStepToProcess && nextStepToProcess.type === "bloc") {
-      nextStepToProcess = nextStepToProcess.contenu[0] || [];
-    }
-    
-    // Récupérer l'exercice enrichi
-    // Chercher d'abord par UID, puis par ID de base
-    let nextExo = null;
-    if (nextStepToProcess) {
-      if (nextStepToProcess._uid) {
-        // Chercher par UID en priorité
-        nextExo = exercicesEnrichis.find(e => e.exerciceId === nextStepToProcess._uid);
-      }
-      
-      // Fallback sur l'ID de base si pas trouvé par UID
-      if (!nextExo) {
-        nextExo = exercicesEnrichis.find(e => e.id === nextStepToProcess.id) || {};
-      }
-    }
-    //console.log("nextExo :", nextExo)
     if (nextExo) {
       const nextExoData = {
         ...nextExo,
-        ...nextStepToProcess,
-        nom: nextExo.nom || nextStepToProcess.nom || "Exercice suivant",
-        description: nextExo.description || nextStepToProcess.description || "",
-        position_depart: nextExo.position_depart || nextStepToProcess.position_depart || "",
+        ...nextStep,
+        nom: nextExo.nom || nextStep.nom || "Exercice suivant",
+        description: nextExo.description || nextStep.description || "",
+        position_depart: nextExo.position_depart || nextStep.position_depart || "",
       };
-      // Formater les messages vocaux pour le prochain exercice
-      const messages = [
-        nextStepRepsIndex > blocRepsIndex ? nextStepRepsIndex + 1 === totalBlocReps ? "repos.dernier_tour" : "repos.prochain_tour"   : "",
-        "repos.annonce_suivant", 
-        nextStepRepsIndex <= 0 ? "exercice.position_depart" : "", 
-        nextStepRepsIndex <= 0 ? "exercice.description" : ""
-      ];
-      const messagesComplets = formaterMessagesVocaux(messages, nextExoData, nextStepToProcess.id, infosDejaDiffusees);
+      
+             const messagesComplets = genererMessages({
+         type: isReposBloc ? 'repos_bloc' : 'repos_exercice',
+         exercice: nextExoData,
+         contexte: {
+           blocTour: blocRepsIndex + 1,
+           totalBlocTour: totalBlocReps,
+           isLastTour: blocRepsIndex + 1 === totalBlocReps,
+           isFirstExerciseOfTour: stepInBlocIndex === 0
+         },
+         infosDejaDiffusees
+       });
       
       etapes.push({
         type: "repos",
@@ -569,7 +631,7 @@ function genererReposApresEtape(duree, nextStep, exercicesEnrichis, blocRepsInde
         totalBlocTour: totalBlocReps,
         exo: nextExoData, // Garder toutes les infos pour l'affichage
       });
-    } else if (nextStepToProcess) {
+    } else if (nextStep) {
       etapes.push({
         type: "repos",
         duree,
@@ -579,4 +641,162 @@ function genererReposApresEtape(duree, nextStep, exercicesEnrichis, blocRepsInde
   }
   
   return etapes;
+} 
+
+/**
+ * Fonction unifiée pour générer les messages vocaux selon le contexte
+ * 
+ * @param {Object} options - Options de configuration
+ * @param {string} options.type - Type de message ('debut', 'milieu', 'fin')
+ * @param {Object} options.exercice - Données de l'exercice actuel
+ * @param {Object} options.nextExercice - Données de l'exercice suivant (optionnel)
+ * @param {Object} options.contexte - Contexte de l'exercice (série, bloc, etc.)
+ * @param {Object} options.infosDejaDiffusees - Infos déjà diffusées
+ * @param {boolean} options.aUneIntro - Si true (exercice avec intro), ne pas ajouter position_depart/description au type 'debut'
+ * @returns {Array} Liste des messages à prononcer
+ */
+function genererMessages(options) {
+  const {type, exercice, nextExercice = null, contexte = {}, infosDejaDiffusees = {}, aUneIntro = false} = options;
+
+  const {
+    serie = 1,
+    totalSeries = 1,
+    isLastSerie = false,
+    isFirstSerie = false,
+    blocTour = 1,
+    totalBlocTour = 1,
+    isLastBlocTour = false,
+    isFirstExerciseOfTour = false,
+    isBlocWithIntro = false,
+    isFirstExercise = false,
+    isLastExercise = false,
+    hasReposSeries = true,
+    hasReposExercise = true,
+    partie = 1, // pour changement de côté
+    totalParties = 1
+  } = contexte;
+
+  const messages = [];
+
+
+  switch (type) {
+    case 'intro':
+      messages.push(isBlocWithIntro ? 'intro.start_bloc' : 'intro.start_seance');
+      messages.push('intro.annonce_premier_exercice');
+      messages.push('exercice.position_depart');
+      messages.push('exercice.description');
+      break;
+    case 'debut':
+      // Messages de début d'exercice
+      if (isFirstExercise && !isBlocWithIntro) {
+        messages.push('intro.start_seance');
+        messages.push('intro.annonce_premier_exercice');
+      } else if (isFirstExercise && isBlocWithIntro) {
+        messages.push('intro.start_bloc');
+        messages.push('intro.annonce_premier_exercice');
+      }
+
+      // Messages spécifiques à l'exercice (position_depart, description) — ne pas répéter si déjà dits dans l'intro
+      if ((isFirstSerie || totalSeries === 1) && !aUneIntro) {
+        messages.push('exercice.position_depart');
+        messages.push('exercice.description');
+      }
+
+      // Messages de début de série
+      if (totalSeries > 1) {
+        if (isFirstSerie) {
+          messages.push('exercice.start_serie');
+        } else if (isLastSerie) {
+          messages.push('exercice.start_last_serie');
+        } else {
+          messages.push('exercice.start');
+        }
+      } else {
+        messages.push('exercice.start');
+      }
+
+      // Messages spécifiques au changement de côté
+      if (totalParties > 1 && partie === 1) {
+        messages.push('exercice.premier_cote');
+      }
+
+      // Messages d'erreurs pour exercices longs
+      if (exercice.duree > 30) {
+        messages.push('exercice.erreur');
+      }
+
+      break;
+
+    case 'milieu':
+      // Messages de motivation pendant l'exercice
+      messages.push('motivations.milieu');
+      break;
+
+    case 'fin':
+      // Messages de fin selon le contexte
+      if (totalParties > 1 && partie < totalParties) {
+        // Changement de côté
+        messages.push('repos.changement_cote');
+      } else if (!isLastSerie && !hasReposSeries) {
+        // Enchaînement direct vers série suivante
+        messages.push('exercice.enchainement_serie');
+      } else if (isLastSerie && !hasReposExercise && nextExercice) {
+        // Enchaînement direct vers exercice suivant
+        messages.push('exercice.enchainement_suivant');
+      }
+      break;
+
+    case 'repos_series':
+      // Messages de repos entre séries
+      if (totalSeries - serie === 2) {
+        messages.push('repos.avant_derniere_serie');
+      } else if (totalSeries - serie === 1) {
+        messages.push('repos.derniere_serie');
+      } else {
+        messages.push('repos.serie_suivante');
+      }
+      break;
+    case 'repos_exercice':
+      // Messages de repos après exercice
+      if (isFirstExerciseOfTour) {
+        if (isLastBlocTour) {
+          messages.push('repos.dernier_tour');
+        } else if (blocTour < totalBlocTour) {
+          messages.push('repos.prochain_tour');
+        }
+      }
+
+      if (nextExercice) {
+        messages.push('repos.annonce_suivant');
+        // Annoncer position et description seulement si premier tour
+        if (blocTour === 1) {
+          messages.push('exercice.position_depart');
+          messages.push('exercice.description');
+        }
+      }
+      break;
+
+    case 'repos_bloc':
+      // Messages de repos après bloc complet
+      messages.push('repos.apres_bloc');
+      if (nextExercice) {
+        messages.push('repos.annonce_suivant');
+        messages.push('exercice.position_depart');
+        messages.push('exercice.description');
+      }
+      break;
+
+    case 'fin_seance':
+      // Messages de fin de séance
+      if (isLastExercise) {
+        messages.push('seance.dernier_exo');
+      }
+      messages.push('seance.fin');
+      messages.push('seance.resume');
+      break;
+  }
+
+  // Filtrer les messages vides et formater
+  const messagesFiltres = messages.filter(msg => msg && msg.trim());
+  return formaterMessagesVocaux(messagesFiltres, exercice, exercice.id, infosDejaDiffusees, nextExercice);
 } 

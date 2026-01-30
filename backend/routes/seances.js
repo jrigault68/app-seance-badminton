@@ -22,6 +22,7 @@ router.get('/', async (req, res) => {
     let query = supabase
       .from('v_seances_completes')
       .select('*')
+      .is('deleted_at', null) // Ne pas afficher les séances supprimées (soft delete)
       .order('updated_at', { ascending: false }); // Tri par date de dernière modification, plus récent en premier
 
     // Filtres
@@ -78,6 +79,7 @@ router.get('/:id', async (req, res) => {
       .from('v_seances_completes')
       .select('*')
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
 
     if (error) {
@@ -110,11 +112,12 @@ router.get('/:id/exercices', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // D'abord récupérer la séance pour avoir sa structure
+    // D'abord récupérer la séance pour avoir sa structure (exclure les séances supprimées)
     const { data: seance, error: seanceError } = await supabase
       .from('v_seances_completes')
       .select('*')
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
 
     if (seanceError) {
@@ -390,10 +393,10 @@ router.put('/:id', verifyToken, async (req, res) => {
       sous_categories_ids
     } = req.body;
 
-    // Vérifier que la séance existe et appartient à l'utilisateur
+    // Vérifier que la séance existe, n'est pas supprimée, et appartient à l'utilisateur
     const { data: existingSeance, error: checkError } = await supabase
       .from('seances')
-      .select('created_by')
+      .select('created_by, deleted_at')
       .eq('id', id)
       .single();
 
@@ -408,6 +411,13 @@ router.put('/:id', verifyToken, async (req, res) => {
       return res.status(500).json({
         error: 'Erreur lors de la vérification de la séance',
         details: checkError.message
+      });
+    }
+
+    if (existingSeance.deleted_at) {
+      return res.status(404).json({
+        error: 'Séance non trouvée',
+        details: 'Cette séance a été supprimée'
       });
     }
 
@@ -489,7 +499,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/seances/:id - Supprimer une séance
+// DELETE /api/seances/:id - Supprimer une séance (soft delete : marquée supprimée, conservée pour les stats)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -497,7 +507,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     // Vérifier que la séance existe et appartient à l'utilisateur
     const { data: existingSeance, error: checkError } = await supabase
       .from('seances')
-      .select('created_by')
+      .select('created_by, deleted_at')
       .eq('id', id)
       .single();
 
@@ -522,9 +532,17 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
 
+    // Déjà supprimée (soft delete) : idempotent
+    if (existingSeance.deleted_at) {
+      return res.json({
+        message: 'Séance déjà supprimée'
+      });
+    }
+
+    // Soft delete : marquer deleted_at (la séance reste en base pour les stats)
     const { error } = await supabase
       .from('seances')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) {
@@ -563,11 +581,12 @@ router.post('/:id/complete', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'ID de la séance requis' });
     }
 
-    // Vérifier que la séance existe
+    // Vérifier que la séance existe et n'est pas supprimée
     const { data: seance, error: seanceError } = await supabase
       .from('seances')
       .select('*')
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
 
     if (seanceError) {
@@ -576,7 +595,7 @@ router.post('/:id/complete', verifyToken, async (req, res) => {
     }
 
     if (!seance) {
-      console.log('Séance non trouvée:', { seance_id: id });
+      console.log('Séance non trouvée ou supprimée:', { seance_id: id });
       return res.status(404).json({ error: 'Séance non trouvée' });
     }
 

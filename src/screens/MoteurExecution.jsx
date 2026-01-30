@@ -124,9 +124,6 @@ function IntroBlocScreen({ nom, description, exercices, nbTours = 1, tempsReposB
           {nbTours > 1 && (
             <div className="text-orange-200 text-sm font-semibold mb-1">Nombre de tours : <span className="text-orange-100 font-bold">{nbTours}</span></div>
           )}
-          {nbTours > 1 && tempsReposBloc > 0 && (
-            <div className="text-orange-200 text-sm mb-2">Repos entre les tours : <span className="text-orange-100 font-bold">{tempsReposBloc}s</span></div>
-          )}
           <div className="font-semibold text-white mb-2">Exercices de cette section :</div>
           <ol className="list-decimal ml-6 space-y-2">
             {exercices && exercices.map((exo, idx) => (
@@ -176,6 +173,7 @@ export default function MoteurExecution({
   sessionEnCours,
   isResuming,
   onDemarrerSession,
+  onAnnulerSession,
   onMettreAJourProgression
 }) {
   const [stepIndex, setStepIndex] = useState(0);
@@ -191,7 +189,6 @@ export default function MoteurExecution({
   const timerRef = useRef(null);
   const spokenStepIndex = useRef(null);
   const spokenCountdownRef = useRef(null);
-  const messagesQueueRef = useRef([]); // File de messages à lire/restants
   const skippedMessagesRef = useRef([]);
   const progressionTimerRef = useRef(null);
   
@@ -207,8 +204,6 @@ export default function MoteurExecution({
     // 2. Réinitialiser les refs pour éviter les lectures suivantes
     // NE PAS réinitialiser spokenStepIndex.current pour permettre la lecture vocale
     spokenCountdownRef.current = null;
-    //messagesQueueRef.current = [];
-    //skippedMessagesRef.current = [];
     
     // 3. Arrêter les timers en cours
     if (timerRef.current) {
@@ -277,6 +272,7 @@ export default function MoteurExecution({
         
         // Marquer la session comme démarrée
         setSessionStarted(true);
+        
       }
     }
   }, [isResuming, sessionEnCours, etapes.length]);
@@ -320,9 +316,20 @@ export default function MoteurExecution({
 
   const totalSections = sections.length;
 
+  const prochainExercice = useMemo(() => {
+    if (stepIndex + 1 < etapes.length) {
+      const nextStep = etapes[stepIndex + 1];
+      if (nextStep.type === "exercice") {
+        return nextStep.exo;
+      }
+    }
+    return null;
+  }, [stepIndex, etapes]);
+
   const expandedMessagesFin = useMemo(() => {
     if (current && current.messages_fin && current.messages_fin.length > 0) {
-      return expandMessages(current.messages_fin, current);
+      
+      return expandMessages(current.messages_fin, current, null, prochainExercice);
     }
     return [];
   }, [current]);
@@ -332,15 +339,14 @@ export default function MoteurExecution({
   }, [expandedMessagesFin]);
 
   const dureeFinSec = Math.ceil(dureeFinMs / 1000);
-
   // Mettre à jour la progression périodiquement
   useEffect(() => {
-    console.log('🔄 Vérification mise à jour progression:', { sessionStarted, onMettreAJourProgression, stepIndex });
+    //console.log('🔄 Vérification mise à jour progression:', { sessionStarted, onMettreAJourProgression, stepIndex });
     
     if (sessionStarted && onMettreAJourProgression) {
       const tempsEcoule = Math.floor((Date.now() - startTime) / 1000);
       
-      console.log('📊 Mise à jour progression pour étape:', stepIndex, 'temps écoulé:', tempsEcoule);
+      //console.log('📊 Mise à jour progression pour étape:', stepIndex, 'temps écoulé:', tempsEcoule);
       
       // Mettre à jour la progression à chaque changement d'étape (sans temps d'étape)
       onMettreAJourProgression(stepIndex, tempsEcoule, 0);
@@ -413,7 +419,7 @@ export default function MoteurExecution({
     //console.log("should speak : " + shouldSpeak + " messages: " + current.messages?.length + " spokenStep: " + spokenStepIndex.current);
     if (shouldSpeak) {
       // todo : voir si on peut trouvre une solution pour lire les message non lu après une pause ou si on passe direct à l'exo
-      speak(current.messages, current, (current.duree - (current.type === "changement_cote" ? 0:5)) * 1000,500, skippedMessagesRef)
+      speak(current.messages, current, (current.duree - (current.type === "changement_cote" ? 0: (current.duree > 30 ? 5 : 3))) * 1000,500, skippedMessagesRef)
         .then(skipped => {
           skippedMessagesRef.current = skipped;
         });
@@ -439,10 +445,7 @@ export default function MoteurExecution({
 	  } else if (!paused && speechSynthesis.paused) {
       console.log("▶️ vocal repris");
       speechSynthesis.resume();
-	  } else if (!paused && !speechSynthesis.speaking && messagesQueueRef.current.length > 0) {
-      // Si on n'est pas en pause, rien n'est en cours, et il reste des messages, on relance la lecture
-      // playNextMessage(); // This line is removed as per the new_code
-    }
+	  } 
     if (!current || paused || timeLeft <= 0) return;
 
     // Décompte vocal si <= 5 secondes
@@ -465,7 +468,6 @@ export default function MoteurExecution({
         }
       }
     }
-
     // Déclencher la lecture des messages_fin au bon moment
     if (
       current &&
@@ -475,12 +477,11 @@ export default function MoteurExecution({
       timeLeft === (dureeFinSec + (current.duree > 30 ?  5 : 3) + 1) &&
       timeLeft > 0
     ) {
-      //console.log("Lecture message de fin");
       setFinMessagesSpoken(true);
       // Si on a le temps d'afficher au moins 1 message, on le fait
-      if (expandedMessagesFin.length > 0 && messagesQueueRef.current.length === 0) {
-        messagesQueueRef.current = expandedMessagesFin;
-        // playNextMessage(); // This line is removed as per the new_code
+      if (expandedMessagesFin.length > 0) {
+        speechSynthesis.cancel();
+        speak(expandedMessagesFin, current, timeLeft * 1000,  500, skippedMessagesRef);
       }
     }
 
@@ -562,24 +563,55 @@ export default function MoteurExecution({
         onStart={async (resume) => {
           if (resume && sessionEnCours) {
             // Reprendre la session existante
-            console.log('🔄 Reprise de session existante');
+            console.log('🔄 Reprise de session existante à l\'étape :', stepIndex);
             setSessionStarted(true);
-          } else {
+            // Ne pas réinitialiser le temps ni la première étape en mode reprise
+            // La logique de reprise est déjà gérée dans le useEffect
+            
+            
+            // Configurer l'étape actuelle pour la reprise
+            const currentStep = etapes[stepIndex];
+            if (currentStep) {
+              console.log('🎯 Configuration de l\'étape actuelle pour la reprise:', currentStep.type, currentStep.duree);
+              setTimeLeft(currentStep.duree || 0);
+              const isTransition = ["repos", "intro", "annonce_bloc", "changement_cote"].includes(currentStep.type);
+              setMode(isTransition ? "transition" : "exercice");
+              // Lancer la lecture vocale de l'étape actuelle si elle a des messages
+              //if (currentStep.messages && currentStep.messages.length > 0) {
+              //  console.log('🔊 Lancement lecture vocale de l\'étape actuelle');
+              //  speak(currentStep.messages, currentStep, (currentStep.duree - 5) * 1000, 500, skippedMessagesRef);
+              //}
+            }
+                    } else {
             // Démarrer une nouvelle session
+            // D'abord annuler l'ancienne session si elle existe
+            if (sessionEnCours && sessionEnCours.id && onAnnulerSession) {
+              await onAnnulerSession(sessionEnCours.id);
+            }
+            
             await onDemarrerSession();
             setSessionStarted(true);
             console.log('🚀 Nouvelle session démarrée');
-          }
-          
-          setMode("transition");
-          setStartTime(Date.now());
-          // Initialiser la première étape
-          if (etapes.length > 0) {
-            const firstStep = etapes[0];
-            setTimeLeft(firstStep.duree || 0);
-            // Déclencher la lecture vocale pour la première étape
-            if (firstStep.messages && firstStep.messages.length > 0) {
-              speak(firstStep.messages, firstStep, (firstStep.duree - 5) * 1000, 500, skippedMessagesRef);
+            // Réinitialiser complètement l'état pour recommencer à zéro
+            setStepIndex(0);
+            setPaused(false);
+            setFinished(false);
+            setCurrentFocus(null);
+            setFinMessagesSpoken(false);
+            spokenStepIndex.current = null;
+            spokenCountdownRef.current = null;
+            skippedMessagesRef.current = [];
+            
+            setMode("transition");
+            setStartTime(Date.now());
+            // Initialiser la première étape
+            if (etapes.length > 0) {
+              const firstStep = etapes[0];
+              setTimeLeft(firstStep.duree || 0);
+              // Déclencher la lecture vocale pour la première étape
+              //if (firstStep.messages && firstStep.messages.length > 0) {
+              //  speak(firstStep.messages, firstStep, (firstStep.duree - 5) * 1000, 500, skippedMessagesRef);
+              //}
             }
           }
         }}
@@ -641,8 +673,7 @@ export default function MoteurExecution({
     );
   }
 
-  if (mode === "exercice" && current) {
-    
+  if (mode === "exercice" && current) {    
     return (
       <ActiveExerciceScreen
         exo={{
@@ -653,6 +684,7 @@ export default function MoteurExecution({
           blocTour: current.exo?.blocTour || 1,
           totalBlocTour: current.exo?.totalBlocTour || 1,
         }}
+        prochainExercice={prochainExercice}
         timeLeft={timeLeft}
         paused={paused}
         setPaused={setPaused}

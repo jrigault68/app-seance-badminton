@@ -4,6 +4,7 @@ import { backgroundMainColor, blockStyle } from "@/styles/styles";
 
 export function ActiveExerciceScreen({
   exo = {},
+  prochainExercice = null,
   timeLeft,
   paused,
   setPaused,
@@ -71,6 +72,17 @@ export function ActiveExerciceScreen({
 
         {erreurCourante && (
           <p className="text-sm text-rose-200 italic">💡 {erreurCourante}</p>
+        )}
+
+        {prochainExercice && (
+          <div className="mt-4 p-3 bg-blue-600/20 border border-blue-500 rounded-lg">
+            <div className="text-sm text-blue-300 font-medium mb-1">
+              Prochain exercice :
+            </div>
+            <div className="text-blue-100 font-semibold">
+              {prochainExercice.nom}
+            </div>
+          </div>
         )}
 
 		<div className={`flex items-center gap-4 pt-4 ${

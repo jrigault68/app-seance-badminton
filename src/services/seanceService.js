@@ -212,6 +212,36 @@ class SeanceService {
       throw error;
     }
   }
+
+  // Annuler une session
+  static async annulerSession(sessionId) {
+    try {
+      console.log('❌ Annulation de session:', { sessionId });
+      
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
+        method: 'PUT',
+        credentials: "include",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          etat: 'annulee'
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Session annulée avec succès:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'annulation de session:', error);
+      throw error;
+    }
+  }
 }
 
 export default SeanceService; 

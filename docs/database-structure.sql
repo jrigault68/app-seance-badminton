@@ -171,7 +171,8 @@ CREATE TABLE IF NOT EXISTS seances (
     validated_by UUID REFERENCES utilisateurs(id),
     validated_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE  -- Soft delete : NULL = active, valeur = date de suppression (conservée pour les stats)
 );
 
 -- Table de jointure seances <-> sous_categories
@@ -196,7 +197,8 @@ CREATE TABLE IF NOT EXISTS programmes (
   created_by UUID REFERENCES utilisateurs(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- UTC, format ISO 8601 avec 'Z'
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- UTC, toujours stocké en ISO 8601 avec 'Z'
-  type_programme VARCHAR(20) NOT NULL DEFAULT 'libre' -- 'libre' ou 'calendaire'
+  type_programme VARCHAR(20) NOT NULL DEFAULT 'libre', -- 'libre' ou 'calendaire'
+  deleted_at TIMESTAMP WITH TIME ZONE  -- Soft delete : NULL = actif, valeur = date de suppression (conservé pour les stats)
 );
 
 -- Table de jointure programmes <-> sous_categories
@@ -388,7 +390,7 @@ LEFT JOIN categories c ON sc.categorie_id = c.id
 LEFT JOIN utilisateurs u ON s.created_by = u.id
 GROUP BY 
     s.id, s.nom, s.description, s.type_seance, s.structure, s.notes,
-    s.duree_estimee, s.created_by, s.created_at, s.updated_at,
+    s.duree_estimee, s.created_by, s.created_at, s.updated_at, s.deleted_at,
     u.pseudo, u.nom;
 
 -- Vue pour les catégories avec leurs sous-catégories

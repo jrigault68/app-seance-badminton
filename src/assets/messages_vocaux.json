@@ -14,6 +14,8 @@
         "mi_temps": "Mi-temps.",
         "focus_zone": "{focus}",
         "enchainement_serie": "On enchaine sur la série suivante dans",
+        "enchainement_serie_cote": "On enchaine sur le premier côté dans",
+        "enchainement_suivant": "On enchaine avec {next_exo.nom} dans",
         "premier_cote": "Premier côté."
     },
     "repos": {
@@ -25,7 +27,8 @@
         "avant_derniere_serie": "Plus que 2 séries.",
         "derniere_serie": "Dernière série ! On ne lâche pas !",
         "transition_breve": "Prépare-toi.",
-        "changement_cote": "Changement de côté !"
+        "changement_cote": "Changement de côté !",
+        "apres_bloc": "Section terminée. Repos avant la suite."
     },
     "seance": {
         "dernier_exo": "Dernier exercice !",
@@ -34,7 +37,7 @@
         "resume": "Super travail aujourd’hui !"
     },
     "motivations": {
-        "milieu": ["Allez !", "Tiens bon.", "Courage !", "Tu y es presque."],
-        "repos": ["Récupère bien.", "Garde le rythme.", "On repart bientôt !"]
+        "milieu": ["Allez !", "Tiens bon.", "Courage !", "Tu y es presque.", "Continue comme ça !", "Excellent travail !"],
+        "repos": ["Récupère bien.", "Garde le rythme.", "On repart bientôt !", "Profite de cette pause.", "Respire profondément."]
     }
 }

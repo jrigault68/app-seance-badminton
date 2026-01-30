@@ -270,6 +270,25 @@ export default function ProgrammeDetail() {
   const isCreator = user && programme && user.id === programme.created_by;
   const isAdmin = user && user.is_admin;
 
+  // Jours (libre) ou dates (calendaire) à afficher pour la gestion des séances
+  const { joursOuDates, calendaireSansDates } = React.useMemo(() => {
+    if (!programme) return { joursOuDates: [], calendaireSansDates: false };
+    if (programme.type_programme === 'calendaire') {
+      const debut = programme.date_debut ? new Date(programme.date_debut) : null;
+      const fin = programme.date_fin ? new Date(programme.date_fin) : null;
+      if (!debut || !fin || fin < debut) return { joursOuDates: [], calendaireSansDates: true };
+      const dates = [];
+      const d = new Date(debut);
+      while (d <= fin) {
+        dates.push(d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() + 1);
+      }
+      return { joursOuDates: dates, calendaireSansDates: false };
+    }
+    const nb = Math.max(1, programme.nb_jours || 0);
+    return { joursOuDates: Array.from({ length: nb }, (_, i) => i + 1), calendaireSansDates: false };
+  }, [programme]);
+
   const getNomNiveau = (niveau_id) => {
     const n = niveaux ? niveaux.find(n => n.id === niveau_id) : null;
     return n ? n.nom : <span className="italic text-gray-500">Non renseigné</span>;
@@ -363,8 +382,10 @@ export default function ProgrammeDetail() {
     return JSON.stringify(clean(form)) !== JSON.stringify(clean(normalizeFormValues(reference)));
   }, [form, programme, mode]);
 
+  const allowNavigationAfterSaveRef = useRef(false);
   const blocker = useSafeBlocker(
     ({ currentLocation, nextLocation }) => {
+      if (allowNavigationAfterSaveRef.current) return false;
       if (mode === "detail") return false;
       return hasChanged;
     }
@@ -372,6 +393,10 @@ export default function ProgrammeDetail() {
   const [savingAndQuit, setSavingAndQuit] = useState(false);
   const [showNavigationDialog, setShowNavigationDialog] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
+
+  useEffect(() => {
+    allowNavigationAfterSaveRef.current = false;
+  }, [id]);
 
   const handleSaveAndQuit = async () => {
     setSavingAndQuit(true);
@@ -508,6 +533,8 @@ export default function ProgrammeDetail() {
 
   // Logique pour le bouton flottant de programme
   const getProgrammeButtonConfig = () => {
+    // Ne pas afficher le bouton tant que le programme n'est pas chargé (évite crash après création/redirection)
+    if (!programme) return { show: false };
     // Ne pas afficher le bouton de suivi en mode édition, création ou édition de structure
     if (mode === "edit" || mode === "new" || editMode || !user) return { show: false };
     
@@ -640,15 +667,23 @@ export default function ProgrammeDetail() {
         });
         if (!response.ok) throw new Error("Erreur lors de la création du programme");
         const data = await response.json();
-        const newId = data.id || (data.programme && data.programme.id);
-        navigate(`/programmes/${newId}`, { replace: true });
-        setMode("detail");
-        // Recharge le programme depuis l'API pour avoir les bonnes valeurs
-        fetch(`${apiUrl}/programmes/${newId}`)
-          .then(res => res.json())
-          .then(data => setProgramme(data));
+        const createdId = data?.id ?? data?.programme?.id;
+        if (createdId == null || createdId === "") {
+          setError("Réponse du serveur invalide (id manquant)");
+          setSnackbarMessage("Programme créé mais redirection impossible.");
+          setSnackbarType("error");
+          return;
+        }
         setSnackbarMessage("Programme créé avec succès !");
         setSnackbarType("success");
+        setMode("detail");
+        setProgramme(data);
+        allowNavigationAfterSaveRef.current = true;
+        navigate(`/programmes/${createdId}`, { replace: true });
+        fetch(`${apiUrl}/programmes/${createdId}`)
+          .then(res => res.json())
+          .then(fresh => setProgramme(fresh))
+          .catch(() => {});
       }
     } catch (err) {
       setError(err.message);
@@ -972,12 +1007,17 @@ export default function ProgrammeDetail() {
               <div className="text-gray-400 italic">Chargement des séances...</div>
             ) : errorSeances ? (
               <div className="text-red-400 italic">{errorSeances}</div>
-            ) : items.length === 0 ? (
-              <div className="text-gray-500 italic">Aucune séance associée à ce programme.</div>
+            ) : programme.type_programme === 'calendaire' && calendaireSansDates ? (
+              <div className="text-amber-400 italic">Définir les dates de début et fin du programme (mode édition) pour afficher les créneaux.</div>
+            ) : joursOuDates.length === 0 ? (
+              <div className="text-gray-500 italic">Aucun créneau à afficher.</div>
             ) : (
               <div className="space-y-6">
                 {programme.type_programme === 'calendaire'
-                  ? items.map(({ date, seances }) => (
+                  ? joursOuDates.map((date) => {
+                      const found = items.find(i => i.date === date);
+                      const seances = found ? found.seances : [];
+                      return (
                       <div key={date} className="bg-gray-900/60 border border-gray-800 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="rounded-full bg-orange-900/60 text-orange-200 px-3 py-1 text-xs font-semibold">{new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -1089,9 +1129,9 @@ export default function ProgrammeDetail() {
                           </ul>
                         )}
                       </div>
-                    ))
-                  : [...Array(programme.nb_jours || 0)].map((_, i) => {
-                      const jour = i + 1;
+                      );
+                    })
+                  : joursOuDates.map((jour) => {
                       const found = items.find(j => j.jour === jour);
                       const seances = found ? found.seances : [];
                       return (

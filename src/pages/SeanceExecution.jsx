@@ -255,15 +255,26 @@ export default function SeanceExecution() {
 
   const handleDemarrerSession = async () => {
     try {
-      if (!sessionId) {
+      //if (!sessionId) {
         console.log('🚀 Démarrage d\'une nouvelle session...');
         const session = await SeanceService.demarrerSession(id, programmeId);
         setSessionId(session.id);
         setSessionActive(true);
         console.log('✅ Nouvelle session démarrée:', session.id);
-      }
+      //}
     } catch (error) {
       console.error('❌ Erreur lors du démarrage de session:', error);
+    }
+  };
+
+  const handleAnnulerSession = async (sessionIdToAnnuler) => {
+    try {
+      console.log('❌ Annulation de la session précédente:', sessionIdToAnnuler);
+      await SeanceService.annulerSession(sessionIdToAnnuler);
+      console.log('✅ Session précédente annulée avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'annulation de session:', error);
+      // On continue même si l'annulation échoue
     }
   };
 
@@ -305,6 +316,7 @@ export default function SeanceExecution() {
         sessionEnCours={sessionEnCours}
         isResuming={isResuming}
         onDemarrerSession={handleDemarrerSession}
+        onAnnulerSession={handleAnnulerSession}
         onMettreAJourProgression={handleMettreAJourProgression}
       />
       <NavigationPromptDialog

@@ -38,10 +38,10 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// GET / - Récupérer tous les programmes
+// GET / - Récupérer tous les programmes (exclut les programmes supprimés)
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await db.from('programmes').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('programmes').select('*').is('deleted_at', null).order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data || []);
   } catch (err) {
@@ -54,9 +54,12 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // Récupérer le programme
-    const { data: programme, error } = await db.from('programmes').select('*').eq('id', id).single();
+    // Récupérer le programme (exclure les programmes supprimés)
+    const { data: programme, error } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (error) throw error;
+    if (!programme) {
+      return res.status(404).json({ error: 'Programme non trouvé' });
+    }
     let pseudo = null;
     if (programme && programme.created_by) {
       // Récupérer le pseudo ou nom de l'utilisateur créateur
@@ -78,8 +81,8 @@ router.put('/:id', verifyToken, async (req, res) => {
   const userId = req.user?.id;
   const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
-    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    // Vérifier que le programme existe, n'est pas supprimé, et appartient à l'utilisateur ou admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (errorGet) throw errorGet;
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
@@ -101,7 +104,7 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /:id - Supprimer un programme (créateur ou admin)
+// DELETE /:id - Supprimer un programme (soft delete : marqué supprimé, conservé pour les stats)
 router.delete('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
@@ -110,16 +113,18 @@ router.delete('/:id', verifyToken, async (req, res) => {
     // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
     const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
     if (errorGet) throw errorGet;
-    console.log("existing", existing);
-    console.log("userId", userId);
-    console.log("isAdmin", isAdmin);
-    console.log("existing.created_by", existing.created_by);
-    
+
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
     }
-    // Supprimer le programme (les entrées dans programme_seances seront supprimées automatiquement grâce à ON DELETE CASCADE)
-    const { error } = await db.from('programmes').delete().eq('id', id);
+
+    // Déjà supprimé (soft delete) : idempotent
+    if (existing.deleted_at) {
+      return res.json({ message: "Programme déjà supprimé" });
+    }
+
+    // Soft delete : marquer deleted_at (le programme reste en base pour les stats)
+    const { error } = await db.from('programmes').update({ deleted_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
     res.json({ message: "Programme supprimé avec succès" });
   } catch (err) {
@@ -134,8 +139,8 @@ router.post('/:id/jours/:jour/seances', verifyToken, async (req, res) => {
   const userId = req.user?.id;
   const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
-    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    // Vérifier que le programme existe, n'est pas supprimé, et appartient à l'utilisateur ou admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (errorGet) throw errorGet;
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
@@ -157,8 +162,8 @@ router.post('/:id/dates/:date/seances', verifyToken, async (req, res) => {
   const userId = req.user?.id;
   const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
-    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    // Vérifier que le programme existe, n'est pas supprimé, et appartient à l'utilisateur ou admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (errorGet) throw errorGet;
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
@@ -179,8 +184,8 @@ router.delete('/:id/jours/:jour/seances/:seanceId', verifyToken, async (req, res
   const userId = req.user?.id;
   const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
-    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    // Vérifier que le programme existe, n'est pas supprimé, et appartient à l'utilisateur ou admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (errorGet) throw errorGet;
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
@@ -204,8 +209,8 @@ router.delete('/:id/dates/:date/seances/:seanceId', verifyToken, async (req, res
   const userId = req.user?.id;
   const isAdmin = req.user?.is_admin;
   try {
-    // Vérifier que le programme appartient à l'utilisateur ou que c'est un admin
-    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).single();
+    // Vérifier que le programme existe, n'est pas supprimé, et appartient à l'utilisateur ou admin
+    const { data: existing, error: errorGet } = await db.from('programmes').select('*').eq('id', id).is('deleted_at', null).single();
     if (errorGet) throw errorGet;
     if (!existing || (!isAdmin && existing.created_by !== userId)) {
       return res.status(403).json({ error: "Accès refusé : vous n'êtes pas le créateur de ce programme." });
@@ -290,9 +295,11 @@ router.get('/utilisateur/actuel', verifyToken, async (req, res) => {
     
     // Prendre le premier programme actuel (il ne devrait y en avoir qu'un)
     const programmeActuel = data[0];
-    const { data: programme, error: programmeError } = await db.from('programmes').select('*').eq('id', programmeActuel.programme_id).single();
+    const { data: programme, error: programmeError } = await db.from('programmes').select('*').eq('id', programmeActuel.programme_id).is('deleted_at', null).single();
     if (programmeError) throw programmeError;
-    
+    // Programme supprimé (soft delete) : considérer comme aucun programme actuel
+    if (!programme) return res.json(null);
+
     let pseudo = null;
     if (programme && programme.created_by) {
       const { data: user, error: userError } = await db.from('utilisateurs').select('pseudo, nom').eq('id', programme.created_by).single();
@@ -317,10 +324,10 @@ router.get('/utilisateur/tous', verifyToken, async (req, res) => {
       return res.json([]);
     }
     
-    // Récupérer les détails des programmes
+    // Récupérer les détails des programmes (exclure les programmes supprimés)
     const programmesAvecDetails = await Promise.all(
       data.map(async (up) => {
-        const { data: programme, error: programmeError } = await db.from('programmes').select('*').eq('id', up.programme_id);
+        const { data: programme, error: programmeError } = await db.from('programmes').select('*').eq('id', up.programme_id).is('deleted_at', null);
         if (programmeError || !programme || programme.length === 0) return null;
         
         const programmeData = programme[0];
@@ -358,8 +365,8 @@ router.post('/utilisateur/suivre', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'ID du programme requis' });
     }
     
-    // Vérifier que le programme existe
-    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id);
+    // Vérifier que le programme existe et n'est pas supprimé
+    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id).is('deleted_at', null);
     
     if (programmeCheckError || !programmeCheck || programmeCheck.length === 0) {
       return res.status(404).json({ error: 'Programme non trouvé' });
@@ -412,8 +419,8 @@ router.post('/utilisateur/reprendre', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'ID du programme requis' });
     }
     
-    // Vérifier que le programme existe
-    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id);
+    // Vérifier que le programme existe et n'est pas supprimé
+    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id).is('deleted_at', null);
     
     if (programmeCheckError || !programmeCheck || programmeCheck.length === 0) {
       return res.status(404).json({ error: 'Programme non trouvé' });
@@ -452,8 +459,8 @@ router.post('/utilisateur/changer', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'ID du nouveau programme requis' });
     }
     
-    // Vérifier que le nouveau programme existe
-    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', nouveau_programme_id);
+    // Vérifier que le nouveau programme existe et n'est pas supprimé
+    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', nouveau_programme_id).is('deleted_at', null);
     
     if (programmeCheckError || !programmeCheck || programmeCheck.length === 0) {
       return res.status(404).json({ error: 'Nouveau programme non trouvé' });
@@ -649,11 +656,12 @@ router.get('/:id/seances-calendrier', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Programme utilisateur non trouvé' });
     }
 
-    // Récupérer les informations du programme pour obtenir le type_programme
+    // Récupérer les informations du programme pour obtenir le type_programme (exclure les programmes supprimés)
     const { data: programme, error: programmeError } = await db
       .from('programmes')
       .select('type_programme, nb_jours, date_debut, date_fin')
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
     
     if (programmeError || !programme) {
@@ -901,8 +909,8 @@ router.post('/utilisateur/reprendre-avance', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'ID du programme requis' });
     }
     
-    // Vérifier que le programme existe
-    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id);
+    // Vérifier que le programme existe et n'est pas supprimé
+    const { data: programmeCheck, error: programmeCheckError } = await db.from('programmes').select('id').eq('id', programme_id).is('deleted_at', null);
     
     if (programmeCheckError || !programmeCheck || programmeCheck.length === 0) {
       return res.status(404).json({ error: 'Programme non trouvé' });

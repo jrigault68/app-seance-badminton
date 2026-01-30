@@ -333,13 +333,13 @@ function StepContent({
       } else {
         onUpdate(uid, { ...item, [field]: value });
       }
-    } else if (field === 'nbTours') {
-      // Si on change le nombre de tours, réinitialiser le temps de repos si nécessaire
-      const updatedItem = { ...item, [field]: value };
-      if (value <= 1) {
-        updatedItem.temps_repos_bloc = 0;
-      }
-      onUpdate(uid, updatedItem);
+    //} else if (field === 'nbTours') {
+    //  // Si on change le nombre de tours, réinitialiser le temps de repos si nécessaire
+    //  const updatedItem = { ...item, [field]: value };
+    //  if (value <= 1) {
+    //    updatedItem.temps_repos_bloc = 0;
+    //  }
+    //  onUpdate(uid, updatedItem);
     } else if (field === 'valeur_series') {
       // Si on change le nombre de séries dans la config auto, réinitialiser le repos entre séries si nécessaire
       const updatedItem = { ...item, [field]: value };
@@ -671,11 +671,9 @@ function StepContent({
                   <div className="shrink-0 w-auto">
                     <FloatingLabelInput label="Nombre de tours de la section" type="number" min={1} value={item.nbTours || 1} onChange={e => handleChange("nbTours", parseInt(e.target.value) || 1)} size="medium" className={getFieldWidthClass("Nombre de tours")} />
                   </div>
-                  { (item.nbTours > 1) && (
                   <div className="w-auto shrink-0 md:flex-1 mt-0 ml-4">
-                    <FloatingLabelInput label="Temps de repos entre les tours (s)" type="number" min={0} value={item.temps_repos_bloc || 0} onChange={e => handleChange("temps_repos_bloc", parseInt(e.target.value) || 0)} size="small" className={getFieldWidthClass("Temps de repos entre les tours (s)")} />
+                    <FloatingLabelInput label="Temps de repos après la section (s)" type="number" min={0} value={item.temps_repos_bloc || 0} onChange={e => handleChange("temps_repos_bloc", parseInt(e.target.value) || 0)} size="small" className={getFieldWidthClass("Temps de repos après la section (s)")} />
                   </div>
-                  )}
                 </div>
                 
                 {/* Configuration automatique des exercices */}
@@ -906,6 +904,27 @@ function StepContent({
                           </span>
                         </span>
                       </div>
+                      <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <FloatingLabelInput 
+                              label="Position de départ" 
+                              value={item.position_depart !== undefined ? item.position_depart : (exerciceInfos?.position_depart || "")} 
+                              onChange={e => handleChange("position_depart", e.target.value)}
+                              placeholder="Laisser vide pour ne pas afficher de position"
+                            />
+                          </div>
+                          {isFieldPersonalized('position_depart') && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetField('position_depart')}
+                              className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500"
+                              title="Remettre la valeur par défaut"
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          )}
+                        </div>
+                      {/* Description personnalisée */}
                         <div className="flex gap-2 items-center">
                           <div className="flex-1">
                             <FloatingLabelInput 
@@ -926,26 +945,7 @@ function StepContent({
                             </button>
                           )}
                         </div>
-                        <div className="flex gap-2 items-center">
-                          <div className="flex-1">
-                            <FloatingLabelInput 
-                              label="Position de départ" 
-                              value={item.position_depart !== undefined ? item.position_depart : (exerciceInfos?.position_depart || "")} 
-                              onChange={e => handleChange("position_depart", e.target.value)}
-                              placeholder="Laisser vide pour ne pas afficher de position"
-                            />
-                          </div>
-                          {isFieldPersonalized('position_depart') && (
-                            <button
-                              type="button"
-                              onClick={() => handleResetField('position_depart')}
-                              className="p-2 text-orange-400 hover:text-orange-300 transition-colors bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 hover:border-gray-500"
-                              title="Remettre la valeur par défaut"
-                            >
-                              <RotateCcw size={16} />
-                            </button>
-                          )}
-                        </div>
+                        
 
                       
                       {/* Conseils personnalisés */}
