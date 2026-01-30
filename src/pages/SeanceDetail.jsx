@@ -8,14 +8,15 @@ import SeanceService from "../services/seanceService";
 import FloatingLabelInput from "../components/ui/FloatingLabelInput";
 import FloatingSaveButton from "../components/ui/FloatingSaveButton";
 import NavigationPromptDialog from "../components/ui/NavigationPromptDialog";
+import ImportAIDialog, { ImportAIDialogTriggerIcon } from "../components/ui/ImportAIDialog";
 import Snackbar from "../components/Snackbar";
 import { useUser } from "../contexts/UserContext";
-import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, RotateCcw, Copy, X, Sparkles } from "lucide-react";
+import { Pencil, Calendar, BarChart2, Tag, Layers, User, CheckCircle, XCircle, Play, Trash2, RotateCcw, Copy, X } from "lucide-react";
 import { calculerTempsTotalSeance } from "../utils/helpers";
 import { genererEtapesDepuisStructure } from "../utils/genererEtapes";
 import { getActiveAIService, isAnyProviderConfigured } from "../services/aiService";
 import { filterExercicesByPrompt, formatExercicesCompact } from "../utils/exercicesPourIA.js";
-import { getPromptSeanceTemplate } from "../config/aiPrompts.js";
+import { getPromptSeanceTemplate } from "../utils/aiPrompts.js";
 
 // Composant pour sélectionner une séance à copier
 function SeanceCopySelector({ onSelect, onCancel }) {
@@ -153,27 +154,6 @@ export default function SeanceDetail() {
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [hasImportedData, setHasImportedData] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
-  const aiPromptInputRef = useRef(null);
-  const [copied, setCopied] = useState({ json: false, prompt: false });
-  
-  // États pour l'IA
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
-  const [generatedPromptForCopy, setGeneratedPromptForCopy] = useState('');
-  const [pasteJsonFromIA, setPasteJsonFromIA] = useState('');
-
-  // Fonctions pour l'import
-  const handleCopy = async (text, type) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(prev => ({ ...prev, [type]: true }));
-      setTimeout(() => setCopied(prev => ({ ...prev, [type]: false })), 2000);
-    } catch (err) {
-      console.error('Erreur lors de la copie:', err);
-    }
-  };
 
   // Fonction pour valider les exercices dans la structure (id null = exercice créé par l'IA, autorisé)
   const validateExercicesInStructure = (structure, availableExercices) => {
@@ -242,8 +222,8 @@ export default function SeanceDetail() {
   };
 
   // Construit le prompt complet à copier-coller dans un chat IA (quand pas de clé API)
-  const buildFullPromptForCopy = () => {
-    const filtered = filterExercicesByPrompt(aiPrompt || '', exercices || []);
+  const buildFullPromptForCopy = (userPrompt) => {
+    const filtered = filterExercicesByPrompt(userPrompt || '', exercices || []);
     const list = formatExercicesCompact(filtered);
     return `${getPromptSeanceTemplate()}
 
@@ -251,18 +231,17 @@ Liste des exercices disponibles (utilise uniquement ces "id" dans le JSON, n=nom
 ${JSON.stringify(list)}
 
 Description de la séance demandée :
-${aiPrompt}
+${userPrompt}
 
 Réponds uniquement avec le JSON de la séance, sans explication ni texte autour.`;
   };
 
-  const applyJsonToForm = (jsonText) => {
+  const applyJsonToForm = async (jsonText) => {
     try {
       const data = JSON.parse(jsonText);
       const validationResult = validateExercicesInStructure(data.structure, exercices);
       if (validationResult.hasErrors) {
-        setAiError(`Erreurs : ${validationResult.errors.join(', ')}`);
-        return;
+        return { success: false, error: validationResult.errors.join(', ') };
       }
       setForm({
         nom: data.nom || '',
@@ -274,70 +253,18 @@ Réponds uniquement avec le JSON de la séance, sans explication ni texte autour
         structure: data.structure || [],
         type_seance: data.type_seance || 'exercice'
       });
-      setShowAIDialog(false);
-      setPasteJsonFromIA('');
-      setGeneratedPromptForCopy('');
       setSnackbarMessage('Séance appliquée. Enregistrez pour finaliser.');
       setSnackbarType('success');
+      return { success: true };
     } catch (e) {
-      setAiError('JSON invalide. Collez uniquement le JSON retourné par l\'IA.');
+      return { success: false, error: 'JSON invalide. Collez uniquement le JSON retourné par l\'IA.' };
     }
   };
 
-  // Fonctions pour l'IA
-  const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) {
-      setAiError('Décrivez la séance souhaitée.');
-      return;
-    }
-    setAiError('');
-    setAiResponse('');
-
-    if (!isAnyProviderConfigured()) {
-      setGeneratedPromptForCopy(buildFullPromptForCopy());
-      setPasteJsonFromIA('');
-      return;
-    }
-
+  const generateSeanceWithAI = async (prompt) => {
     const aiService = await getActiveAIService();
-    if (!aiService) {
-      setGeneratedPromptForCopy(buildFullPromptForCopy());
-      setPasteJsonFromIA('');
-      return;
-    }
-
-    setAiLoading(true);
-    try {
-      const response = await aiService.generateSeance(aiPrompt, exercices);
-      setAiResponse(response);
-      setGeneratedPromptForCopy('');
-      try {
-        const data = JSON.parse(response);
-        const validationResult = validateExercicesInStructure(data.structure, exercices);
-        if (validationResult.hasErrors) {
-          setAiError(`Erreurs : ${validationResult.errors.join(', ')}`);
-          return;
-        }
-        setForm({
-          nom: data.nom || '',
-          description: data.description || '',
-          niveau_id: data.niveau_id ? String(data.niveau_id) : '',
-          type_id: data.type_id ? String(data.type_id) : '',
-          categorie_id: data.categorie_id ? String(data.categorie_id) : '',
-          notes: data.notes || '',
-          structure: data.structure || [],
-          type_seance: data.type_seance || 'exercice'
-        });
-        setSnackbarMessage('Séance générée et appliquée.');
-        setSnackbarType('success');
-      } catch (parseError) {
-        setAiError('Réponse IA invalide : ' + parseError.message);
-      }
-    } catch (error) {
-      setAiError(error.message || 'Erreur lors de la génération.');
-    } finally {
-      setAiLoading(false);
-    }
+    if (!aiService) return null;
+    return await aiService.generateSeance(prompt, exercices);
   };
 
   // Récupère les listes de référence
@@ -365,14 +292,6 @@ Réponds uniquement avec le JSON de la séance, sans explication ni texte autour
       setExercices([]);
     });
   }, [apiUrl]);
-
-  // Focus sur la description à l'ouverture du dialogue IA
-  useEffect(() => {
-    if (showAIDialog) {
-      const t = setTimeout(() => aiPromptInputRef.current?.focus(), 100);
-      return () => clearTimeout(t);
-    }
-  }, [showAIDialog]);
 
   // Charge la séance si mode detail/edit
   useEffect(() => {
@@ -685,7 +604,7 @@ Réponds uniquement avec le JSON de la séance, sans explication ni texte autour
             onClick: () => setShowCopyDialog(true)
           }] : []),
           {
-            icon: <Sparkles size={20} className="text-purple-400" />,
+            icon: <ImportAIDialogTriggerIcon />,
             label: 'Générer une séance avec l\'IA',
             onClick: () => setShowAIDialog(true)
           }
@@ -767,132 +686,39 @@ Réponds uniquement avec le JSON de la séance, sans explication ni texte autour
           </div>
         </div>
         
-        {/* Dialog IA : description + génération ou copier-coller */}
-        {showAIDialog && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-            onClick={e => {
-              if (e.target === e.currentTarget) setShowAIDialog(false);
-            }}
-          >
-            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-2xl border border-gray-700 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                onClick={() => { setShowAIDialog(false); setGeneratedPromptForCopy(''); setPasteJsonFromIA(''); setAiError(''); }}
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-              <h2 className="text-lg font-bold text-white mb-1">Générer une séance avec l&apos;IA</h2>
-              <p className="text-sm text-gray-400 mb-4">
-                Décrivez la séance, temps, exercices, etc.
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white">Description de la séance</label>
-                  <textarea
-                    ref={aiPromptInputRef}
-                    className="w-full h-28 p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                    placeholder="Ex : Échauffement 15 min puis renforcement..."
-                    value={aiPrompt}
-                    onChange={e => setAiPrompt(e.target.value)}
-                  />
+        <ImportAIDialog
+          open={showAIDialog}
+          onClose={() => setShowAIDialog(false)}
+          title="Générer une séance avec l'IA"
+          subtitle="Décrivez la séance, temps, exercices, etc."
+          descriptionLabel="Description de la séance"
+          promptPlaceholder="Ex : Échauffement 15 min puis renforcement..."
+          buildFullPrompt={buildFullPromptForCopy}
+          onApplyJson={applyJsonToForm}
+          generateWithAI={generateSeanceWithAI}
+          isAnyProviderConfigured={isAnyProviderConfigured}
+          texts={{
+            applyButtonLabel: "Appliquer cette séance",
+          }}
+          renderPreview={(aiResponse) => {
+            try {
+              const data = JSON.parse(aiResponse);
+              return (
+                <div className="space-y-2">
+                  <div><strong>Nom:</strong> {data.nom}</div>
+                  <div><strong>Structure:</strong> {data.structure?.length || 0} bloc(s)</div>
+                  {data.structure?.map((bloc, i) => (
+                    <div key={i} className="ml-4 border-l-2 border-gray-600 pl-2">
+                      {bloc.nom} — {bloc.contenu?.length || 0} ex.
+                    </div>
+                  ))}
                 </div>
-
-                {aiError && <div className="text-red-400 text-sm">{aiError}</div>}
-
-                {/* Pas de clé API : afficher le prompt à copier + zone pour coller le JSON */}
-                {generatedPromptForCopy && (
-                  <div className="space-y-3 rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
-                    <p className="text-amber-200 text-sm font-medium">
-                      Copiez le prompt ci-dessous dans un chat IA (ChatGPT, Claude…), puis collez le JSON retourné dans la zone prévue.
-                    </p>
-                    <div className="relative">
-                      <pre className="bg-black/70 text-gray-300 text-xs p-3 rounded overflow-x-auto max-h-48 whitespace-pre-wrap break-words pr-20">
-                        {generatedPromptForCopy}
-                      </pre>
-                      <button
-                        type="button"
-                        className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded"
-                        onClick={() => handleCopy(generatedPromptForCopy, 'prompt')}
-                      >
-                        <Copy size={14} /> {copied.prompt ? 'Copié !' : 'Copier'}
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">Collez ici le JSON retourné par l&apos;IA</label>
-                      <textarea
-                        className="w-full h-24 p-2 bg-gray-800 border border-gray-600 rounded text-white text-xs font-mono"
-                        placeholder='{"nom": "...", "structure": [...]}'
-                        value={pasteJsonFromIA}
-                        onChange={e => setPasteJsonFromIA(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium"
-                        onClick={() => applyJsonToForm(pasteJsonFromIA)}
-                      >
-                        Appliquer cette séance
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Réponse API : séance générée */}
-                {aiResponse && !generatedPromptForCopy && (
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-orange-300">Séance générée</h3>
-                    <div className="bg-black/70 text-white text-xs rounded p-3 overflow-x-auto max-h-48">
-                      {(() => {
-                        try {
-                          const data = JSON.parse(aiResponse);
-                          return (
-                            <div className="space-y-2">
-                              <div><strong>Nom:</strong> {data.nom}</div>
-                              <div><strong>Structure:</strong> {data.structure?.length || 0} bloc(s)</div>
-                              {data.structure?.map((bloc, i) => (
-                                <div key={i} className="ml-4 border-l-2 border-gray-600 pl-2">
-                                  {bloc.nom} — {bloc.contenu?.length || 0} ex.
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        } catch (e) {
-                          return <pre>{aiResponse}</pre>;
-                        }
-                      })()}
-                    </div>
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium"
-                      onClick={() => applyJsonToForm(aiResponse)}
-                    >
-                      Appliquer cette séance
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex justify-between gap-2 pt-2">
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                    onClick={() => { setShowAIDialog(false); setGeneratedPromptForCopy(''); setPasteJsonFromIA(''); setAiError(''); }}
-                  >
-                    Fermer
-                  </button>
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white font-semibold"
-                    onClick={handleAIGenerate}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? 'Génération...' : 'Générer' + (isAnyProviderConfigured() ? ' avec IA' : ' le prompt')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+              );
+            } catch (e) {
+              return <pre>{aiResponse}</pre>;
+            }
+          }}
+        />
 
         {/* Dialog de sélection de séance à copier */}
         {showCopyDialog && (

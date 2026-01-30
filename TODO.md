@@ -1,5 +1,9 @@
 # SmartSports - TODO & Roadmap
 
+- uniformiser les parties éditions en utilisant le design des exercices
+- voir en mobile pour que ca soit utilisable, import ia, édition...
+
+
 ## ✅ Réalisé
 
 ### **Interface & Design**

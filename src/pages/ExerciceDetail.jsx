@@ -8,8 +8,11 @@ import Snackbar from "../components/Snackbar";
 import ExerciceSelector from "../components/ui/ExerciceSelector";
 import FamilleSelector from "../components/ui/FamilleSelector";
 import DifficultyHelpDialog from "../components/ui/DifficultyHelpDialog";
+import ImportAIDialog, { ImportAIDialogTriggerIcon } from "../components/ui/ImportAIDialog";
 import { useSafeBlocker } from "../utils/useBlocker";
-import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, Upload, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle, Folder, ArrowUp, ArrowDown, Link, Dumbbell, Heart, Zap, Move, Shield, Brain, Edit, ArrowLeft } from "lucide-react";
+import { getActiveAIService, isAnyProviderConfigured } from "../services/aiService";
+import { getPromptExerciceTemplate } from "../utils/aiPrompts.js";
+import { Pencil, Clock, Target, AlertTriangle, Lightbulb, Users, Calendar, Activity, X, Trash2, HelpCircle, Copy, Tag, BarChart2, Layers, User, CheckCircle, XCircle, Folder, ArrowUp, ArrowDown, Link, Dumbbell, Heart, Zap, Move, Shield, Brain, Edit, ArrowLeft } from "lucide-react";
 import { useUser } from "../contexts/UserContext";
 
 export default function ExerciceDetail() {
@@ -42,8 +45,6 @@ export default function ExerciceDetail() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarType, setSnackbarType] = useState("success");
 
-  const [importJsonText, setImportJsonText] = useState('');
-  const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState({ json: false, prompt: false });
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -578,68 +579,44 @@ export default function ExerciceDetail() {
     setTimeout(() => setCopied(prev => ({ ...prev, [type]: false })), 1500);
   };
 
-  const handleImportJson = () => {
+  const cleanData = (value, defaultValue = '') => {
+    if (value === null || value === undefined) return defaultValue;
+    return value;
+  };
+
+  const arrayToString = (arr) => {
+    if (!Array.isArray(arr)) return '';
+    return arr.filter(item => item && typeof item === 'string').join('; ');
+  };
+
+  const applyExerciceJson = async (jsonText) => {
     try {
-      const data = JSON.parse(importJsonText);
-      
-      // Fonction pour nettoyer et valider les données
-      const cleanData = (value, defaultValue = '') => {
-        if (value === null || value === undefined) return defaultValue;
-        return value;
-      };
-      
-      // Fonction pour convertir un tableau en chaîne séparée par des points-virgules
-      const arrayToString = (arr) => {
-        if (!Array.isArray(arr)) return '';
-        return arr.filter(item => item && typeof item === 'string').join('; ');
-      };
-      
+      const data = JSON.parse(jsonText);
       setForm({
-        // Champs de base (toujours présents)
         nom: cleanData(data.nom),
         description: cleanData(data.description),
         position_depart: cleanData(data.position_depart),
-        
-        // Champs de catégorisation (peuvent être absents dans l'ancien système)
         categorie_id: cleanData(data.categorie_id),
         groupe_musculaire_id: cleanData(data.groupe_musculaire_id),
-        type_id: cleanData(data.type_id), // Ancien champ, ignoré si absent
-        
-        // Champs de famille (nouveau système)
+        type_id: cleanData(data.type_id),
         famille_id: cleanData(data.famille_id),
         famille_nom: cleanData(data.famille_nom),
-        
-        // Champs de difficulté (nouveau système)
         note_force: cleanData(data.note_force, 0),
         note_cardio: cleanData(data.note_cardio, 0),
         note_technique: cleanData(data.note_technique, 0),
         note_mobilite: cleanData(data.note_mobilite, 0),
         note_impact: cleanData(data.note_impact, 0),
         note_mentale: cleanData(data.note_mentale, 0),
-        
-        // Champs techniques
         duree_estimee: cleanData(data.duree_estimee) ? String(data.duree_estimee) : '',
         calories_estimees: cleanData(data.calories_estimees) ? String(data.calories_estimees) : '',
-        
-        // Champs de contenu (tableaux convertis en chaînes)
         muscles_sollicites: arrayToString(data.muscles_sollicites),
         erreurs: arrayToString(data.erreurs),
         conseils: arrayToString(data.conseils),
         focus_zone: arrayToString(data.focus_zone),
-        
-        // Variantes (peuvent être dans un objet ou directement)
-        variantes_plus_difficiles: data.variantes?.plus_difficiles 
-          ? arrayToString(data.variantes.plus_difficiles)
-          : arrayToString(data.variantes_plus_difficiles), // Ancien format
-        variantes_plus_faciles: data.variantes?.plus_faciles
-          ? arrayToString(data.variantes.plus_faciles)
-          : arrayToString(data.variantes_plus_faciles), // Ancien format
-        
-        // Médias
+        variantes_plus_difficiles: data.variantes?.plus_difficiles ? arrayToString(data.variantes.plus_difficiles) : arrayToString(data.variantes_plus_difficiles),
+        variantes_plus_faciles: data.variantes?.plus_faciles ? arrayToString(data.variantes.plus_faciles) : arrayToString(data.variantes_plus_faciles),
         image_url: cleanData(data.image_url),
         video_url: cleanData(data.video_url),
-        
-        // Champs de relations (nouveau système)
         exercice_plus_dur_id: cleanData(data.exercice_plus_dur_id),
         exercice_plus_dur_nom: cleanData(data.exercice_plus_dur_nom),
         exercice_plus_facile_id: cleanData(data.exercice_plus_facile_id),
@@ -647,24 +624,26 @@ export default function ExerciceDetail() {
         exercices_similaires: Array.isArray(data.exercices_similaires) ? data.exercices_similaires : [],
         exercices_similaires_noms: Array.isArray(data.exercices_similaires_noms) ? data.exercices_similaires_noms : []
       });
-      
-      setShowImportDialog(false);
-      setImportError('');
-    } catch (error) {
-      console.error('Erreur lors de l\'import JSON:', error);
-      setImportError(`Erreur de format JSON: ${error.message}`);
+      return { success: true };
+    } catch (err) {
+      console.error('Erreur lors de l\'import JSON:', err);
+      return { success: false, error: `Erreur de format JSON: ${err.message}` };
     }
   };
 
-  const handleImportFile = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImportJsonText(event.target.result);
-      };
-      reader.readAsText(file);
-    }
+  const buildFullPromptForExercice = (userPrompt) => {
+    return `${getPromptExerciceTemplate()}
+
+Description de l'exercice demandé :
+${userPrompt}
+
+Réponds uniquement avec le JSON, sans explication.`;
+  };
+
+  const generateExerciceWithAI = async (prompt) => {
+    const aiService = await getActiveAIService();
+    if (!aiService) return null;
+    return await aiService.generateExercice(prompt);
   };
 
   const handleDifficultyHelp = (difficultyType) => {
@@ -750,7 +729,7 @@ export default function ExerciceDetail() {
   if (mode === "new" || mode === "edit") {
     const pageTitle = mode === "new" ? "Nouvel exercice" : `Modifier ${exercice?.nom || 'l\'exercice'}`;
     const pageActions = [
-      { icon: <Upload size={20} />, label: 'Importer JSON', onClick: () => setShowImportDialog(true) }
+      { icon: <ImportAIDialogTriggerIcon />, label: "Générer un exercice avec l'IA", onClick: () => setShowImportDialog(true) }
     ];
 
     return (
@@ -1237,58 +1216,34 @@ export default function ExerciceDetail() {
           />
         )}
 
-        {/* Dialog Import JSON */}
-        {showImportDialog && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-            onClick={e => {
-              if (e.target === e.currentTarget) {
-                setShowImportDialog(false); setImportError('');
-              }
-            }}
-          >
-            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-lg border border-gray-700 relative" onClick={e => e.stopPropagation()}>
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                onClick={() => { setShowImportDialog(false); setImportError(''); }}
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-              <h2 className="text-lg font-bold text-white mb-4">Importer un exercice au format JSON</h2>
-              <textarea
-                className="w-full h-32 p-2 bg-gray-800 border border-gray-600 rounded mb-2 text-white"
-                placeholder="Collez ici le texte JSON..."
-                value={importJsonText}
-                onChange={e => setImportJsonText(e.target.value)}
-              />
-              <div className="flex items-center gap-2 mb-2">
-                <input type="file" accept="application/json,.json,.txt" onChange={handleImportFile} className="text-white" />
-                <span className="text-xs text-gray-400">ou choisir un fichier</span>
-              </div>
-              {importError && <div className="text-red-400 mb-2">{importError}</div>}
-              <div className="flex justify-between gap-2 mt-2">
-                <button
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                  onClick={() => setShowHelpDialog(true)}
-                  type="button"
-                >
-                  <HelpCircle size={18} /> Aide modèle JSON
-                </button>
-                <div className="flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                    onClick={() => { setShowImportDialog(false); setImportError(''); }}
-                  >Annuler</button>
-                  <button
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold"
-                    onClick={handleImportJson}
-                  >Importer</button>
+        <ImportAIDialog
+          open={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          title="Générer un exercice avec l'IA"
+          subtitle={"Décrivez le nom ou la description de l'exercice pour " + (isAnyProviderConfigured() ? "appeler l'IA." : "générer le prompt.")}
+          descriptionLabel="Nom ou description de l'exercice"
+          promptPlaceholder="Ex : Pompes, Pompes diamant, Pompes avec les mains écartées..."
+          buildFullPrompt={buildFullPromptForExercice}
+          onApplyJson={applyExerciceJson}
+          generateWithAI={generateExerciceWithAI}
+          isAnyProviderConfigured={isAnyProviderConfigured}
+          texts={{
+            applyButtonLabel: "Appliquer cet exercice",
+          }}
+          renderPreview={(aiResponse) => {
+            try {
+              const data = JSON.parse(aiResponse);
+              return (
+                <div className="space-y-2">
+                  <div><strong>Nom:</strong> {data.nom}</div>
+                  <div><strong>Description:</strong> {(data.description || '').slice(0, 80)}…</div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
+              );
+            } catch (e) {
+              return <pre className="whitespace-pre-wrap break-words">{aiResponse}</pre>;
+            }
+          }}
+        />
 
         {/* Dialog Aide JSON */}
         {showHelpDialog && (

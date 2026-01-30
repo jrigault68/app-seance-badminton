@@ -5,7 +5,7 @@
  */
 
 import { filterExercicesByPrompt, formatExercicesCompact } from '../utils/exercicesPourIA.js';
-import { getPromptSeanceTemplate, EXERCICES_PREFIX_SEANCE } from '../config/aiPrompts.js';
+import { getPromptSeanceTemplate, getPromptExerciceTemplate, EXERCICES_PREFIX_SEANCE } from '../utils/aiPrompts.js';
 
 const ENV = import.meta.env;
 const PROVIDER = ENV.VITE_AI_PROVIDER || 'openai';
@@ -146,6 +146,37 @@ class AIService {
         userPrompt
       }, 'seance_generation');
       const generatedText = data.seance ?? data.response ?? data.content ?? data;
+      if (typeof generatedText === 'object') return JSON.stringify(generatedText, null, 2);
+      raw = generatedText || '';
+    }
+
+    if (!raw) throw new Error('Aucune réponse générée par l\'IA');
+    return extractJsonFromText(raw);
+  }
+
+  async generateExercice(prompt) {
+    const provider = getActiveProvider();
+    if (!provider) throw new Error('Aucun fournisseur IA configuré. Configurez VITE_AI_PROVIDER et la clé/URL correspondante.');
+
+    const systemPrompt = getPromptExerciceTemplate();
+    const userPrompt = `Description de l'exercice demandé :\n${prompt}\n\nRéponds uniquement avec le JSON, sans explication.`;
+
+    let raw;
+    if (provider === 'openai') {
+      raw = await callOpenAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+    } else if (provider === 'claude') {
+      raw = await callClaude(systemPrompt, userPrompt);
+    } else {
+      const data = await callCustom({
+        prompt,
+        template: getPromptExerciceTemplate(),
+        systemPrompt,
+        userPrompt
+      }, 'exercice_generation');
+      const generatedText = data.exercice ?? data.response ?? data.content ?? data;
       if (typeof generatedText === 'object') return JSON.stringify(generatedText, null, 2);
       raw = generatedText || '';
     }

@@ -56,3 +56,45 @@ export function getPromptSeanceTemplate() {
   ]
 }`;
 }
+
+/** Template complet pour la génération d'un exercice (utilisé par aiService et par le copy-paste sans clé API) */
+export function getPromptExerciceTemplate() {
+  return `Tu es un expert en entraînement sportif. Génère un objet JSON pour un exercice sportif.
+Respecte strictement ce format et ces consignes :
+- Tutoiement partout dans les textes (description, conseils, erreurs, focus_zone, variantes).
+- La description doit décrire le mouvement à réaliser (après la position de départ), concise (1-2 phrases).
+- position_depart : position de départ en une phrase.
+- conseils, erreurs, focus_zone : tableaux de phrases complètes, positives, adaptées à une lecture vocale.
+- variantes : objet avec "plus_faciles" et "plus_difficiles", chacun un tableau de suggestions.
+- Notes de difficulté : valeurs entre 0 et 20 pour chaque aspect (note_force, note_cardio, note_technique, note_mobilite, note_impact, note_mentale).
+- duree_estimee en secondes et calories_estimees pour 1 répétition.
+- muscles_sollicites : tableau de chaînes.
+- Réponds uniquement avec le JSON, sans explication.
+
+Format JSON attendu :
+{
+  "nom": "<NOM_EXERCICE>",
+  "description": "",
+  "position_depart": "",
+  "categorie_id": 1,
+  "groupe_musculaire_id": 1,
+  "note_force": 0,
+  "note_cardio": 0,
+  "note_technique": 0,
+  "note_mobilite": 0,
+  "note_impact": 0,
+  "note_mentale": 0,
+  "erreurs": [],
+  "focus_zone": [],
+  "image_url": null,
+  "video_url": null,
+  "duree_estimee": 0,
+  "calories_estimees": 0,
+  "muscles_sollicites": [],
+  "variantes": {
+    "plus_faciles": [],
+    "plus_difficiles": []
+  },
+  "conseils": []
+}`;
+}
